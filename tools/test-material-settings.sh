@@ -5,7 +5,7 @@ set -uo pipefail
 adb shell setprop debug.hwui.drawing_enabled true
 ./gradlew -PbuildABI=x86_64 \
   -Pandroid.testInstrumentationRunnerArguments.class=org.fcitx.fcitx5.android.ui.main.MaterialSettingsPagesTest \
-  :app:connectedFxDebugAndroidTest
+  :app:connectedDebugAndroidTest
 test_result=$?
 if [[ "$test_result" -eq 0 ]]; then
   python3 tools/check-junit-results.py app/build/outputs/androidTest-results/connected

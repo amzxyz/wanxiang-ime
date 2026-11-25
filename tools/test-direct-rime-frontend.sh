@@ -20,7 +20,7 @@ frontend_test_filter=${frontend_test_filter%,}
 ./gradlew -PbuildABI=x86_64 \
   "-Pandroid.testInstrumentationRunnerArguments.class=$frontend_test_filter" \
   '-Pandroid.testInstrumentationRunnerArguments.notClass=org.fcitx.fcitx5.android.core.DirectRimeFrontendTest#diagnoseColdCandidateCore' \
-  :app:connectedFxDebugAndroidTest
+  :app:connectedDebugAndroidTest
 test_result=$?
 
 if [ "$test_result" -eq 0 ]; then
@@ -28,7 +28,7 @@ if [ "$test_result" -eq 0 ]; then
 fi
 
 if [ "$test_result" -eq 0 ]; then
-  for apk in app/build/outputs/apk/fx/debug/*.apk; do
+  for apk in app/build/outputs/apk/debug/*.apk; do
     python3 tools/verify-direct-rime-apk.py "$apk" || test_result=$?
   done
 fi

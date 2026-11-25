@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <string name="app_name_release">Fcitx5.fx.rime</string>
-    <string name="app_name_debug">Fcitx5.fx.rime (Debug)</string>
+    <string name="app_name_release">Wanxiang IME</string>
+    <string name="app_name_debug">Wanxiang IME Debug</string>
     <string name="save">Save</string>
     <string name="input_methods">Input Methods</string>
     <string name="rime_settings">Rime engine settings</string>

@@ -45,9 +45,10 @@ PY
         cd "$checkout_dir"
         if [ "$label" = fcitx ]; then ./prepare_personal_build.sh; fi
         git diff --exit-code -- app/src/main app/build.gradle.kts settings.gradle.kts build-logic
-        ./gradlew -PbuildABI=x86_64 -Pkotlin.compiler.execution.strategy=in-process --max-workers=2 :app:assembleFxDebug :app:assembleFxDebugAndroidTest
-        cp app/build/outputs/apk/fx/debug/*.apk "$output_dir/$label.apk"
-        cp app/build/outputs/apk/androidTest/fx/debug/*.apk "$output_dir/$label-tests.apk"
+        source "$repo_dir/tools/benchmark-android-variant.sh"
+        ./gradlew -PbuildABI=x86_64 -Pkotlin.compiler.execution.strategy=in-process --max-workers=2 :app:assemble"${benchmark_variant}" :app:assemble"${benchmark_variant}"AndroidTest
+        cp app/build/outputs/apk/"${benchmark_apk_dir}"/*.apk "$output_dir/$label.apk"
+        cp app/build/outputs/apk/androidTest/"${benchmark_apk_dir}"/*.apk "$output_dir/$label-tests.apk"
         ./gradlew --stop
     )
     echo "$revision" > "$output_dir/$label-commit.txt"

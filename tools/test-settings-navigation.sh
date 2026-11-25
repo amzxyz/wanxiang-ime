@@ -87,5 +87,5 @@ adb shell screencap -p /data/local/tmp/settings-startup.png
 } > "$report/environment.txt"
 ./gradlew -PbuildABI=x86_64 \
   -Pandroid.testInstrumentationRunnerArguments.class=org.fcitx.fcitx5.android.ui.main.SettingsNavigationGesturesTest \
-  :app:connectedFxDebugAndroidTest
+  :app:connectedDebugAndroidTest
 python3 tools/check-junit-results.py app/build/outputs/androidTest-results/connected

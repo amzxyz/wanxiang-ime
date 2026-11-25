@@ -15,7 +15,7 @@
 
 ## 当前状态
 
-首次迁移先保留上游锁定的 SDK，以验证独立安装与 Android 构建链路；尚未切换到 EVO SDK；前端 JNI 已改为 EVO 公共编码选择接口，旧 SDK 构建不显示编码选择栏。应用图标采用临时独立 W 标识。内部 Java/Kotlin 与 JNI 命名空间暂保留，避免破坏已有原生接口。正式安装包 ID 为 com.amzxyz.wanxiang.ime，Debug 为 com.amzxyz.wanxiang.ime.debug。
+首次迁移先保留上游锁定的 SDK，以验证独立安装与 Android 构建链路；Debug CI 已切换到 EVO SDK；前端 JNI 使用 EVO 公共编码选择接口，旧 SDK 构建不显示编码选择栏。应用图标采用临时独立 W 标识。内部 Java/Kotlin 与 JNI 命名空间暂保留，避免破坏已有原生接口。正式安装包 ID 为 com.amzxyz.wanxiang.ime，Debug 为 com.amzxyz.wanxiang.ime.debug，显示名称为「万象输入法 Debug」，可以同时安装。项目仅保留 debug/release 构建类型，不使用产品 flavor。Gradle 任务为 `:app:assembleDebug` / `:app:assembleRelease`，输出为 `app/build/outputs/apk/debug/` / `app/build/outputs/apk/release/`。CI 下载产物为 `wanxiang-debug.apk`。
 
 wanxiang 为正式分支，dev 为开发分支。Debug APK 从 [Actions](https://github.com/amzxyz/wanxiang-ime/actions) 下载，验证通过后再发起 dev → wanxiang PR。当前不发布正式签名包。
 

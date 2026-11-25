@@ -11,7 +11,6 @@ plugins {
 }
 
 val packageBase = "org.fcitx.fcitx5.android"
-val flavorFx = "fx"
 val imeSettingsActivity = "$packageBase.ui.main.MainActivity"
 val inputDiagnostics = providers.gradleProperty("inputDiagnostics").orNull == "true"
 
@@ -22,7 +21,7 @@ android {
         applicationId = "com.amzxyz.wanxiang.ime"
         buildConfigField("boolean", "INPUT_DIAGNOSTICS", inputDiagnostics.toString())
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        manifestPlaceholders["appLabel"] = "@string/direct_rime_app_name"
+        manifestPlaceholders["appLabel"] = "@string/app_name_release"
         resValue("string", "ime_settings_activity", imeSettingsActivity)
 
         @Suppress("UnstableApiUsage")
@@ -31,14 +30,6 @@ android {
                 arguments("-DINPUT_DIAGNOSTICS=${if (inputDiagnostics) "ON" else "OFF"}")
                 targets("direct-rime")
             }
-        }
-    }
-
-    flavorDimensions += "brand"
-    productFlavors {
-        create(flavorFx) {
-            dimension = "brand"
-            buildConfigField("boolean", "IS_FX_BUILD", "true")
         }
     }
 
@@ -57,9 +48,10 @@ android {
             proguardFile("proguard-rules.pro")
         }
         debug {
+            manifestPlaceholders["appLabel"] = "@string/app_name_debug"
             resValue("mipmap", "app_icon", "@mipmap/ic_launcher_debug")
             resValue("mipmap", "app_icon_round", "@mipmap/ic_launcher_round_debug")
-            resValue("string", "app_name", "万象输入法")
+            resValue("string", "app_name", "万象输入法 Debug")
         }
     }
 

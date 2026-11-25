@@ -109,3 +109,6 @@ __pycache__/
 # Downloaded and verified versioned Android Rime SDK
 /native/rime-sdk/
 /native/.rime-sdk*
+
+# Staged CI APKs and audit reports
+/dist/

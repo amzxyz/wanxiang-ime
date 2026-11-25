@@ -54,17 +54,23 @@ jobs:
       - name: Build current EVO engine against verified dependency SDK
         run: |
           python3 tools/build-evo-sdk.py --core .ci/evo --dependencies native/rime-sdk --output "$RUNNER_TEMP/evo-sdk" --abi "$BUILD_ABI"
-      - run: ./gradlew :app:assembleFxDebug -PlocalRimeSdkDir="$RUNNER_TEMP/evo-sdk"
-      - run: |
-          python3 tools/verify-direct-rime-apk.py app/build/outputs/apk/fx/debug/*.apk
-          python3 tools/audit-direct-rime-link.py app/build/outputs/apk/fx/debug/*.apk > native-link-audit.json
+      - run: ./gradlew :app:assembleDebug -PlocalRimeSdkDir="$RUNNER_TEMP/evo-sdk"
+      - name: Verify and stage Debug APK
+        run: |
+          mkdir -p dist
+          apks=(app/build/outputs/apk/debug/*.apk)
+          test "${#apks[@]}" -eq 1
+          test -f "${apks[0]}"
+          package=$("$ANDROID_HOME/cmdline-tools/latest/bin/apkanalyzer" manifest application-id "${apks[0]}")
+          test "$package" = com.amzxyz.wanxiang.ime.debug
+          cp "${apks[0]}" dist/wanxiang-debug.apk
+          python3 tools/verify-direct-rime-apk.py dist/wanxiang-debug.apk
+          python3 tools/audit-direct-rime-link.py dist/wanxiang-debug.apk > dist/native-link-audit.json
       - uses: actions/upload-artifact@v7
         with:
           name: Wanxiang-IME-arm64-debug
-          path: |
-            app/build/outputs/apk/fx/debug/*.apk
-            native-link-audit.json
+          path: dist/
           if-no-files-found: error
-      - run: ./gradlew :app:testFxDebugUnitTest -PlocalRimeSdkDir="$RUNNER_TEMP/evo-sdk"
+      - run: ./gradlew :app:testDebugUnitTest -PlocalRimeSdkDir="$RUNNER_TEMP/evo-sdk"
       - run: python3 tools/check-junit-results.py
       - run: ./gradlew -PdirectRimePrototype=true -PbuildABI="$BUILD_ABI" :direct-rime:assembleDebugAndroidTest -PlocalRimeSdkDir="$RUNNER_TEMP/evo-sdk"
