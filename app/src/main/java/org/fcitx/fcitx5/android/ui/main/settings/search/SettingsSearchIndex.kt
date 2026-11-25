@@ -114,7 +114,7 @@ object SettingsSearchIndex {
     /** 「中州韵引擎」：首页分栏及其子页面。 */
     private val P_RIME =
         listOf(R.string.settings_search_group_android, R.string.settings_home_category_rime_engine)
-    private val P_ENGINE = P_ANDROID + R.string.rime_settings
+    private val P_ENGINE = P_RIME + R.string.rime_settings
     private val P_SCHEME = P_RIME + R.string.wanxiang_group
     private val P_CANDIDATES =
         listOf(R.string.settings_search_group_android, R.string.candidates_window)

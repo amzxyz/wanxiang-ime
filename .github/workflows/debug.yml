@@ -65,6 +65,7 @@ jobs:
           test "$package" = com.amzxyz.wanxiang.ime.debug
           cp "${apks[0]}" dist/wanxiang-debug.apk
           python3 tools/verify-direct-rime-apk.py dist/wanxiang-debug.apk
+          python3 -c 'import json, subprocess, zipfile; m = json.loads(zipfile.ZipFile("dist/wanxiang-debug.apk").read("assets/bundled/rime-sdk-manifest.json")); assert m["engine_family"] == "evo"; assert m["librime_commit"] == subprocess.check_output(["git", "-C", ".ci/evo", "rev-parse", "HEAD"], text=True).strip()'
           python3 tools/audit-direct-rime-link.py dist/wanxiang-debug.apk > dist/native-link-audit.json
       - uses: actions/upload-artifact@v7
         with:

@@ -122,7 +122,6 @@ class SettingsEntryNavigationTest {
         assertEquals(
             listOf(
                 activity.getString(R.string.rime_settings),
-                activity.getString(R.string.rime_engine_variants_title),
                 activity.getString(R.string.wanxiang_group)
             ),
             rimeEngine.entries().map { it.title }
