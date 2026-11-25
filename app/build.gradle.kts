@@ -89,6 +89,10 @@ run {
         dependsOn(rootProject.tasks.named("prepareRimeSdk"))
         into(directAssets)
         from("src/main/assets") { exclude("usr/**", "descriptor.json") }
+        from(rootProject.file("native/rime-sdk/sdk-manifest.json")) {
+            into("bundled")
+            rename { "rime-sdk-manifest.json" }
+        }
         into("usr/share/rime-data") {
             from(rootProject.file("native/rime-data"))
             from(rootProject.file("native/rime-prelude")) { include("key_bindings.yaml", "punctuation.yaml", "symbols.yaml") }

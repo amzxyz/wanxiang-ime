@@ -4,7 +4,7 @@
     <string name="app_name_debug">Wanxiang IME Debug</string>
     <string name="save">Save</string>
     <string name="input_methods">Input Methods</string>
-    <string name="rime_settings">Rime engine settings</string>
+    <string name="rime_settings">Rime engine</string>
     <string name="addons">Addons</string>
     <string name="conf">Configuration</string>
     <string name="global_options">Global Options</string>
@@ -1255,7 +1255,8 @@
     <string name="rime_engine_ready">Engine list is ready</string>
     <string name="rime_engine_fallback_title">Engine fallback</string>
     <string name="rime_engine_builtin_section">Built-in engine</string>
-    <string name="rime_engine_builtin_name">Built-in SandyYuR/librime</string>
+    <string name="rime_engine_builtin_name">Built-in engine</string>
+    <string name="rime_engine_builtin_evo_name">Built-in librime-evo</string>
     <string name="rime_engine_builtin_details">Packaged in this APK · Working directory: %1$s</string>
     <string name="rime_engine_imported_section">Imported .so engines</string>
     <string name="rime_engine_import_so">Import .so engine</string>

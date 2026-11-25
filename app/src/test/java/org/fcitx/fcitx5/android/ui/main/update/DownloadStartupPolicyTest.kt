@@ -22,7 +22,7 @@ class DownloadStartupPolicyTest {
     }
     @Test fun theMergedManifestDoesNotInitializeWorkManagerOnImeStartup() {
         val document = DocumentBuilderFactory.newInstance().apply { isNamespaceAware = true }.newDocumentBuilder()
-            .parse(File("build/intermediates/merged_manifest/fxDebug/processFxDebugMainManifest/AndroidManifest.xml"))
+            .parse(File("build/intermediates/merged_manifest/debug/processDebugMainManifest/AndroidManifest.xml"))
         val metadata = document.getElementsByTagName("meta-data")
         for (i in 0 until metadata.length) {
             assertNotEquals("androidx.work.WorkManagerInitializer", metadata.item(i).attributes

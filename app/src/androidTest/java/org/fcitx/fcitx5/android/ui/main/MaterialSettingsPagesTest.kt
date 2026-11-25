@@ -503,20 +503,30 @@ class MaterialSettingsPagesTest {
         }
     }
 
-    @Test fun rimeEngineEntrySummaryStaysOnOneLine() {
-        // The entry now lives on the settings home page instead of the «输入与候选» group.
+    @Test fun rimeEngineVariantsAreFirstInsideEngineSettings() {
         page(MainActivity::class.java, ready = { activity ->
             descendants(activity.window.decorView).filterIsInstance<TextView>().any {
-                it.isShown && it.height > 0 &&
-                    it.text == activity.getString(R.string.rime_engine_variants_summary)
+                it.isShown && it.text == activity.getString(R.string.rime_settings)
             }
         }) { activity ->
-            val summary = descendants(activity.window.decorView).filterIsInstance<TextView>().single {
-                it.isShown && it.text == activity.getString(R.string.rime_engine_variants_summary)
+            assertFalse(descendants(activity.window.decorView).filterIsInstance<TextView>().any {
+                it.isShown && it.text == activity.getString(R.string.rime_engine_variants_title)
+            })
+        }
+        page(MainActivity::class.java, extras = {
+            action = Intent.ACTION_RUN
+            putExtra(MainActivity.EXTRA_SETTINGS_ROUTE,
+                SettingsRoute.InputMethodConfig(context.getString(R.string.rime_settings), "rime"))
+        }, ready = { activity ->
+            descendants(activity.window.decorView).filterIsInstance<TextView>().any {
+                it.isShown && it.text == activity.getString(R.string.rime_engine_variants_title)
             }
-            assertEquals(1, summary.maxLines)
-            assertEquals(android.text.TextUtils.TruncateAt.END, summary.ellipsize)
-            assertEquals(1, summary.lineCount)
+        }) { activity ->
+            val navHost = (activity as MainActivity).supportFragmentManager
+                .findFragmentById(R.id.nav_host_fragment) as androidx.navigation.fragment.NavHostFragment
+            val fragment = navHost.childFragmentManager.primaryNavigationFragment
+                as org.fcitx.fcitx5.android.ui.main.settings.im.InputMethodConfigFragment
+            assertEquals("rime_engine_variants", fragment.preferenceScreen.getPreference(0).key)
         }
     }
 
