@@ -20,3 +20,9 @@ OrderedSpellingTabSdkTest 使用 build/dictionaries 下的 algebra，
 真机或模拟器运行需另行执行 connectedDebugAndroidTest。
 
 Android LuaJIT 交叉编译只构建 `libluajit.a` 及 VM 对象，不构建独立 `luajit` 命令行程序；避免宿主机 strip 处理目标架构 ELF。CMake 脚本显式启用现代条件判断策略。
+
+## 选择动作与界面边界
+
+JNI action 4 的 Snapshot.handled 直接反映 select_code_choice 的返回值。无接口、越界或内核拒绝时返回 handled=false，仍读取并发布当前有效快照。Kotlin 的受保护选择入口仅在 ready && handled 时返回成功。负数标签 ID 不进入 JNI；原清除 action 7 的编号保留为拒绝操作，不再作为业务接口调用。
+
+后续公共选择器设计建议（尚未实现）：选择器为键盘布局的通用组件（code_choices），不按方案 ID 或拼音类型推导关系。布局决定是否显示及位置，当前引擎返回的选项决定是否有内容。可使用布局的 auto/on/off 策略，默认 auto；如需要方案推荐布局，可使用独立的布局提示字段而非把方案名称写死在选择器中。选择器只消费现有快照与动作 API，无额外内核配置。

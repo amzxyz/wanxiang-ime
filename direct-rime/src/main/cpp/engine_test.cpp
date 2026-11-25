@@ -54,7 +54,8 @@ struct Fake {
     int statusReads = 0, freedStatus = 0, statusFailures = 0;
     int contextNotifications = 0, tabsNotifications = 0, statusNotifications = 0;
     size_t selectedStart = 0, selectedSpan = 0, selectedGlobal = 999, deletedGlobal = 999, caret = 999, tabSpan = 3;
-    int freedIterator = 0, cleared = 0, clearedTabs = 0;
+    int freedIterator = 0, cleared = 0;
+    bool rejectCodeChoice = false;
     std::string commit, selectedLabel, preedit, clientApp, distribution, version, tabLabel = "ni";
     std::string selectedReplacement, tabReplacement = "ni\'";
     size_t tabStart = 1;
@@ -336,6 +337,7 @@ RimeApi api() {
     };
     a.free_code_choices = [](RimeCodeChoice*, size_t) { ++f.freedTabs; };
     a.select_code_choice = [](RimeSessionId, size_t start, size_t end, const char* replacement) -> Bool {
+        if (f.rejectCodeChoice) return false;
         f.selectedStart = start; f.selectedSpan = end - start; f.selectedReplacement = replacement; return true;
     };
 #endif
@@ -358,10 +360,20 @@ void testInputContract() {
     CHECK(result.optionsRevision == initial.optionsRevision);
     auto selected = engine.action(1, result.revision, 4, 0, "");
 #ifdef RIME_EVO_CODE_CHOICES
-    CHECK(f.selectedStart == 1 && f.selectedReplacement == "ni'" && f.selectedSpan == 3 && selected.commit.empty());
+    CHECK(f.selectedStart == 1 && f.selectedReplacement == "ni'" && f.selectedSpan == 3 && selected.commit.empty() && selected.handled);
+    f.rejectCodeChoice = true;
+    selected = engine.action(1, selected.revision, 4, 0, "");
+    CHECK(selected.gate == Ready && !selected.handled && selected.commit.empty());
+    f.rejectCodeChoice = false;
 #else
-    CHECK(f.selectedSpan == 0 && selected.commit.empty());
+    CHECK(f.selectedSpan == 0 && selected.commit.empty() && !selected.handled);
 #endif
+    selected = engine.action(1, selected.revision, 4, -1, "");
+    CHECK(selected.gate == Ready && !selected.handled);
+    selected = engine.action(1, selected.revision, 4, 999, "");
+    CHECK(selected.gate == Ready && !selected.handled);
+    selected = engine.action(1, selected.revision, 7, -1, "");
+    CHECK(selected.gate == Ready && !selected.handled && selected.commit.empty());
     CHECK(engine.action(1, result.revision, 1, 0, "").gate == Stale && f.selected == -1);
     auto candidateSelected = engine.action(1, selected.revision, 1, 0, ""); CHECK(f.selected == 0);
     auto unchangedTabs = engine.key(1, 'x', 0, true);
@@ -874,7 +886,7 @@ void testSessionReuseAndEditorIsolation() {
     auto rebound = engine.begin(2, "editor.one");
     CHECK(f.created == 1 && f.destroyed == 0 && !f.noLearning && f.clientApp == "editor.one");
     CHECK(rebound.preedit.empty() && rebound.candidates.empty() && rebound.tabs.empty() && rebound.commit.empty());
-    CHECK(f.freedCommit == 1 && f.clearedTabs == 0);
+    CHECK(f.freedCommit == 1);
     CHECK(engine.key(1, 'i', 0, false).gate == Stale && f.keys == 1);
     CHECK(engine.action(1, typed.revision, 1, 0, "").gate == Stale && f.selected == -1);
     // Ending a field is idempotent and gates both key-down and key-up.

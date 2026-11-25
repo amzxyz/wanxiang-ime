@@ -76,6 +76,7 @@ class CandidateActionGuardTest {
             assertFalse(backend.triggerCandidateListTabActionIfCurrent(CandidateTabActionTarget(context, 0)))
             assertFalse(backend.triggerCandidateListTabActionIfCurrent(CandidateTabActionTarget(context, -1)))
         }
+        assertFalse(backend.triggerCandidateListTabActionIfCurrent(CandidateTabActionTarget(expectedTab, -1)))
         assertFalse(backend.triggerCandidateListTabActionIfCurrent(CandidateTabActionTarget(expectedTab, -2)))
     }
 

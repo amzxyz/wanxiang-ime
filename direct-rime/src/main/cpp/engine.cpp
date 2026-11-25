@@ -506,6 +506,7 @@ Snapshot Engine::action(int64_t generation, int64_t revision, int action, int in
     if (gate(generation) != Ready) return snapshot(generation);
     if (revision != revision_) { Snapshot s; s.generation = generation; s.gate = Stale; return s; }
     const auto inputStatistics = captureInputStatistics(statistics);
+    bool handled = action != 13;
     { CoreTrace core("rime.direct.action_core", timing_);
       switch (action) {
     case 0: api_->clear_composition(session_); break;
@@ -513,11 +514,12 @@ Snapshot Engine::action(int64_t generation, int64_t revision, int action, int in
     case 2: if (RIME_API_AVAILABLE(api_, change_page)) api_->change_page(session_, index < 0); break;
     case 3: api_->set_option(session_, "ascii_mode", false); api_->select_schema(session_, value.c_str()); break;
     case 4:
+        handled = false;
 #ifdef RIME_EVO_CODE_CHOICES
         if (index >= 0 && static_cast<size_t>(index) < tabs_.size() &&
             RIME_API_AVAILABLE(api_, select_code_choice)) {
             const auto& choice = tabs_[index];
-            api_->select_code_choice(session_, choice.start, choice.end, choice.replacement.c_str());
+            handled = api_->select_code_choice(session_, choice.start, choice.end, choice.replacement.c_str());
         }
 #endif
         break;
@@ -526,7 +528,9 @@ Snapshot Engine::action(int64_t generation, int64_t revision, int action, int in
             api_->delete_candidate_on_current_page(session_, index);
         break;
     case 6: setOption("ascii_mode", !api_->get_option(session_, "ascii_mode")); break;
-    case 7: break; // Code choices are actual input edits, not independent tab constraints.
+    case 7: // Reserved former clear-tabs action; never report success.
+        handled = false;
+        break;
     case 8: setOption(value, index != 0); break;
     case 9: if (index >= 0 && RIME_API_AVAILABLE(api_, set_caret_pos)) api_->set_caret_pos(session_, index); break;
     case 10: api_->commit_composition(session_); break;
@@ -557,7 +561,7 @@ Snapshot Engine::action(int64_t generation, int64_t revision, int action, int in
     }
     default: throw std::invalid_argument("unknown direct Rime action");
       } }
-    return snapshot(generation, action != 13, inputStatistics);
+    return snapshot(generation, handled, inputStatistics);
 }
 int64_t Engine::captureInputStatistics(bool requested) const {
     if (!requested || sessionNoLearning_ || !RIME_API_AVAILABLE(api_, get_input)) return -1;
