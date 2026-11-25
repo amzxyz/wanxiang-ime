@@ -221,16 +221,22 @@ class DirectRimeInteractionContractTest {
         assertEquals(listOf(1 to 3, 11 to 3, 11 to 3), native.actions)
     }
 
-    @Test fun legacyForgetAndTabEntrypointsKeepTheirDistinctIndexValidation() = runBlocking {
+    @Test fun legacyForgetEntrypointsAndCodeChoicesValidateTheirOwnIndices() = runBlocking {
         backend.triggerCandidateAction(-1, 0)
         backend.triggerGlobalCandidateAction(-1, 0)
         backend.triggerCandidateListTabAction(-2)
-        assertEquals(listOf(5 to -1, 12 to -1, 4 to -2), native.actions)
+        backend.triggerCandidateListTabAction(-1)
+        assertEquals(listOf(5 to -1, 12 to -1), native.actions)
+
         native.clearCalls()
         assertFalse(backend.triggerCandidateActionIfCurrent(-1, 0, false, backend.candidateActionContext))
-        assertFalse(backend.triggerCandidateListTabActionIfCurrent(CandidateTabActionTarget(backend.candidateTabActionContext, -2)))
+        val context = backend.candidateTabActionContext
+        assertFalse(backend.triggerCandidateListTabActionIfCurrent(CandidateTabActionTarget(context, -2)))
+        assertFalse(backend.triggerCandidateListTabActionIfCurrent(CandidateTabActionTarget(context, -1)))
         assertTrue(native.actions.isEmpty())
-        assertTrue(backend.triggerCandidateListTabActionIfCurrent(CandidateTabActionTarget(backend.candidateTabActionContext, -1)))
-        assertEquals(listOf(7 to -1), native.actions)
+
+        assertTrue(backend.triggerCandidateListTabActionIfCurrent(CandidateTabActionTarget(context, 0)))
+        backend.triggerCandidateListTabAction(0)
+        assertEquals(listOf(4 to 0, 4 to 0), native.actions)
     }
 }
