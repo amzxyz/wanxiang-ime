@@ -67,4 +67,4 @@ jobs:
           if-no-files-found: error
       - run: ./gradlew :app:testFxDebugUnitTest -PlocalRimeSdkDir="$RUNNER_TEMP/evo-sdk"
       - run: python3 tools/check-junit-results.py
-      - run: ./gradlew :direct-rime:assembleDebugAndroidTest -PlocalRimeSdkDir="$RUNNER_TEMP/evo-sdk"
+      - run: ./gradlew -PdirectRimePrototype=true -PbuildABI="$BUILD_ABI" :direct-rime:assembleDebugAndroidTest -PlocalRimeSdkDir="$RUNNER_TEMP/evo-sdk"
