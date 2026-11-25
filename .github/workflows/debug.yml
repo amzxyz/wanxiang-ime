@@ -32,6 +32,12 @@ jobs:
           path: .ci/evo/plugins/lua
           submodules: recursive
           persist-credentials: false
+      - uses: actions/checkout@v7
+        with:
+          repository: amzxyz/librime-evo-octagram
+          ref: f9652e7ed0e699d55588418ae492edddeaf28360
+          path: .ci/evo/plugins/octagram
+          persist-credentials: false
       - uses: actions/setup-python@v6
         with:
           python-version: '3.12'

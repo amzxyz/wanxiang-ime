@@ -96,6 +96,7 @@ class OrderedSpellingTabSdkTest {
                 state = RimeRuntime.action(state, 4, tab)!!
                 assertTrue(state.gateMessage, state.ready)
                 assertTrue(state.commit.isEmpty())
+                assertEquals("$label'", RimeRuntime.rawInput(state)?.text)
                 retained.forEach { assertTrue(it in state.candidates) }
                 excluded.forEach { assertFalse(it in state.candidates) }
             }

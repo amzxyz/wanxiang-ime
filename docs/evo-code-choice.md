@@ -2,9 +2,9 @@
 
 内核契约：[Prism 公共编码选择](https://github.com/amzxyz/librime-evo/blob/dev/docs/code_choice.zh-CN.md)。
 
-Debug CI 每次 checkout librime-evo/dev，固定 EVO Lua 插件版本，使用已校验 SDK
+Debug CI 每次 checkout librime-evo/dev，固定 EVO Lua 与 EVO Octagram 插件版本，使用已校验 SDK
 的 LevelDB、Marisa、yaml-cpp 依赖库（检查与 EVO gitlink 一致），从源码编译
-当前核心与内嵌 LuaJIT。旧 SDK 的 librime、Lua、OpenCC 静态库不参与 EVO 链接。
+当前核心、内嵌 LuaJIT 与 Octagram。旧 SDK 的 librime、Lua、OpenCC 静态库不参与 EVO 链接。
 OpenCC 数据仍作为原有资源保留。SDK manifest 记录核心 commit/tree、插件 commit、
 Android 构建适配及依赖来源。通过真实最终链接探针后，交给 Gradle localRimeSdkDir。
 正式 release 仍走原有固定 SDK 发布机制，不自动替换。

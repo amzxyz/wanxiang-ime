@@ -68,6 +68,7 @@ def main():
     tree = git(core, "rev-parse", "HEAD^{tree}")
     plugin = core / "plugins/lua"
     lua_commit = git(plugin, "rev-parse", "HEAD")
+    octagram_commit = git(core / "plugins/octagram", "rev-parse", "HEAD")
     sdk = Path(os.environ["ANDROID_HOME"])
     ndk = sdk / "ndk" / NDK
     cmake = sdk / "cmake" / CMAKE / "bin/cmake"
@@ -117,7 +118,7 @@ def main():
             f"-DCMAKE_TOOLCHAIN_FILE={ndk / 'build/cmake/android.toolchain.cmake'}",
             f"-DANDROID_ABI={abi}", "-DANDROID_PLATFORM=23", "-DANDROID_STL=c++_shared",
             "-DBUILD_SHARED_LIBS=OFF", "-DBUILD_STATIC=ON", "-DBUILD_MERGED_PLUGINS=ON",
-            "-DBUILD_TEST=OFF", "-DBUILD_DATA=OFF", "-DALSO_LOG_TO_STDERR=ON",
+            "-DBUILD_TEST=OFF", "-DBUILD_TOOLS=OFF", "-DBUILD_DATA=OFF", "-DALSO_LOG_TO_STDERR=ON",
             f"-DCMAKE_INSTALL_PREFIX={install}", "-DCMAKE_INSTALL_LIBDIR=lib",
             f"-DBoost_INCLUDE_DIR={boost}", "-DBoost_NO_BOOST_CMAKE=ON",
             f"-DLUAJIT_ANDROID_CC={target_cc}", "-DCMAKE_CXX_FLAGS=-DBOOST_ALL_NO_EMBEDDED_GDB_SCRIPTS",
@@ -159,7 +160,8 @@ def main():
     provenance.parent.mkdir(parents=True)
     provenance.write_text(json.dumps({
         "librime_repository": "amzxyz/librime-evo", "librime_commit": commit,
-        "source_tree": tree, "lua_commit": lua_commit, "lua_android_recipe_sha256": patch_digest,
+        "source_tree": tree, "lua_commit": lua_commit, "octagram_commit": octagram_commit,
+        "lua_android_recipe_sha256": patch_digest,
         "abi": abi, "ndk": NDK, "cmake": CMAKE, "boost_sha256": BOOST_SHA,
         "dependency_sdk": dependency_manifest["librime_commit"],
         "link_smoke_test": "passed",
