@@ -19,7 +19,7 @@ android {
     namespace = packageBase
 
     defaultConfig {
-        applicationId = "org.fcitx.fcitx5.android.fx.rime"
+        applicationId = "com.amzxyz.wanxiang.ime"
         buildConfigField("boolean", "INPUT_DIAGNOSTICS", inputDiagnostics.toString())
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         manifestPlaceholders["appLabel"] = "@string/direct_rime_app_name"
@@ -53,13 +53,13 @@ android {
         release {
             resValue("mipmap", "app_icon", "@mipmap/ic_launcher")
             resValue("mipmap", "app_icon_round", "@mipmap/ic_launcher_round")
-            resValue("string", "app_name", "中州鹅")
+            resValue("string", "app_name", "万象输入法")
             proguardFile("proguard-rules.pro")
         }
         debug {
             resValue("mipmap", "app_icon", "@mipmap/ic_launcher_debug")
             resValue("mipmap", "app_icon_round", "@mipmap/ic_launcher_round_debug")
-            resValue("string", "app_name", "中州鹅")
+            resValue("string", "app_name", "万象输入法")
         }
     }
 

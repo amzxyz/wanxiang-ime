@@ -55,7 +55,7 @@
             android:lineSpacingExtra="4dp"
             android:textAppearance="?attr/textAppearanceBodyLarge"
             android:textColor="?attr/colorOnSurfaceVariant"
-            tools:text="在系统设置中启用中州鹅" />
+            tools:text="在系统设置中启用万象输入法" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/action_button"

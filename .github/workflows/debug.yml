@@ -1,0 +1,43 @@
+name: Wanxiang Debug APK
+on:
+  push:
+    branches: [dev]
+  pull_request:
+    branches: [wanxiang]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  debug:
+    if: github.event_name != 'push' || !github.event.created
+    runs-on: ubuntu-22.04
+    env:
+      BUILD_ABI: arm64-v8a
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          submodules: recursive
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: platform-tools
+      - uses: gradle/actions/setup-gradle@v6
+      - run: python3 tools/prepare-ci-ndk.py
+      - run: ./prepare_personal_build.sh
+      - run: ./gradlew :app:assembleFxDebug
+      - run: |
+          python3 tools/verify-direct-rime-apk.py app/build/outputs/apk/fx/debug/*.apk
+          python3 tools/audit-direct-rime-link.py app/build/outputs/apk/fx/debug/*.apk > native-link-audit.json
+      - uses: actions/upload-artifact@v7
+        with:
+          name: Wanxiang-IME-arm64-debug
+          path: |
+            app/build/outputs/apk/fx/debug/*.apk
+            native-link-audit.json
+          if-no-files-found: error
+      - run: ./gradlew :app:testFxDebugUnitTest
+      - run: python3 tools/check-junit-results.py

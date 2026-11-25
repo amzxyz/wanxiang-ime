@@ -9,7 +9,7 @@ parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--apks', type=Path, required=True)
 parser.add_argument('--fixture', type=Path, required=True)
 parser.add_argument('--output', type=Path, required=True)
-parser.add_argument("--package", choices=["org.fcitx.fcitx5.android.fx.rime", "io.github.sandyyur.rime.direct"], default="org.fcitx.fcitx5.android.fx.rime", help="Use the historical application ID to replay older APKs")
+parser.add_argument("--package", choices=["com.amzxyz.wanxiang.ime", "io.github.sandyyur.rime.direct"], default="com.amzxyz.wanxiang.ime", help="Use the historical application ID to replay older APKs")
 args = parser.parse_args()
 args.output.mkdir(parents=True, exist_ok=True)
 package = args.package

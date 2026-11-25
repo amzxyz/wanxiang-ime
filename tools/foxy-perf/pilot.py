@@ -53,7 +53,7 @@ def main():
     p = argparse.ArgumentParser(description=__doc__)
     for key in ['foxy', 'direct', 'host', 'fixture', 'output']:
         p.add_argument('--'+key, type=Path, required=True)
-    p.add_argument("--direct-package", choices=["org.fcitx.fcitx5.android.fx.rime", "io.github.sandyyur.rime.direct"], default="org.fcitx.fcitx5.android.fx.rime")
+    p.add_argument("--direct-package", choices=["com.amzxyz.wanxiang.ime", "io.github.sandyyur.rime.direct"], default="com.amzxyz.wanxiang.ime")
     a = p.parse_args()
     a.output.mkdir(parents=True, exist_ok=True)
     assert adb('get-serialno').startswith('emulator-'), 'Disposable emulator only'

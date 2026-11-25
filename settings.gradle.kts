@@ -16,7 +16,7 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "fcitx5-android"
+rootProject.name = "wanxiang-ime"
 
 include(":lib:common")
 include(":codegen")

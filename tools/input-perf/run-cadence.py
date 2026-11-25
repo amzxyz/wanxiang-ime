@@ -208,7 +208,7 @@ def run(args):
                 print(f'Testing {label} fresh process {trial + 1}', flush=True)
                 adb('shell', 'am', 'force-stop', host)
                 adb('shell', 'pm', 'clear', host)
-                for other in ('org.fcitx.fcitx5.android.fx.rime.debug', 'io.github.sandyyur.rime.direct', 'org.fcitx.fcitx5.android.fx.rime'):
+                for other in ('com.amzxyz.wanxiang.ime.debug', 'io.github.sandyyur.rime.direct', 'com.amzxyz.wanxiang.ime'):
                     adb('shell', 'am', 'force-stop', other)
                 adb('shell', 'am', 'force-stop', package)
                 adb('logcat', '-c')
