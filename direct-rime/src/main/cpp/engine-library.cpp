@@ -229,8 +229,11 @@ EngineLibraryInfo validate(RimeApi* api) {
     capability(RIME_API_AVAILABLE(api, user_config_open) && RIME_API_AVAILABLE(api, config_set_bool),
                "user-config");
     capability(RIME_API_AVAILABLE(api, find_module), "modules");
-    capability(RIME_API_AVAILABLE(api, get_input_tabs) && RIME_API_AVAILABLE(api, free_input_tabs) &&
-                   RIME_API_AVAILABLE(api, select_tab) && RIME_API_AVAILABLE(api, clear_tabs), "input-tabs");
+#ifdef RIME_EVO_CODE_CHOICES
+    capability(RIME_API_AVAILABLE(api, get_code_choices) &&
+                   RIME_API_AVAILABLE(api, free_code_choices) &&
+                   RIME_API_AVAILABLE(api, select_code_choice), "input-tabs");
+#endif
     return result;
 }
 

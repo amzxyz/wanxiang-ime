@@ -26,7 +26,7 @@ class Snapshot(
     val labels: Array<String>,
     /** -1 when not collected; otherwise pre-operation UTF-16 length << 1 plus the command bit. */
     val inputStatistics: Long = -1L,
-    /** Changes only when the selectable tab labels or spans change. */
+    /** Changes when a selectable code's label, raw range or replacement changes. */
     val tabsRevision: Long = 0L
 ) {
     companion object {
