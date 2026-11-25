@@ -98,8 +98,16 @@ def main():
     new = '"CC=\\"@LUAJIT_ANDROID_CC@\\""'
     if original.count(old) != 1 or original.count('"TARGET_SYS=@CMAKE_SYSTEM_NAME@"') != 1:
         raise RuntimeError("LuaJIT cross-build recipe changed; review Android adaptation")
-    template.write_text(original.replace(old, new).replace(
-        '"TARGET_SYS=@CMAKE_SYSTEM_NAME@"', '"TARGET_SYS=Linux"'))
+    # Only the VM objects/static library are consumed by librime. Building
+    # the standalone Android executable needlessly invokes the host strip.
+    make_command = '"@luajit_make@" -j2 ${make_args}'
+    if original.count(make_command) != 1:
+        raise RuntimeError("LuaJIT make invocation changed; review Android adaptation")
+    template.write_text(
+        "cmake_minimum_required(VERSION 3.20)\n" +
+        original.replace(old, new).replace(
+            '"TARGET_SYS=@CMAKE_SYSTEM_NAME@"', '"TARGET_SYS=Linux"').replace(
+            make_command, make_command + ' libluajit.a'))
     patch_digest = digest(template)
 
     with tempfile.TemporaryDirectory(prefix="evo-android-", dir=os.environ.get("RUNNER_TEMP")) as temporary:

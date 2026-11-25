@@ -18,3 +18,5 @@ OrderedSpellingTabSdkTest 使用 build/dictionaries 下的 algebra，
 覆盖严格子集收窄、非数字异长编码、相等集合不产生选项。
 不再以空 tabs 为由跳过失败用例。CI 编译 instrumentation APK，
 真机或模拟器运行需另行执行 connectedDebugAndroidTest。
+
+Android LuaJIT 交叉编译只构建 `libluajit.a` 及 VM 对象，不构建独立 `luajit` 命令行程序；避免宿主机 strip 处理目标架构 ELF。CMake 脚本显式启用现代条件判断策略。
