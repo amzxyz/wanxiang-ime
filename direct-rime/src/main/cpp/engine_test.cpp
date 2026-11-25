@@ -428,13 +428,13 @@ void testMaintenanceAndAbi() {
     a.data_size = offsetof(RimeApi, change_page) - sizeof(a.data_size);
 #endif
     Engine engine(&a); engine.start("shared", "user", "1.2.3-test");
-    CHECK(f.distribution == "万象输入法" && f.version == "1.2.3-test");
+    CHECK(f.distribution == "wanxiang-ime" && f.version == "1.2.3-test");
     auto result = engine.begin(1, "editor"); CHECK(result.tabs.empty() && f.freedTabs == 0);
     f.failDeploy = true; CHECK(!engine.deploy());
     CHECK(engine.begin(2, "editor").gate == DeployFailed);
     CHECK(engine.key(2, 'a', 0, false).handled && f.keys == 0);
     f.failDeploy = false; CHECK(engine.deploy());
-    CHECK(f.distribution == "万象输入法" && f.version == "1.2.3-test");
+    CHECK(f.distribution == "wanxiang-ime" && f.version == "1.2.3-test");
     CHECK(engine.begin(3, "editor").gate == Ready);
     CHECK(f.setups == 1 && f.initialized == 3 && f.finalized == 2);
     f.failLaunch = true; CHECK(!engine.deploy());

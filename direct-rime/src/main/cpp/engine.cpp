@@ -381,7 +381,7 @@ void Engine::initialize(bool fullCheck) {
     RimeTraits traits{}; RIME_STRUCT_INIT(RimeTraits, traits);
     traits.shared_data_dir = shared_.c_str(); traits.user_data_dir = user_.c_str();
     traits.app_name = "rime.direct-android"; traits.distribution_name = "万象输入法";
-    traits.distribution_code_name = "万象输入法"; traits.distribution_version = version_.c_str();
+    traits.distribution_code_name = "wanxiang-ime"; traits.distribution_version = version_.c_str();
     // librime applies min_log_level in setup(), which runs once per process; a later start
     // cannot change it, so the developer switch takes effect after the app restarts.
     traits.log_dir = ""; traits.min_log_level = minLogLevel_;
