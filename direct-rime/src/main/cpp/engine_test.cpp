@@ -56,7 +56,7 @@ struct Fake {
     size_t selectedStart = 0, selectedSpan = 0, selectedGlobal = 999, deletedGlobal = 999, caret = 999, tabSpan = 3;
     int freedIterator = 0, cleared = 0;
     bool rejectCodeChoice = false;
-    std::string commit, selectedLabel, preedit, clientApp, distribution, version, tabLabel = "ni";
+    std::string commit, selectedLabel, preedit, clientApp, appName, distribution, version, tabLabel = "ni";
     std::string selectedReplacement, tabReplacement = "ni\'";
     size_t tabStart = 1;
     std::string schema = "test", schemaName = "Test";
@@ -141,7 +141,7 @@ void notifyOptionIfRequested(int& count) {
 }
 RimeApi api() {
     RimeApi a{}; RIME_STRUCT_INIT(RimeApi, a);
-    a.setup = [](RimeTraits* traits) { ++f.setups; f.logLevel = traits->min_log_level; };
+    a.setup = [](RimeTraits* traits) { ++f.setups; f.logLevel = traits->min_log_level; f.appName = traits->app_name; };
     a.initialize = [](RimeTraits* traits) {
         ++f.initialized; f.distribution = traits->distribution_code_name; f.version = traits->distribution_version;
     };
@@ -428,13 +428,13 @@ void testMaintenanceAndAbi() {
     a.data_size = offsetof(RimeApi, change_page) - sizeof(a.data_size);
 #endif
     Engine engine(&a); engine.start("shared", "user", "1.2.3-test");
-    CHECK(f.distribution == "wanxiang-ime" && f.version == "1.2.3-test");
+    CHECK(f.appName == "rime.wanxiang" && f.distribution == "wanxiang-ime" && f.version == "1.2.3-test");
     auto result = engine.begin(1, "editor"); CHECK(result.tabs.empty() && f.freedTabs == 0);
     f.failDeploy = true; CHECK(!engine.deploy());
     CHECK(engine.begin(2, "editor").gate == DeployFailed);
     CHECK(engine.key(2, 'a', 0, false).handled && f.keys == 0);
     f.failDeploy = false; CHECK(engine.deploy());
-    CHECK(f.distribution == "wanxiang-ime" && f.version == "1.2.3-test");
+    CHECK(f.appName == "rime.wanxiang" && f.distribution == "wanxiang-ime" && f.version == "1.2.3-test");
     CHECK(engine.begin(3, "editor").gate == Ready);
     CHECK(f.setups == 1 && f.initialized == 3 && f.finalized == 2);
     f.failLaunch = true; CHECK(!engine.deploy());
