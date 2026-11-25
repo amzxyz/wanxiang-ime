@@ -56,7 +56,11 @@ def audit_map(path, cache, prebuilt):
     text = path.read_text()
     assert not re.search(r"\bfcitx(?:5)?::|_Z\S*[56]fcitx", text), "Fcitx C++ symbols in native map"
     abi = cache["ANDROID_ABI"]
-    expected = {(prebuilt / lib / abi / "lib" / name).resolve(): lib for lib, name in PREBUILT.items()}
+    manifest = json.loads((prebuilt / "sdk-manifest.json").read_text())
+    libraries = PREBUILT if manifest.get("engine_family") != "evo" else {
+        lib: name for lib, name in PREBUILT.items() if lib not in {"lua", "opencc"}
+    }
+    expected = {(prebuilt / lib / abi / "lib" / name).resolve(): lib for lib, name in libraries.items()}
     ndk = Path(cache["CMAKE_ANDROID_NDK"]).resolve()
     contributions = defaultdict(set)
     for line in text.splitlines():
@@ -76,7 +80,7 @@ def audit_map(path, cache, prebuilt):
             allowed = archive.name in NDK_ARCHIVES or re.fullmatch(r"libclang_rt\.builtins-[\w-]+\.a", archive.name)
             assert archive.is_relative_to(ndk) and allowed, f"Unexpected static archive: {archive}"
             runtime[archive.name] = len(objects)
-    assert found.keys() == PREBUILT.keys(), f"Missing expected engine archives: {PREBUILT.keys() - found.keys()}"
+    assert found.keys() == libraries.keys(), f"Missing expected engine archives: {libraries.keys() - found.keys()}"
     return {"abi": abi, "static_prebuilt_archives": found, "ndk_archives": runtime,
             "fcitx_cpp_symbols": [], "map_sha256": hashlib.sha256(path.read_bytes()).hexdigest()}
 

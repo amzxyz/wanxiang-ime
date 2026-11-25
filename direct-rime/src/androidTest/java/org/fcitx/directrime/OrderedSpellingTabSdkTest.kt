@@ -8,109 +8,36 @@ import java.util.zip.ZipOutputStream
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.*
 import org.junit.Test
-import org.junit.Assume.assumeTrue
 
-/** Exercise EVO raw-input code selection with normal spelling algebra. */
+/** Real compiled Prism 7.0 and JNI code-choice contract. No keymap. */
 class OrderedSpellingTabSdkTest {
-    @Test fun transformationBeforeDerivationDoesNotInventRelation(): Unit = runBlocking {
-        selectTabWithAlgebra(
-            listOf("xform/^qi$/ri/", "derive/^qi$/pi/"),
-            keys = "74", label = "pi",
-            before = setOf("皮", "七", "日"),
-            retained = setOf("皮"), excluded = setOf("七", "日")
+    @Test fun strictSubsetSelectionUsesOriginalInput(): Unit = runBlocking {
+        exercise(
+            listOf("derive/^(.*)$/\\U${'$'}1/", "xlit/ABCDEFGHIJKLMNOPQRSTUVWXYZ/22233344455566677778889999/"),
+            "986", "zuo", setOf("巡", "云", "尊", "做", "左"), setOf("做", "左"),
+            setOf("巡", "云", "尊"), listOf("xun", "yun", "zun", "zuo")
         )
     }
 
-    @Test fun actualDerivationSurvivesTheSameNineKeyCode(): Unit = runBlocking {
-        selectTabWithAlgebra(
-            listOf("derive/^qi$/pi/"),
-            keys = "74", label = "pi",
-            before = setOf("皮", "七", "日"),
-            retained = setOf("皮", "七"), excluded = setOf("日")
+    @Test fun differentLengthNonNumericChoice(): Unit = runBlocking {
+        exercise(
+            listOf("derive/^xun$/mix/", "derive/^yun$/mix/", "derive/^xun$/q/"),
+            "mix", "q", setOf("巡", "云"), setOf("巡"), setOf("云"), null
         )
     }
 
-    @Test fun toneMarkedDerivationSurvivesLaterNormalization(): Unit = runBlocking {
-        selectTabWithAlgebra(
-            listOf("derive/^shēng$/shēn/", "xform/ē/e/"),
-            keys = "7436", label = "shen",
-            before = setOf("沈", "甥"),
-            retained = setOf("沈", "甥"), excluded = emptySet()
-        )
+    @Test fun equalSetsDoNotProduceChoices(): Unit = runBlocking {
+        exercise(listOf("derive/^xun$/alias/"), "alias", null, setOf("巡"),
+            emptySet(), emptySet(), emptyList())
     }
 
-    @Test fun literalZuanTabKeepsFuzzySingleSyllables(): Unit = runBlocking {
-        selectTabWithAlgebra(
-            fuzzyT9Algebra,
-            keys = "9826", label = "zuan",
-            before = setOf("转", "专", "装", "钻"),
-            retained = setOf("转", "专", "装", "钻"), excluded = emptySet(),
-            dictionaryEntries = fuzzyT9Entries, expectedTabs = listOf("zuan"),
-            encoding = uppercaseT9Encoding
-        )
-    }
-
-    @Test fun oneWayInitialThenFinalKeepsReachableSyllables(): Unit = runBlocking {
-        selectOneWayZan(listOf("derive/^zh/z/", "derive/([āáǎàa])ng$/${'$'}1n/"))
-    }
-
-    @Test fun oneWayFinalThenInitialKeepsReachableSyllables(): Unit = runBlocking {
-        selectOneWayZan(listOf("derive/([āáǎàa])ng$/${'$'}1n/", "derive/^zh/z/"))
-    }
-
-    @Test fun nextLiteralShuTabKeepsFuzzyPhrase(): Unit = runBlocking {
-        selectTabWithAlgebra(
-            fuzzyT9Algebra,
-            keys = "9826748", label = "zuan",
-            before = setOf("专属"), retained = setOf("专属"), excluded = emptySet(),
-            dictionaryEntries = fuzzyT9Entries, expectedTabs = listOf("zuan"),
-            encoding = uppercaseT9Encoding, nextLabel = "shu"
-        )
-    }
-
-    private suspend fun selectOneWayZan(fuzzyRules: List<String>) {
-        // Only zh -> z and ang -> an are allowed; nine-key collisions with
-        // wan/yan must not become fuzzy relations in either rule order.
-        selectTabWithAlgebra(
-            fuzzyRules + listOf(toneNormalization, "derive/^(.*)$/\\U${'$'}1/"),
-            keys = "926", label = "zan",
-            before = setOf("赞", "站", "脏", "张", "湾", "烟"),
-            retained = setOf("赞", "站", "脏", "张"), excluded = setOf("湾", "烟"),
-            dictionaryEntries = "赞\tzan\t100\n站\tzhan\t100\n脏\tzang\t100\n" +
-                "张\tzhang\t100\n湾\twan\t100\n烟\tyan\t100\n",
-            expectedTabs = listOf("wan", "yan", "zan"), encoding = uppercaseT9Encoding
-        )
-    }
-
-    private val toneNormalization =
-        "xlit/āáǎàōóǒòēéěèīíǐìūúǔùǖǘǚǜüńňǹ/aaaaooooeeeeiiiiuuuuvvvvvnnn/"
-    private val uppercaseT9Encoding =
-        "xlit/ABCDEFGHIJKLMNOPQRSTUVWXYZ/22233344455566677778889999/"
-    // The relevant ordered rules from the native tone-marked Wanxiang fixture.
-    // Uppercase derive is an encoding branch, and must still supply literal tabs.
-    private val fuzzyT9Algebra = listOf(
-        "derive/^([zcs])h/${'$'}1/", "derive/^([zcs])([^h])/${'$'}1h${'$'}2/",
-        "derive/([^jqxy])u([āáǎàa])ng$/${'$'}1u${'$'}2n/",
-        "derive/([^jqxy])u([āáǎàa])n$/${'$'}1u${'$'}2ng/",
-        "derive/([^iuy])([āáǎàa])ng$/${'$'}1${'$'}2n/",
-        "derive/([^iuy])([āáǎàa])n$/${'$'}1${'$'}2ng/",
-        toneNormalization, "derive/^(.*)$/\\U${'$'}1/"
-    )
-    private val fuzzyT9Entries =
-        "转\tzhuǎn\t100\n专\tzhuān\t100\n装\tzhuāng\t100\n钻\tzuān\t100\n" +
-        "速\tsù\t100\n属\tshǔ\t100\n转速\tzhuǎn sù\t1000\n专属\tzhuān shǔ\t1000\n"
-
-    private suspend fun selectTabWithAlgebra(
-        algebra: List<String>, keys: String, label: String,
+    private suspend fun exercise(
+        algebra: List<String>, keys: String, label: String?,
         before: Set<String>, retained: Set<String>, excluded: Set<String>,
-        dictionaryEntries: String = "皮\tpi\t100\n七\tqi\t100\n日\tri\t100\n" +
-            "生\tsheng\t100\n沈\tshen\t100\n甥\tshēng\t80\n",
-        expectedTabs: List<String>? = null,
-        encoding: String = "xlit/abcdefghijklmnopqrstuvwxyz/22233344455566677778889999/",
-        nextLabel: String? = null
+        expectedTabs: List<String>?
     ) {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
-        val rules = algebra.filterNot { it.contains("\\\\U") }.joinToString("\n") { "    - $it" }
+        val rules = algebra.joinToString("\n") { "            - $it" }
         val files = mapOf(
             "default.yaml" to "config_version: '1.0'\nschema_list:\n  - schema: sdk_ordered_tabs\n",
             "sdk_ordered_tabs.schema.yaml" to """
@@ -125,28 +52,20 @@ class OrderedSpellingTabSdkTest {
                 speller:
                   alphabet: 'abcdefghijklmnopqrstuvwxyz23456789'
                   delimiter: " '"
-                  keymap:
-                    "2": abc
-                    "3": def
-                    "4": ghi
-                    "5": jkl
-                    "6": mno
-                    "7": pqrs
-                    "8": tuv
-                    "9": wxyz
-                  algebra:
-            """.trimIndent() + "\n" + rules + "\n" + """
                 translator:
                   dictionary: sdk_ordered_tabs
+                  prism: choices
                   enable_user_dict: false
-                  enable_sentence: false
                   enable_completion: false
-                menu:
-                  page_size: 20
-            """.trimIndent() + "\n",
+                build:
+                  dictionaries:
+                    sdk_ordered_tabs:
+                      algebra:
+                        choices:
+            """.trimIndent() + "\n" + rules + "\nmenu:\n  page_size: 20\n",
             "sdk_ordered_tabs.dict.yaml" to
                 "---\nname: sdk_ordered_tabs\nversion: '1.0'\nsort: by_weight\n...\n" +
-                dictionaryEntries
+                "巡\txun\t100\n云\tyun\t100\n尊\tzun\t100\n做\tzuo\t100\n左\tzuo\t90\n"
         )
         val profile = ByteArrayOutputStream().apply {
             ZipOutputStream(this).use { zip ->
@@ -158,46 +77,30 @@ class OrderedSpellingTabSdkTest {
             }
         }.toByteArray()
         try {
-            assertTrue("The ordered-spelling profile must deploy", RimeRuntime.deploy(
+            assertTrue("The EVO profile must deploy", RimeRuntime.deploy(
                 context, profile = { ByteArrayInputStream(profile) }
             ))
             val generation = RimeRuntime.newGeneration()
-            var state = RimeRuntime.begin(context, generation, "sdk.ordered-tabs")!!
+            var state = RimeRuntime.begin(context, generation, "sdk.code-choice")!!
             assertTrue(state.gateMessage, state.ready)
             assertEquals("sdk_ordered_tabs", state.schema)
             keys.forEach { state = RimeRuntime.key(generation, it.code)!! }
-            assumeTrue("Requires EVO code-choice SDK", state.tabs.isNotEmpty())
             before.forEach { candidate ->
-                assertTrue("Before selecting $label: ${state.candidates.contentToString()}",
+                assertTrue("Before selection: ${state.candidates.contentToString()}",
                     candidate in state.candidates)
             }
-            for ((selection, selectedLabel) in listOfNotNull(label, nextLabel).withIndex()) {
-                val fullTabs = if (selection == 0) expectedTabs else listOf(selectedLabel)
-                if (fullTabs != null) {
-                    // These fixtures use multi-letter syllables; initial/raw-key tabs
-                    // have one character. Native keeps raw ranges and replacements behind these labels.
-                    assertTrue("Full code choices for $keys: ${state.tabs.contentToString()}",
-                        state.tabs.toList().containsAll(fullTabs))
-                }
-                val tab = state.tabs.indexOf(selectedLabel)
-                assertTrue("Missing $selectedLabel tab: ${state.tabs.contentToString()}", tab >= 0)
-                // Action 4 edits the current snapshot's raw range using EVO's replacement.
+            expectedTabs?.let { assertEquals(it.toSet(), state.tabs.toSet()) }
+            if (label != null) {
+                val tab = state.tabs.indexOf(label)
+                assertTrue("Missing $label: ${state.tabs.contentToString()}", tab >= 0)
                 state = RimeRuntime.action(state, 4, tab)!!
                 assertTrue(state.gateMessage, state.ready)
-                assertTrue("Selecting a syllable tab must not commit text", state.commit.isEmpty())
-                retained.forEach { candidate ->
-                    assertTrue("After selecting $selectedLabel: ${state.candidates.contentToString()}",
-                        candidate in state.candidates)
-                }
-                excluded.forEach { candidate ->
-                    assertFalse("Unrelated $candidate after selecting $selectedLabel: ${state.candidates.contentToString()}",
-                        candidate in state.candidates)
-                }
+                assertTrue(state.commit.isEmpty())
+                retained.forEach { assertTrue(it in state.candidates) }
+                excluded.forEach { assertFalse(it in state.candidates) }
             }
             RimeRuntime.end(generation)
         } finally {
-            // Match the other SDK smoke tests: stop the fixture engine and restore the
-            // deterministic smoke profile in this diagnostic APK's sandbox.
             assertTrue(RimeRuntime.deploy(context, smoke = true))
         }
     }

@@ -18,17 +18,37 @@ jobs:
         with:
           fetch-depth: 0
           submodules: recursive
+      - uses: actions/checkout@v7
+        with:
+          repository: amzxyz/librime-evo
+          ref: dev
+          path: .ci/evo
+          submodules: recursive
+          persist-credentials: false
+      - uses: actions/checkout@v7
+        with:
+          repository: amzxyz/librime-evo-lua
+          ref: 2129aa76ad0bc922f970d2d7f87380168761a012
+          path: .ci/evo/plugins/lua
+          submodules: recursive
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
       - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
       - uses: android-actions/setup-android@v4
         with:
-          packages: platform-tools
+          packages: 'platform-tools cmake;3.31.6'
       - uses: gradle/actions/setup-gradle@v6
       - run: python3 tools/prepare-ci-ndk.py
       - run: ./prepare_personal_build.sh
-      - run: ./gradlew :app:assembleFxDebug
+      - name: Build current EVO engine against verified dependency SDK
+        run: |
+          python3 tools/build-evo-sdk.py --core .ci/evo --dependencies native/rime-sdk --output "$RUNNER_TEMP/evo-sdk" --abi "$BUILD_ABI"
+      - run: ./gradlew :app:assembleFxDebug -PlocalRimeSdkDir="$RUNNER_TEMP/evo-sdk"
       - run: |
           python3 tools/verify-direct-rime-apk.py app/build/outputs/apk/fx/debug/*.apk
           python3 tools/audit-direct-rime-link.py app/build/outputs/apk/fx/debug/*.apk > native-link-audit.json
@@ -39,5 +59,6 @@ jobs:
             app/build/outputs/apk/fx/debug/*.apk
             native-link-audit.json
           if-no-files-found: error
-      - run: ./gradlew :app:testFxDebugUnitTest
+      - run: ./gradlew :app:testFxDebugUnitTest -PlocalRimeSdkDir="$RUNNER_TEMP/evo-sdk"
       - run: python3 tools/check-junit-results.py
+      - run: ./gradlew :direct-rime:assembleDebugAndroidTest -PlocalRimeSdkDir="$RUNNER_TEMP/evo-sdk"

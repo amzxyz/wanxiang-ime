@@ -60,7 +60,8 @@ internal data class RimeSdkManifest(
     val sources_lock_sha256: String,
     val files: Map<String, String>,
     val development: Boolean = false,
-    val source_tree: String? = null
+    val source_tree: String? = null,
+    val engine_family: String? = null
 )
 
 internal object RimeSdkArchive {
@@ -145,8 +146,13 @@ internal object RimeSdkArchive {
             }
             require(name.substringBefore('/') in libraries.keys + "licenses") { "Unexpected development SDK component" }
         }
+        require(manifest.engine_family == null || manifest.engine_family == "evo") {
+            "Unsupported development SDK engine family"
+        }
+        val requiredLibraries = if (manifest.engine_family == "evo")
+            libraries - setOf("lua", "opencc") else libraries
         for (abi in manifest.abis) {
-            for ((library, filename) in libraries) require("$library/$abi/lib/$filename" in manifest.files)
+            for ((library, filename) in requiredLibraries) require("$library/$abi/lib/$filename" in manifest.files)
             require("librime/$abi/include/rime_api.h" in manifest.files)
             require("librime/$abi/share/rime/source-manifest.json" in manifest.files)
         }
