@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
   "repository": "SandyYuR/librime",
-  "tag": "android-sdk-20261120-1",
+  "tag": "android-sdk-20261125-3",
   "asset": "rime-android-sdk.zip",
-  "sha256": "fb574ba438a4287325fbe5d984549968b5387f0ce7ecd7e0ab0cdb361713e80f",
-  "librime_commit": "7c61add03d395ca651a1cca9dfd8f31807298a8d",
-  "upstream_commit": "bb56876890ba60f446fa2640c244b1794b965eda",
+  "sha256": "d62efe3d1d008ab6809a8f7c0cfaba382494bed27eb905b6be6d7e04860e7e7d",
+  "librime_commit": "8c92891fe08149b753c375ba71b5049dc2a7c40b",
+  "upstream_commit": "f70ae3c0b2dab61553cc74516268c0633a93dba0",
   "abis": [
     "armeabi-v7a",
     "arm64-v8a",
