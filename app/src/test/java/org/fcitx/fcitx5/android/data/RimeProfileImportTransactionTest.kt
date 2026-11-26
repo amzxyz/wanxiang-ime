@@ -64,6 +64,35 @@ class RimeProfileImportTransactionTest {
         }
     }
 
+    @Test fun bundledRestoreUsesSeparateNamedDirectory() {
+        val imports = temporary.newFolder("bundled-imports")
+        val parent = temporary.newFolder("bundled-profiles")
+        val archive = File(imports, "profile.zip")
+        zip(archive, "default.yaml" to "schema_list: []")
+        File(parent, "wanxiang").mkdir()
+        File(parent, "wanxiang/personal.txt").writeText("keep")
+        val transaction = RimeProfileImportTransaction.prepare(
+            archive.absolutePath, imports, parent, setOf("wanxiang"),
+            timestamp = 100, preferredName = "wanxiang",
+        )
+        assertTrue(transaction.name.startsWith("wanxiang-"))
+        transaction.install()
+        assertEquals("keep", File(parent, "wanxiang/personal.txt").readText())
+    }
+
+    @Test fun initialInstallNeverOverwritesAnExistingDirectory() {
+        val parent = temporary.newFolder("first-install")
+        val archive = File(parent, "profile.zip")
+        zip(archive, "default.yaml" to "schema_list: []")
+        val target = File(parent, "rime")
+        BundledWanxiang.installInitialArchive(archive, target)
+        File(target, "personal.txt").writeText("keep")
+        assertThrows(IllegalStateException::class.java) {
+            BundledWanxiang.installInitialArchive(archive, target)
+        }
+        assertEquals("keep", File(target, "personal.txt").readText())
+    }
+
     @Test fun installPublishesOnlyTheCompleteExtractedDirectory() {
         val (transaction, parent) = fixture()
 

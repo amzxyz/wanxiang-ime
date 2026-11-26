@@ -50,17 +50,20 @@ internal class RimeProfileImportTransaction private constructor(
             parentDirectory: File,
             registeredNames: Set<String>,
             timestamp: Long = System.currentTimeMillis(),
+            preferredName: String? = null,
         ): RimeProfileImportTransaction {
             val archive = File(archivePath).canonicalFile
             require(archive.parentFile == archiveDirectory.canonicalFile) { "无效导入路径" }
             val parent = parentDirectory.canonicalFile
             require(parent.isDirectory && parent.canRead() && parent.canWrite()) { "无法写入所选目录" }
 
+            require(preferredName == null || RimeDataDirectoryState.isValidName(preferredName))
             var suffix = timestamp
-            var name = "import-$suffix"
+            val prefix = preferredName ?: "import"
+            var name = preferredName ?: "$prefix-$suffix"
             while (name in registeredNames || File(parent, name).exists() ||
                 File(parent, ".$name.importing").exists()) {
-                name = "import-${++suffix}"
+                name = "$prefix-${++suffix}"
             }
             return RimeProfileImportTransaction(
                 archive,

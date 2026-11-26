@@ -112,3 +112,7 @@ __pycache__/
 
 # Staged CI APKs and audit reports
 /dist/
+
+# Generated APK-only Wanxiang scheme bundle
+/native/wanxiang-bundle/
+/.ci/
