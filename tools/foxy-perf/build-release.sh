@@ -17,7 +17,11 @@ if [ -z "${SIGN_KEY_BASE64:-}" ] && [ -z "${SIGN_KEY_FILE:-}" ]; then
 else
     printf '%s\n' 'Repository-configured release signing key.' > "$output_dir/signing.txt"
 fi
-./gradlew '-Dorg.gradle.jvmargs=-Xmx4096m -Dfile.encoding=UTF-8 -XX:+UseParallelGC' \
+sdk_args=()
+if [ -n "${RELEASE_EVO_SDK_DIR:-}" ]; then
+    sdk_args+=("-PreleaseEvoSdkDir=$RELEASE_EVO_SDK_DIR")
+fi
+./gradlew "${sdk_args[@]}" '-Dorg.gradle.jvmargs=-Xmx4096m -Dfile.encoding=UTF-8 -XX:+UseParallelGC' \
     -PbuildABI="${BUILD_ABI:-arm64-v8a}" -PbuildCommitHash="$(git rev-parse HEAD)" \
     :app:assembleRelease
 python3 tools/verify-direct-rime-apk.py app/build/outputs/apk/release/*.apk
@@ -33,6 +37,7 @@ PY
 cp app/build/outputs/apk/release/*.apk "$output_dir/direct.apk"
 cp app/build/outputs/apk/release/build-metadata.json "$output_dir/"
 cp native/rime-sdk.lock.json "$output_dir/"
+if [ -n "${RELEASE_EVO_SDK_DIR:-}" ]; then cp native/evo-release.lock.json "$output_dir/"; fi
 cp native/rime-sdk/sdk-manifest.json "$output_dir/rime-sdk-manifest.json"
 cp app/build/intermediates/combined_art_profile/release/compileReleaseArtProfile/baseline-prof.txt "$output_dir/resolved-baseline-prof.txt"
 git rev-parse HEAD > "$output_dir/source.txt"

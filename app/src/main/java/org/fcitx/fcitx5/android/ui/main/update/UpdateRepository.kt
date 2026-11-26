@@ -53,11 +53,11 @@ object UpdateRepository {
                 ?: throw IOException("Invalid GitHub repo owner")
             val repo = url.path.trim('/').split('/').getOrNull(1)
                 ?: throw IOException("Invalid GitHub repo name")
-            val apiUrl = "https://api.github.com/repos/$owner/$repo/releases?per_page=1"
+            val apiUrl = "https://api.github.com/repos/$owner/$repo/releases/latest"
             val request = Request.Builder()
                 .url(apiUrl)
                 .addHeader("Accept", "application/vnd.github+json")
-                .addHeader("User-Agent", "fcitx5-android-update")
+                .addHeader("User-Agent", "wanxiang-ime-update")
                 .build()
             val mapping = if (hosts.enabled) hosts.mapping else emptyMap()
             try {
@@ -67,11 +67,11 @@ object UpdateRepository {
                     }
                     val body = response.body?.string()
                         ?: throw IOException("GitHub API response body is empty")
-                    val obj = json.parseToJsonElement(body).jsonArray.firstOrNull()?.jsonObject
-                        ?: throw IOException("No release found")
+                    val obj = json.parseToJsonElement(body).jsonObject
                     val assets = obj["assets"]?.jsonArray.orEmpty().mapNotNull { item ->
                         val o = item.jsonObject
                         val name = o["name"]?.jsonPrimitive?.contentOrNull ?: return@mapNotNull null
+                        if (!name.endsWith(".apk", ignoreCase = true)) return@mapNotNull null
                         val link = o["browser_download_url"]?.jsonPrimitive?.contentOrNull
                             ?: return@mapNotNull null
                         val size = o["size"]?.jsonPrimitive?.longOrNull ?: 0L
@@ -127,7 +127,7 @@ object UpdateRepository {
         }
         val request = Request.Builder()
             .url(config.sourceUrl.trim())
-            .addHeader("User-Agent", "fcitx5-android-update")
+            .addHeader("User-Agent", "wanxiang-ime-update")
             .build()
         sharedClient.newCall(request).execute().use { response ->
             if (!response.isSuccessful) {

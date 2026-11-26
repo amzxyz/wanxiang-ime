@@ -184,6 +184,35 @@ class RimeSdkArchiveTest {
         }
     }
 
+    @Test fun releaseEvoLockRejectsOtherCoreAndPluginRevisions() {
+        val source = developmentFixture()
+        val manifestFile = File(source, "sdk-manifest.json")
+        val manifest = Json.decodeFromString<RimeSdkManifest>(manifestFile.readText())
+        val lua = "5".repeat(40)
+        val octagram = "6".repeat(40)
+        val release = EvoReleaseLock("amzxyz/librime-evo", commit,
+            "amzxyz/librime-evo-lua", lua, "amzxyz/librime-evo-octagram", octagram)
+        assertThrows(IllegalArgumentException::class.java) {
+            release.validateSdk(source, listOf("arm64-v8a"))
+        }
+        val path = "librime/arm64-v8a/share/rime/source-manifest.json"
+        val provenance = File(source, path)
+        provenance.writeText(Json.encodeToString(mapOf(
+            "librime_repository" to release.repository, "librime_commit" to commit,
+            "source_tree" to manifest.source_tree!!, "lua_commit" to lua,
+            "octagram_commit" to octagram, "abi" to "arm64-v8a", "link_smoke_test" to "passed"
+        )))
+        manifestFile.writeText(Json.encodeToString(manifest.copy(engine_family = "evo",
+            upstream_commit = commit, files = manifest.files + (path to RimeSdkArchive.sha256(provenance)))))
+        release.validateSdk(source, listOf("arm64-v8a"))
+        assertThrows(IllegalArgumentException::class.java) {
+            release.copy(commit = "7".repeat(40)).validateSdk(source, listOf("arm64-v8a"))
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            release.copy(lua_commit = "8".repeat(40)).validateSdk(source, listOf("arm64-v8a"))
+        }
+    }
+
     @Test fun aLocalSdkCannotRunAReleaseTask() {
         val (_, lock) = fixture()
         val project = temporary.newFolder()

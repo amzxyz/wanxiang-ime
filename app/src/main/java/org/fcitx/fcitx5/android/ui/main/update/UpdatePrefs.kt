@@ -16,7 +16,7 @@ object UpdatePrefs {
     private const val KEY_MIRROR_RULES = "update_mirror_rules_v1"
     private const val KEY_SELECTED_MIRROR = "update_selected_mirror_v1"
     private const val KEY_HOSTS_CONFIG = "update_hosts_config_v1"
-    private const val KEY_RELEASE_CACHE = "update_release_cache_v1"
+    private const val KEY_RELEASE_CACHE = "wanxiang_update_release_cache_v2"
 
     private val json = Json {
         ignoreUnknownKeys = true

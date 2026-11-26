@@ -2,6 +2,8 @@
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import org.gradle.api.DefaultTask
 import org.gradle.api.Plugin
 import org.gradle.api.Project
@@ -63,6 +65,38 @@ internal data class RimeSdkManifest(
     val source_tree: String? = null,
     val engine_family: String? = null
 )
+
+@Serializable
+internal data class EvoReleaseLock(
+    val repository: String,
+    val commit: String,
+    val lua_repository: String,
+    val lua_commit: String,
+    val octagram_repository: String,
+    val octagram_commit: String
+) {
+    fun validateSdk(source: File, requiredAbis: List<String>) {
+        require(repository == "amzxyz/librime-evo" &&
+            lua_repository == "amzxyz/librime-evo-lua" &&
+            octagram_repository == "amzxyz/librime-evo-octagram") { "Unexpected EVO repository" }
+        require(listOf(commit, lua_commit, octagram_commit).all { it.matches(Regex("[0-9a-f]{40}")) })
+        val manifest = Json.decodeFromString<RimeSdkManifest>(File(source, "sdk-manifest.json").readText())
+        require(manifest.engine_family == "evo" && manifest.librime_commit == commit &&
+            manifest.upstream_commit == commit && manifest.abis.containsAll(requiredAbis)) {
+            "Release SDK does not match the locked EVO revision or requested ABIs"
+        }
+        for (abi in requiredAbis) {
+            val provenance = Json.parseToJsonElement(
+                File(source, "librime/$abi/share/rime/source-manifest.json").readText()
+            ).jsonObject
+            val expected = mapOf("librime_repository" to repository, "librime_commit" to commit,
+                "source_tree" to manifest.source_tree, "lua_commit" to lua_commit,
+                "octagram_commit" to octagram_commit, "abi" to abi, "link_smoke_test" to "passed")
+            require(expected.all { (key, value) -> value != null &&
+                provenance[key]?.jsonPrimitive?.content == value }) { "Invalid release EVO provenance for $abi" }
+        }
+    }
+}
 
 internal object RimeSdkArchive {
     private val libraries = mapOf(
@@ -189,6 +223,11 @@ abstract class PrepareRimeSdkTask : DefaultTask() {
     @get:PathSensitive(PathSensitivity.RELATIVE)
     abstract val localSdkDirectory: DirectoryProperty
 
+    @get:InputFile
+    @get:Optional
+    @get:PathSensitive(PathSensitivity.NONE)
+    abstract val evoReleaseLockFile: RegularFileProperty
+
     @get:Input
     abstract val requiredAbis: ListProperty<String>
 
@@ -208,6 +247,10 @@ abstract class PrepareRimeSdkTask : DefaultTask() {
                     val staging = Files.createTempDirectory(destination.parentFile.toPath(), ".rime-sdk-").toFile()
                     try {
                         RimeSdkArchive.copyDevelopment(source, staging, requiredAbis.get())
+                        if (evoReleaseLockFile.isPresent) {
+                            Json.decodeFromString<EvoReleaseLock>(evoReleaseLockFile.get().asFile.readText())
+                                .validateSdk(staging, requiredAbis.get())
+                        }
                         destination.deleteRecursively()
                         Files.move(staging.toPath(), destination.toPath())
                         logger.lifecycle("Prepared local development Rime SDK from $source")
@@ -251,10 +294,15 @@ class RimeSdkPlugin : Plugin<Project> {
     override fun apply(target: Project) {
         require(target == target.rootProject) { "Apply rime-sdk only to the root project" }
         val localSdk = target.providers.gradleProperty("localRimeSdkDir")
+        val releaseSdk = target.providers.gradleProperty("releaseEvoSdkDir")
+        require(!localSdk.isPresent || !releaseSdk.isPresent) { "Choose one SDK source" }
         target.gradle.taskGraph.whenReady {
             check(!localSdk.isPresent || allTasks.none { it.name.contains("Release", ignoreCase = true) }) {
-                "localRimeSdkDir is restricted to Debug builds; release builds must use the pinned SDK"
+                "localRimeSdkDir is restricted to Debug builds; release builds must use the locked EVO SDK"
             }
+            check(releaseSdk.isPresent || allTasks.none {
+                it.name.matches(Regex("(assemble|package|bundle).*Release", RegexOption.IGNORE_CASE))
+            }) { "Release builds require -PreleaseEvoSdkDir pointing to the locked EVO SDK" }
         }
         target.tasks.register<PrepareRimeSdkTask>("prepareRimeSdk") {
             group = "build setup"
@@ -265,6 +313,10 @@ class RimeSdkPlugin : Plugin<Project> {
             offline.set(target.gradle.startParameter.isOffline)
             requiredAbis.set(selectBuildAbis(target.buildAbiOverride, Versions.supportedABIs).toList())
             if (localSdk.isPresent) localSdkDirectory.set(target.file(localSdk.get()))
+            if (releaseSdk.isPresent) {
+                localSdkDirectory.set(target.file(releaseSdk.get()))
+                evoReleaseLockFile.set(target.layout.projectDirectory.file("native/evo-release.lock.json"))
+            }
         }
     }
 }
