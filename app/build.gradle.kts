@@ -92,7 +92,8 @@ run {
     val prepareDirectRimeAssets = tasks.register<Sync>("prepareDirectRimeAssets") {
         dependsOn(rootProject.tasks.named("prepareRimeSdk"))
         into(directAssets)
-        from("src/main/assets") { exclude("usr/**", "descriptor.json") }
+        from("src/main/assets") { exclude("usr/**", "descriptor.json", "bundled/rime/**") }
+        from(rootProject.file("native/wanxiang-bundle")) { into("bundled/rime"); include("wanxiang.zip", "manifest.json") }
         from(rootProject.file("native/rime-sdk/sdk-manifest.json")) {
             into("bundled")
             rename { "rime-sdk-manifest.json" }

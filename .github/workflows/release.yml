@@ -19,6 +19,7 @@ jobs:
     outputs:
       version: ${{ steps.version.outputs.value }}
       version_code: ${{ steps.version.outputs.code }}
+      scheme_commit: ${{ steps.scheme.outputs.commit }}
       evo_commit: ${{ steps.evo.outputs.commit }}
       lua_commit: ${{ steps.evo.outputs.lua_commit }}
       octagram_commit: ${{ steps.evo.outputs.octagram_commit }}
@@ -40,6 +41,17 @@ jobs:
             test "$GITHUB_REF" = refs/heads/wanxiang
             python3 tools/validate-release-version.py >> "$GITHUB_OUTPUT"
           fi
+      - name: Read immutable Wanxiang scheme lock
+        id: scheme
+        run: |
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import json, re
+          lock = json.load(open("native/wanxiang-scheme.lock.json"))
+          assert lock["repository"] == "amzxyz/rime-wanxiang"
+          assert lock["branch"] == "rime-wanxiang-for-librime-evo"
+          assert re.fullmatch(r"[0-9a-f]{40}", lock["commit"])
+          print("commit=" + lock["commit"])
+          PY
       - name: Read immutable EVO release lock
         id: evo
         run: |
@@ -110,6 +122,13 @@ jobs:
           path: .ci/evo/plugins/octagram
           submodules: recursive
           persist-credentials: false
+      - uses: actions/checkout@v7
+        with:
+          repository: amzxyz/rime-wanxiang
+          ref: ${{ needs.prepare.outputs.scheme_commit }}
+          path: .ci/wanxiang-scheme
+          persist-credentials: false
+      - run: python3 tools/bundle-wanxiang-scheme.py --source .ci/wanxiang-scheme --locked
       - name: Build locked EVO Android SDK
         run: python3 tools/build-evo-sdk.py --core .ci/evo --dependencies native/rime-sdk --output "$RUNNER_TEMP/evo-sdk" --abi "$BUILD_ABI"
       - name: Build signed Release APK
@@ -144,6 +163,7 @@ jobs:
           set -euo pipefail
           apk="$RUNNER_TEMP/release-product/direct.apk"
           "$ANDROID_HOME/build-tools/36.1.0/apksigner" verify --verbose --print-certs "$apk"
+          python3 tools/bundle-wanxiang-scheme.py --verify-apk "$apk"
           test "$("$ANDROID_HOME/cmdline-tools/latest/bin/apkanalyzer" manifest application-id "$apk")" = com.amzxyz.wanxiang.ime
           test "$("$ANDROID_HOME/cmdline-tools/latest/bin/apkanalyzer" manifest version-name "$apk")" = "$BUILD_VERSION_NAME"
           case "$BUILD_ABI" in
@@ -207,6 +227,13 @@ jobs:
           path: .ci/evo/plugins/octagram
           submodules: recursive
           persist-credentials: false
+      - uses: actions/checkout@v7
+        with:
+          repository: amzxyz/rime-wanxiang
+          ref: ${{ needs.prepare.outputs.scheme_commit }}
+          path: .ci/wanxiang-scheme
+          persist-credentials: false
+      - run: python3 tools/bundle-wanxiang-scheme.py --source .ci/wanxiang-scheme --locked
       - name: Build locked EVO Android SDK
         run: python3 tools/build-evo-sdk.py --core .ci/evo --dependencies native/rime-sdk --output "$RUNNER_TEMP/evo-sdk" --abi "$BUILD_ABI"
       - run: ./gradlew :app:testDebugUnitTest -PreleaseEvoSdkDir="$RUNNER_TEMP/evo-sdk"

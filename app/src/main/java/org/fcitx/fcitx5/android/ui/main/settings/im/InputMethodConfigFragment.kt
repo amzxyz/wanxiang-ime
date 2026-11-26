@@ -40,6 +40,18 @@ class InputMethodConfigFragment : FcitxPreferenceFragment() {
             }
             widgetLayoutResource = R.layout.preference_settings_navigation
         })
+        if (org.fcitx.fcitx5.android.data.BundledWanxiang.available(requireContext())) {
+            screen.addPreference(Preference(requireContext()).apply {
+                key = "restore_bundled_wanxiang"
+                isPersistent = false
+                setup(getString(R.string.bundled_wanxiang_restore),
+                    getString(R.string.bundled_wanxiang_restore_summary)) {
+                    startActivity(Intent(requireContext(), RimeImportActivity::class.java)
+                        .putExtra(RimeImportActivity.EXTRA_BUNDLED_WANXIANG, true))
+                }
+                widgetLayoutResource = R.layout.preference_settings_navigation
+            })
+        }
     }
 
     /**

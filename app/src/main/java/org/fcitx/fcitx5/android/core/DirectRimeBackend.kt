@@ -228,10 +228,10 @@ class DirectRimeBackend(context: Context) : InputEngine {
             engineOperations.resetStartupState()
             try {
                 startupStage("assets") { DataManager.sync() }
-                startupStage("config") { config.load() }
+                val bundledInstalled = startupStage("config") { config.load(installBundled = !directBootMode) }
                 startupStage("engine-selection") { engineOperations.configureSelectedEngine() }
                 startupStage("native") { Native.start(shared.absolutePath, config.user.absolutePath, BuildConfig.VERSION_NAME,
-                    fullCheck = engineOperations.newActivation || WanxiangAdvancedFiles.needsDeploymentRepair(config.user),
+                    fullCheck = bundledInstalled || engineOperations.newActivation || WanxiangAdvancedFiles.needsDeploymentRepair(config.user),
                     minLogLevel = DirectRimeEngineLog.minLevel()) }
                 started = true
                 startupError = ""
@@ -847,6 +847,27 @@ class DirectRimeBackend(context: Context) : InputEngine {
                     { DirectRimeManagementCommands.externalPath(config) },
                     { DirectRimeManagementCommands.newName(config) })
             }
+            "restore-bundled-wanxiang" -> withContext(NonCancellable) { maintain {
+                require(!directBootMode) { "首次解锁前不能恢复 Rime 方案" }
+                org.fcitx.fcitx5.android.daemon.FcitxDaemon.requireUserDataAvailable()
+                engineRepository.requireProfileMutationIdle()
+                engineRepository.requireBuiltinForProfileSwitch()
+                val archive = org.fcitx.fcitx5.android.data.BundledWanxiang.copyArchive(context)
+                try {
+                    val profiles = this@DirectRimeBackend.config.directoryState().findByName("Profiles")?.value
+                        .orEmpty().lineSequence().filter(String::isNotBlank).toSet()
+                    val transaction = RimeProfileImportTransaction.prepare(
+                        archive.absolutePath,
+                        File(context.cacheDir, "rime-import"),
+                        this@DirectRimeBackend.config.dataRoot.canonicalFile,
+                        profiles,
+                        preferredName = "wanxiang",
+                    )
+                    profileOperations.installImported(transaction)
+                } finally {
+                    archive.delete()
+                }
+            } }
             "import-profile" -> maintain {
                 require(!directBootMode) { "首次解锁前不能导入 Rime 工作目录" }
                 engineRepository.requireProfileMutationIdle()

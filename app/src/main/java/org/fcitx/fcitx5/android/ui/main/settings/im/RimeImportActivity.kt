@@ -111,11 +111,12 @@ class RimeImportActivity : SettingsUiActivity() {
             savedInstanceState?.getString(STATE_PENDING_FALLBACK)
         } else null
         connection
+        val bundledMode = intent.getBooleanExtra(EXTRA_BUNDLED_WANXIANG, false)
         val padding = (20 * resources.displayMetrics.density).toInt()
         val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         val toolbar = Toolbar(this).apply {
             id = R.id.toolbar
-            setTitle(R.string.direct_rime_import)
+            setTitle(if (bundledMode) R.string.bundled_wanxiang_restore else R.string.direct_rime_import)
             setNavigationIcon(R.drawable.ic_baseline_arrow_back_24)
             setNavigationContentDescription(androidx.appcompat.R.string.abc_action_bar_up_description)
             setNavigationOnClickListener { finish() }
@@ -126,19 +127,20 @@ class RimeImportActivity : SettingsUiActivity() {
             setPadding(padding, padding, padding, padding)
         }
         content.addView(TextView(this).apply {
-            setText(R.string.direct_rime_import_description)
+            setText(if (bundledMode) R.string.bundled_wanxiang_restore_summary else R.string.direct_rime_import_description)
             textSize = 16f
         })
         choose = MaterialButton(this).apply {
-            setText(R.string.direct_rime_choose_zip)
+            setText(if (bundledMode) R.string.bundled_wanxiang_restore else R.string.direct_rime_choose_zip)
             isEnabled = pendingArchivePath == null
             setOnClickListener {
-                zipPicker.launch(arrayOf("application/zip", "application/octet-stream", "application/x-zip-compressed"))
+                if (bundledMode) confirmBundledRestore()
+                else zipPicker.launch(arrayOf("application/zip", "application/octet-stream", "application/x-zip-compressed"))
             }
         }
         content.addView(choose)
         status = OperationStatusView(this).apply {
-            show(getString(R.string.direct_rime_choose_zip))
+            show(getString(if (bundledMode) R.string.bundled_wanxiang_restore else R.string.direct_rime_choose_zip))
         }
         content.addView(status, LinearLayout.LayoutParams(-1, -2).apply {
             topMargin = padding / 2
@@ -167,6 +169,31 @@ class RimeImportActivity : SettingsUiActivity() {
             pendingSelectionStep == STEP_DESTINATION_CHOICE -> showDestinationChoice()
             pendingSelectionStep == STEP_APP_DIRECTORY -> chooseAppDirectory()
         }
+    }
+
+    private fun confirmBundledRestore() {
+        MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.bundled_wanxiang_restore)
+            .setMessage(R.string.bundled_wanxiang_restore_summary)
+            .setNegativeButton(android.R.string.cancel, null)
+            .setPositiveButton(android.R.string.ok) { _, _ ->
+                choose.isEnabled = false
+                showStatus(R.string.direct_rime_importing, State.WORKING)
+                lifecycleScope.launch {
+                    try {
+                        connection.runOnReady {
+                            setAddonSubConfig("rime", "restore-bundled-wanxiang", RawConfig())
+                        }
+                        showStatus(R.string.bundled_wanxiang_restored, State.SUCCESS)
+                    } catch (e: kotlinx.coroutines.CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        showStatus(R.string.ui_operation_failed, State.ERROR, e.message.orEmpty())
+                    } finally {
+                        choose.isEnabled = true
+                    }
+                }
+            }.show()
     }
 
     private fun copyArchiveAndChooseDestination(uri: Uri) {
@@ -464,7 +491,8 @@ class RimeImportActivity : SettingsUiActivity() {
         return true
     }
 
-    private companion object {
+    companion object {
+        const val EXTRA_BUNDLED_WANXIANG = "restore_bundled_wanxiang"
         const val STATE_PENDING_ARCHIVE = "pending_rime_import_archive"
         const val STATE_PENDING_DESTINATION = "pending_rime_import_destination"
         const val STATE_PENDING_FALLBACK = "pending_rime_import_fallback"

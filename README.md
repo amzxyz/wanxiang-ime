@@ -4,7 +4,7 @@
 
 ## 使用说明
 
-安装与设备架构匹配的 [正式 APK](https://github.com/amzxyz/wanxiang-ime/releases)，在系统设置中启用万象输入法并选择为当前输入法。可在「中州韵引擎」中导入和部署 Rime 方案，或使用 [万象输入方案](https://github.com/amzxyz/rime-wanxiang)。切换或覆盖安装前建议备份用户数据。
+安装与设备架构匹配的 [正式 APK](https://github.com/amzxyz/wanxiang-ime/releases)，在系统设置中启用万象输入法并选择为当前输入法。首次安装自动部署内置 EVO 专用万象方案；可在「中州韵引擎」中离线恢复内置方案（新建独立工作目录）或导入其他 Rime 方案。覆盖升级不覆盖现有目录，语言模型不随 APK 分发。切换或覆盖安装前建议备份用户数据。
 
 ## 开发与发版
 
@@ -12,6 +12,7 @@
 - wanxiang：正式分支，Release 使用 `native/evo-release.lock.json` 锁定的 EVO、Lua 与 octagram 提交；包名 `com.amzxyz.wanxiang.ime`。
 - 发版前在 `build-logic/convention/src/main/kotlin/Versions.kt` 修改 `baseVersionName`（X.Y.Z）并递增 `baseVersionCode`。Debug、Release 与原生构建均使用此版本来源；提交哈希独立记录。
 - 在正式分支提交上推送与源码一致的 `vX.Y.Z` 标签。CI 拒绝不匹配的标签及相对历史正式标签未递增的版本号/版本码；四种 ABI 签名构建、单测及 APK 校验通过后发布。手动运行正式工作流只生成产物。
+- Debug 拉取 EVO 专用万象方案分支最新提交，Release 按 `native/wanxiang-scheme.lock.json` 固定提交。构建生成 ZIP 和来源清单，不将大词库提交到前端仓库；APK 检查内置 ZIP 的 SHA-256。
 - [构建产物与 CI](https://github.com/amzxyz/wanxiang-ime/actions)；[原生 SDK 说明](native/README.md)。
 
 ## 隐私与数据

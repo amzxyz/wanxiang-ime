@@ -31,7 +31,7 @@ internal class DirectRimeConfig(private val context: Context) {
         private set
     val user: File get() = profiles.getValue(current)
 
-    fun load() {
+    fun load(installBundled: Boolean = false): Boolean {
         org.fcitx.fcitx5.android.data.UserDataRestoreRuntime.requirePathReady(context, root)
         dataRoot.mkdirs()
         directoryMoves.recover()
@@ -51,12 +51,20 @@ internal class DirectRimeConfig(private val context: Context) {
             paths.take(i).any { RimeProfileRestorePlan.overlap(it.canonicalFile, paths[i].canonicalFile) }
         } }) "方案目录存在包含关系，请改用互不重叠的目录" else ""
         org.fcitx.fcitx5.android.data.UserDataRestoreRuntime.requirePathReady(context, user)
+        val fresh = installBundled &&
+            !(Build.VERSION.SDK_INT >= Build.VERSION_CODES.N && context.isDeviceProtectedStorage) &&
+            !directoryFile.exists() && current == "rime" && profiles.size == 1 &&
+            !user.exists() && !File(context.filesDir, "rime/user").exists() &&
+            dataRoot.listFiles()?.all { it.name.startsWith(".bundled-wanxiang-") } == true &&
+            org.fcitx.fcitx5.android.data.BundledWanxiang.available(context)
+        if (fresh) org.fcitx.fcitx5.android.data.BundledWanxiang.installInitial(context, user)
         user.mkdirs()
         // Finish an interrupted resource update before librime can open the profile.
         WanxiangUpdateTransaction.recover(user)
         preeditMode = Ini.parseIniFromFile(optionsFile)?.get("PreeditMode")?.value
             ?.takeIf { it in listOf("No", "ComposingText", "CommitPreview") } ?: "No"
         migratePrototype()
+        return fresh
     }
 
     private fun migratePrototype() {
