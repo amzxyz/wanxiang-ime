@@ -4,7 +4,7 @@
 
 ## 使用说明
 
-安装与设备架构匹配的 [正式 APK](https://github.com/amzxyz/wanxiang-ime/releases)，在系统设置中启用万象输入法并选择为当前输入法。可在中州韵引擎设置中导入和部署 Rime 方案，或使用 [万象输入方案](https://github.com/amzxyz/rime-wanxiang)。切换或覆盖安装前建议备份用户数据。
+安装与设备架构匹配的 [正式 APK](https://github.com/amzxyz/wanxiang-ime/releases)，在系统设置中启用万象输入法并选择为当前输入法。可在「中州韵引擎」中导入和部署 Rime 方案，或使用 [万象输入方案](https://github.com/amzxyz/rime-wanxiang)。切换或覆盖安装前建议备份用户数据。
 
 ## 开发与发版
 
@@ -25,4 +25,4 @@ Rime 的本地输入方案与用户词典在设备上运行。更新检查、方
 
 ## 项目来源与许可
 
-基于 [中州鹅（SandyYuR/fcitx5-android）](https://github.com/SandyYuR/fcitx5-android/tree/fx-rime-only) 的 fx-rime-only 分支，保留原有 Git 历史、版权声明及第三方许可证。感谢 SandyYuR、fxliang、Fcitx5 for Android、Rime 及所有贡献者。见 [LICENSE](LICENSE)。
+源自 [SandyYuR/fcitx5-android（上游项目）](https://github.com/SandyYuR/fcitx5-android/tree/fx-rime-only) 的 fx-rime-only 分支，保留原有 Git 历史、版权声明及第三方许可证。感谢 SandyYuR、fxliang、Fcitx5 for Android、Rime 及所有贡献者。见 [LICENSE](LICENSE)。

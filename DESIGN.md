@@ -1,6 +1,6 @@
-# 中州鹅界面设计约定
+# 万象输入法界面设计约定
 
-适用于 Android 设置、编辑器、对话框和辅助面板，以现有 Material 3 Expressive 界面为基准。组件细节、例外与测试入口见[设计与共用组件][details]，输入及数据边界见[正确性契约][contracts]。
+适用于 Android 设置、编辑器、对话框和辅助面板，以现有 Material 3 Expressive 界面为基准。组件细节、例外与测试入口以当前源码和测试为准，输入及数据边界见 [AGENTS.md](AGENTS.md)。
 
 ## 配色
 
@@ -20,7 +20,7 @@
 
 - 间距以 4 dp 为基准，邻近控件 8–12 dp，面板内边距 16 dp，大段内容 20–24 dp。
 - 输入框与下拉框 12 dp 圆角，分组卡片 20 dp，浮动面板 28 dp；沿用共用样式。
-- 标题约 20 sp、正文 14–16 sp、辅助文字 12 sp。跟随系统字体与缩放；键位热力图的固定字号例外见详细文档。
+- 标题约 20 sp、正文 14–16 sp、辅助文字 12 sp。跟随系统字体与缩放；键位热力图的固定字号例外以当前实现为准。
 - 普通操作按钮至少 48 dp 触摸高度。窄屏、大字号与 RTL 下完整换行；短窗口允许滚动到全部内容和操作。
 - 复用 `SettingsUiActivity`、`EditorUi`、`MaterialSpinner`、`Widget.FcitxSettings.TextField`；操作区用 `WrappingActionRow`，AI 使用其封装 `JsAppActionRow`。
 
@@ -35,6 +35,3 @@
 ## 视觉验收
 
 检查浅色／深色、窄屏、大字号、RTL，以及加载、错误和长内容。图形单测用于组件检查；实际窗口、键盘、触摸及返回行为使用设备验证，分别记录来源和限制。截图通过不替代输入与保存功能测试。
-
-[details]: https://sandyyur.github.io/fcitx5-android/maintainer/implementation/design-system
-[contracts]: https://sandyyur.github.io/fcitx5-android/maintainer/implementation/correctness-contracts

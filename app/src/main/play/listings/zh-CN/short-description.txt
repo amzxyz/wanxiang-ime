@@ -1,1 +1,1 @@
-Fcitx5 输入法框架及引擎，现已移植到 Android
+基于 librime-evo 的开源安卓输入法，支持导入 Rime 方案。

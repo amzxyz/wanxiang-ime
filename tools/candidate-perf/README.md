@@ -1,4 +1,6 @@
-# 首次候选点选对照
+# 历史性能工具：首次候选点选对照
+
+> 本文记录上游历史实验，不代表当前万象输入法或 EVO 的性能结果。对应 workflow 已归档于 `.github/upstream-workflows/`，不是现行 CI；源码、包名、APK 及实验数据按历史提交保留，不能替换成当前值后声称复现。
 
 `rime-candidate-perf.yml` 独立构建含 Fcitx 的默认分支历史版本
 `cecea4940bb5a5db67f91d6b20e00ee5c97877ea` 与本轮修改前直连版本
@@ -32,4 +34,4 @@ IME 为起点，排除注入前查找视图、20ms 按住、轮询等待；注�
 带 trace 的数字单独分析，不与默认三轮统计混算。命令行对应 `--trials 1 --profile`。
 `ime_dispatch_up_to_editor_input_connection` 表示进入目标编辑器的调用边界，
 `ime_dispatch_up_to_editor_change` 还包含目标应用首次文字修改/排版工作；应同时读取。
-说明与数据见 [首次点选报告](https://github.com/SandyYuR/fcitx5-android/blob/docs/docs/maintainer/DIRECT_RIME_CANDIDATE_TAP_2026-10-18.md)。
+说明与数据见 [上游历史首次点选报告](https://github.com/SandyYuR/fcitx5-android/blob/docs/docs/maintainer/DIRECT_RIME_CANDIDATE_TAP_2026-10-18.md)。
