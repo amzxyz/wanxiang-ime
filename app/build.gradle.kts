@@ -11,7 +11,6 @@ plugins {
 }
 
 val packageBase = "org.fcitx.fcitx5.android"
-val flavorFx = "fx"
 val imeSettingsActivity = "$packageBase.ui.main.MainActivity"
 val inputDiagnostics = providers.gradleProperty("inputDiagnostics").orNull == "true"
 
@@ -19,10 +18,10 @@ android {
     namespace = packageBase
 
     defaultConfig {
-        applicationId = "org.fcitx.fcitx5.android.fx.rime"
+        applicationId = "com.amzxyz.wanxiang.ime"
         buildConfigField("boolean", "INPUT_DIAGNOSTICS", inputDiagnostics.toString())
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        manifestPlaceholders["appLabel"] = "@string/direct_rime_app_name"
+        manifestPlaceholders["appLabel"] = "@string/app_name_release"
         resValue("string", "ime_settings_activity", imeSettingsActivity)
 
         @Suppress("UnstableApiUsage")
@@ -31,14 +30,6 @@ android {
                 arguments("-DINPUT_DIAGNOSTICS=${if (inputDiagnostics) "ON" else "OFF"}")
                 targets("direct-rime")
             }
-        }
-    }
-
-    flavorDimensions += "brand"
-    productFlavors {
-        create(flavorFx) {
-            dimension = "brand"
-            buildConfigField("boolean", "IS_FX_BUILD", "true")
         }
     }
 
@@ -53,13 +44,14 @@ android {
         release {
             resValue("mipmap", "app_icon", "@mipmap/ic_launcher")
             resValue("mipmap", "app_icon_round", "@mipmap/ic_launcher_round")
-            resValue("string", "app_name", "中州鹅")
+            resValue("string", "app_name", "万象输入法")
             proguardFile("proguard-rules.pro")
         }
         debug {
+            manifestPlaceholders["appLabel"] = "@string/app_name_debug"
             resValue("mipmap", "app_icon", "@mipmap/ic_launcher_debug")
             resValue("mipmap", "app_icon_round", "@mipmap/ic_launcher_round_debug")
-            resValue("string", "app_name", "中州鹅")
+            resValue("string", "app_name", "万象输入法 Debug")
         }
     }
 
@@ -97,6 +89,10 @@ run {
         dependsOn(rootProject.tasks.named("prepareRimeSdk"))
         into(directAssets)
         from("src/main/assets") { exclude("usr/**", "descriptor.json") }
+        from(rootProject.file("native/rime-sdk/sdk-manifest.json")) {
+            into("bundled")
+            rename { "rime-sdk-manifest.json" }
+        }
         into("usr/share/rime-data") {
             from(rootProject.file("native/rime-data"))
             from(rootProject.file("native/rime-prelude")) { include("key_bindings.yaml", "punctuation.yaml", "symbols.yaml") }

@@ -1,5 +1,5 @@
 // External diagnostic overlay. Keep namespace/JNI class names and signing unchanged.
-// gradlew -I tools/input-perf/pr32-bench-application-id.init.gradle -PbuildABI=x86_64 :app:assembleFxDebug :app:assembleFxDebugAndroidTest
+// gradlew -I tools/input-perf/pr32-bench-application-id.init.gradle -PbuildABI=x86_64 :app:assembleDebug :app:assembleDebugAndroidTest
 def benchBaseId = 'org.fcitx.fcitx5.android.pr32bench'
 def benchDebugId = benchBaseId + '.debug'
 
@@ -9,7 +9,7 @@ gradle.beforeProject { project ->
         def components = project.extensions.getByName('androidComponents')
         components.finalizeDsl { android ->
             if (android.namespace != 'org.fcitx.fcitx5.android' ||
-                    android.defaultConfig.applicationId != 'org.fcitx.fcitx5.android.fx.rime' ||
+                    android.defaultConfig.applicationId != 'com.amzxyz.wanxiang.ime' ||
                     android.buildTypes.getByName('debug').applicationIdSuffix != '.debug') {
                 throw new GradleException('Unexpected original package identity; inspect before building.')
             }
@@ -21,6 +21,7 @@ gradle.beforeProject { project ->
             android.defaultConfig.applicationId = benchBaseId
             android.defaultConfig.testApplicationId = benchDebugId + '.test'
             android.defaultConfig.manifestPlaceholders['appLabel'] = 'PR32 performance bench'
+            android.buildTypes.getByName('debug').manifestPlaceholders['appLabel'] = 'PR32 performance bench'
         }
         components.beforeVariants(components.selector().all()) { variant ->
             if (variant.buildType != 'debug') variant.enable = false

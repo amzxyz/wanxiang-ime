@@ -53,9 +53,12 @@ struct Fake {
     int logLevel = -1;
     int statusReads = 0, freedStatus = 0, statusFailures = 0;
     int contextNotifications = 0, tabsNotifications = 0, statusNotifications = 0;
-    size_t selectedSpan = 0, selectedGlobal = 999, deletedGlobal = 999, caret = 999, tabSpan = 3;
-    int freedIterator = 0, cleared = 0, clearedTabs = 0;
-    std::string commit, selectedLabel, preedit, clientApp, distribution, version, tabLabel = "ni";
+    size_t selectedStart = 0, selectedSpan = 0, selectedGlobal = 999, deletedGlobal = 999, caret = 999, tabSpan = 3;
+    int freedIterator = 0, cleared = 0;
+    bool rejectCodeChoice = false;
+    std::string commit, selectedLabel, preedit, clientApp, appName, distribution, version, tabLabel = "ni";
+    std::string selectedReplacement, tabReplacement = "ni\'";
+    size_t tabStart = 1;
     std::string schema = "test", schemaName = "Test";
     // Ordered regardless of schema_list order: user.yaml restores the previously selected one.
     std::vector<std::pair<std::string, std::string>> schemas{{"test", "Test"}};
@@ -138,7 +141,7 @@ void notifyOptionIfRequested(int& count) {
 }
 RimeApi api() {
     RimeApi a{}; RIME_STRUCT_INIT(RimeApi, a);
-    a.setup = [](RimeTraits* traits) { ++f.setups; f.logLevel = traits->min_log_level; };
+    a.setup = [](RimeTraits* traits) { ++f.setups; f.logLevel = traits->min_log_level; f.appName = traits->app_name; };
     a.initialize = [](RimeTraits* traits) {
         ++f.initialized; f.distribution = traits->distribution_code_name; f.version = traits->distribution_version;
     };
@@ -193,7 +196,6 @@ RimeApi api() {
     };
     a.free_status = [](RimeStatus*) -> Bool { ++f.freedStatus; return true; };
     a.clear_composition = [](RimeSessionId) { ++f.cleared; f.preedit.clear(); };
-    a.clear_tabs = [](RimeSessionId) -> Bool { ++f.clearedTabs; return true; };
     a.select_candidate_on_current_page = [](RimeSessionId, size_t i) -> Bool { f.selected = static_cast<int>(i); return true; };
     a.select_candidate = [](RimeSessionId, size_t i) -> Bool { f.selectedGlobal = i; return true; };
     a.delete_candidate = [](RimeSessionId, size_t i) -> Bool { f.deletedGlobal = i; return true; };
@@ -324,22 +326,21 @@ RimeApi api() {
         list->list = items.data(); list->size = f.hasSchema ? items.size() : 0; return true;
     };
     a.free_schema_list = [](RimeSchemaList*) {};
-    a.get_input_tabs = [](RimeSessionId, size_t, char*** labels, size_t** spans, int** sources, size_t* count) -> Bool {
+#ifdef RIME_EVO_CODE_CHOICES
+    a.get_code_choices = [](RimeSessionId, RimeCodeChoice** choices, size_t* count) -> Bool {
         notifyOptionIfRequested(f.tabsNotifications);
-        static char* l[3]; static size_t p[3]; static int src[] = {0, 0, 1};
-        l[0] = const_cast<char*>(""); l[1] = const_cast<char*>("\x81"); l[2] = f.tabLabel.data();
-        p[0] = 1; p[1] = 2; p[2] = f.tabSpan;
-        *labels = l; *spans = p; *sources = src; *count = f.preedit.empty() ? 0 : 3; return true;
+        static RimeCodeChoice items[3];
+        items[0] = {0, 1, const_cast<char*>(""), const_cast<char*>("x")};
+        items[1] = {0, 2, const_cast<char*>("\x81"), const_cast<char*>("x")};
+        items[2] = {f.tabStart, f.tabStart + f.tabSpan, f.tabLabel.data(), f.tabReplacement.data()};
+        *choices = items; *count = f.preedit.empty() ? 0 : 3; return true;
     };
-    a.free_input_tabs = [](char**, size_t*, int*, size_t) { ++f.freedTabs; };
-    a.select_tab = [](RimeSessionId, size_t, const char* label, size_t span) -> Bool {
-        f.selectedLabel = label; f.selectedSpan = span; return true;
+    a.free_code_choices = [](RimeCodeChoice*, size_t) { ++f.freedTabs; };
+    a.select_code_choice = [](RimeSessionId, size_t start, size_t end, const char* replacement) -> Bool {
+        if (f.rejectCodeChoice) return false;
+        f.selectedStart = start; f.selectedSpan = end - start; f.selectedReplacement = replacement; return true;
     };
-    a.get_candidate_code = [](RimeSessionId, size_t index, char*** segments, size_t* count, size_t* matching) -> Bool {
-        CHECK(index == 3); // Candidate code uses a global index, selection uses the page index.
-        static char* seg[] = {const_cast<char*>("ni")}; *segments = seg; *count = 1; *matching = 1; return true;
-    };
-    a.free_candidate_code = [](char**, size_t) { ++f.freedCodes; };
+#endif
     return a;
 }
 void testInputContract() {
@@ -351,18 +352,44 @@ void testInputContract() {
     CHECK(f.keys == 1 && f.mask == (1 | 2 | 4 | 8 | 64 | (1 << 26) | (1 << 30)));
     CHECK(f.freedCommit == 1 && result.candidates[0] == "你😀" && f.freedCodes == 0);
     CHECK(result.labels[0] == "a ");
+#ifdef RIME_EVO_CODE_CHOICES
     CHECK(result.tabs.size() == 1 && result.tabs[0] == "ni" && f.freedTabs > 0);
+#else
+    CHECK(result.tabs.empty() && f.freedTabs == 0);
+#endif
     CHECK(result.optionsRevision == initial.optionsRevision);
     auto selected = engine.action(1, result.revision, 4, 0, "");
-    CHECK(f.selectedLabel == "ni" && f.selectedSpan == 3 && selected.commit.empty());
+#ifdef RIME_EVO_CODE_CHOICES
+    CHECK(f.selectedStart == 1 && f.selectedReplacement == "ni'" && f.selectedSpan == 3 && selected.commit.empty() && selected.handled);
+    f.rejectCodeChoice = true;
+    selected = engine.action(1, selected.revision, 4, 0, "");
+    CHECK(selected.gate == Ready && !selected.handled && selected.commit.empty());
+    f.rejectCodeChoice = false;
+#else
+    CHECK(f.selectedSpan == 0 && selected.commit.empty() && !selected.handled);
+#endif
+    selected = engine.action(1, selected.revision, 4, -1, "");
+    CHECK(selected.gate == Ready && !selected.handled);
+    selected = engine.action(1, selected.revision, 4, 999, "");
+    CHECK(selected.gate == Ready && !selected.handled);
+    selected = engine.action(1, selected.revision, 7, -1, "");
+    CHECK(selected.gate == Ready && !selected.handled && selected.commit.empty());
     CHECK(engine.action(1, result.revision, 1, 0, "").gate == Stale && f.selected == -1);
     auto candidateSelected = engine.action(1, selected.revision, 1, 0, ""); CHECK(f.selected == 0);
     auto unchangedTabs = engine.key(1, 'x', 0, true);
     CHECK(unchangedTabs.tabsRevision == candidateSelected.tabsRevision);
+#ifdef RIME_EVO_CODE_CHOICES
     f.tabSpan = 4;
     auto changedTabs = engine.key(1, 'x', 0, true);
     CHECK(changedTabs.tabs[0] == "ni" && changedTabs.tabsRevision > unchangedTabs.tabsRevision);
     engine.action(1, changedTabs.revision, 4, 0, ""); CHECK(f.selectedSpan == 4);
+    f.tabStart = 3;
+    f.tabReplacement = "mi'";
+    auto moved = engine.key(1, 'x', 0, true);
+    CHECK(moved.tabsRevision > changedTabs.tabsRevision);
+    engine.action(1, moved.revision, 4, 0, "");
+    CHECK(f.selectedStart == 3 && f.selectedReplacement == "mi'");
+#endif
     const int processedKeys = f.keys;
     engine.begin(2, "editor.two"); CHECK(f.destroyed == 1);
     f.commit = "must not drain";
@@ -395,15 +422,19 @@ void testEngineLogLevel() {
 void testMaintenanceAndAbi() {
     f = {}; auto a = api();
     // A shorter historical API has none of the custom ABI. Never dereference beyond it.
-    a.data_size = offsetof(RimeApi, get_input_tabs) - sizeof(a.data_size);
+#ifdef RIME_EVO_CODE_CHOICES
+    a.data_size = offsetof(RimeApi, get_code_choices) - sizeof(a.data_size);
+#else
+    a.data_size = offsetof(RimeApi, change_page) - sizeof(a.data_size);
+#endif
     Engine engine(&a); engine.start("shared", "user", "1.2.3-test");
-    CHECK(f.distribution == "中州鹅" && f.version == "1.2.3-test");
+    CHECK(f.appName == "rime.wanxiang" && f.distribution == "wanxiang-ime" && f.version == "1.2.3-test");
     auto result = engine.begin(1, "editor"); CHECK(result.tabs.empty() && f.freedTabs == 0);
     f.failDeploy = true; CHECK(!engine.deploy());
     CHECK(engine.begin(2, "editor").gate == DeployFailed);
     CHECK(engine.key(2, 'a', 0, false).handled && f.keys == 0);
     f.failDeploy = false; CHECK(engine.deploy());
-    CHECK(f.distribution == "中州鹅" && f.version == "1.2.3-test");
+    CHECK(f.appName == "rime.wanxiang" && f.distribution == "wanxiang-ime" && f.version == "1.2.3-test");
     CHECK(engine.begin(3, "editor").gate == Ready);
     CHECK(f.setups == 1 && f.initialized == 3 && f.finalized == 2);
     f.failLaunch = true; CHECK(!engine.deploy());
@@ -704,7 +735,10 @@ void testStatusCache() {
         CHECK(f.statusReads == 1 && f.freedStatus == 1);
         f.tabSpan = 4;
         auto dynamic = engine.key(1, 'n', 0, false);
-        CHECK(dynamic.revision > initial.revision && dynamic.preedit == "ni" && dynamic.tabs[0] == "ni");
+        CHECK(dynamic.revision > initial.revision && dynamic.preedit == "ni");
+#ifdef RIME_EVO_CODE_CHOICES
+        CHECK(dynamic.tabs[0] == "ni");
+#endif
         CHECK(f.statusReads == 1); // Dynamic context/tabs never come from the status cache.
 
         f.schema = "second"; f.schemaName = "Second"; f.ascii = true;
@@ -715,7 +749,11 @@ void testStatusCache() {
 
         f.contextNotifications = 1;
         engine.key(1, 'x', 0, false); CHECK(f.statusReads == 3);
+#ifdef RIME_EVO_CODE_CHOICES
         f.tabsNotifications = 1;
+#else
+        f.contextNotifications = 1;
+#endif
         engine.key(1, 'x', 0, false); CHECK(f.statusReads == 4);
 
         f.callback(f.context, 7, "option", "late_once");
@@ -839,13 +877,16 @@ void testSessionReuseAndEditorIsolation() {
     f = {}; auto a = api(); Engine engine(&a); engine.start("shared", "user");
     CHECK(engine.begin(1, "editor.one").gate == Ready && !f.noLearning);
     auto typed = engine.key(1, 'n', 0, false);
-    CHECK(!typed.preedit.empty() && !typed.tabs.empty());
+    CHECK(!typed.preedit.empty());
+#ifdef RIME_EVO_CODE_CHOICES
+    CHECK(!typed.tabs.empty());
+#endif
     // A new field in the same app reuses only the native session, never old input.
     f.commit = "must not cross editors";
     auto rebound = engine.begin(2, "editor.one");
     CHECK(f.created == 1 && f.destroyed == 0 && !f.noLearning && f.clientApp == "editor.one");
     CHECK(rebound.preedit.empty() && rebound.candidates.empty() && rebound.tabs.empty() && rebound.commit.empty());
-    CHECK(f.freedCommit == 1 && f.clearedTabs == 1);
+    CHECK(f.freedCommit == 1);
     CHECK(engine.key(1, 'i', 0, false).gate == Stale && f.keys == 1);
     CHECK(engine.action(1, typed.revision, 1, 0, "").gate == Stale && f.selected == -1);
     // Ending a field is idempotent and gates both key-down and key-up.

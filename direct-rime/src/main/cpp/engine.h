@@ -25,9 +25,12 @@ struct Snapshot {
     bool canCachePresentation() const;
 };
 struct Tab {
-    std::string label;
-    size_t span;
-    bool operator==(const Tab& other) const { return label == other.label && span == other.span; }
+    std::string label, replacement;
+    size_t start, end;
+    bool operator==(const Tab& other) const {
+        return label == other.label && replacement == other.replacement &&
+               start == other.start && end == other.end;
+    }
 };
 struct RawInput { std::string text; int caret; };
 

@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name_release">靓企鹅·中州韵</string>
-    <string name="app_name_debug">靓企鹅·中州韵 (Debug)</string>
+    <string name="app_name_release">万象输入法</string>
+    <string name="app_name_debug">万象输入法 Debug</string>
     <string name="save">儲存</string>
     <string name="input_methods">輸入法</string>
-    <string name="rime_settings">中州韻引擎設定</string>
+    <string name="rime_settings">中州韻引擎</string>
     <string name="addons">附加元件</string>
     <string name="conf">設定</string>
     <string name="global_options">全域選項</string>
@@ -1212,7 +1212,8 @@
     <string name="rime_engine_ready">引擎清單已就緒</string>
     <string name="rime_engine_fallback_title">引擎已回退</string>
     <string name="rime_engine_builtin_section">內建引擎</string>
-    <string name="rime_engine_builtin_name">內建 SandyYuR/librime</string>
+    <string name="rime_engine_builtin_name">內建引擎</string>
+    <string name="rime_engine_builtin_evo_name">內建 librime-evo</string>
     <string name="rime_engine_builtin_details">隨目前 APK 封裝 · 工作目錄：%1$s</string>
     <string name="rime_engine_imported_section">已匯入的 .so 引擎</string>
     <string name="rime_engine_import_so">匯入 .so 引擎</string>

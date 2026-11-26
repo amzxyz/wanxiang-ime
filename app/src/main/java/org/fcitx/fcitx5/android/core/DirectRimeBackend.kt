@@ -645,10 +645,12 @@ class DirectRimeBackend(context: Context) : InputEngine {
         act(13, forceCandidates = forceCandidates)
     }
     override suspend fun offsetCandidatePage(delta: Int) { onOwner { repeat(kotlin.math.abs(delta).coerceAtMost(100)) { act(2, delta) } } }
-    override suspend fun triggerCandidateListTabAction(id: Int) { performAction(if (id == -1) 7 else 4, id) }
+    override suspend fun triggerCandidateListTabAction(id: Int) {
+        if (id >= 0) performAction(4, id)
+    }
     override suspend fun triggerCandidateListTabActionIfCurrent(target: CandidateTabActionTarget): Boolean =
-        target.id >= -1 &&
-            performAction(if (target.id == -1) 7 else 4, target.id, tabContext = target.context)?.ready == true
+        target.id >= 0 &&
+            performAction(4, target.id, tabContext = target.context)?.let { it.ready && it.handled } == true
 
     override suspend fun availableIme() = arrayOf(inputMethodEntryCached)
     override suspend fun enabledIme() = availableIme()

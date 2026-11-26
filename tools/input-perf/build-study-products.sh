@@ -69,11 +69,12 @@ PYLOCK
             git diff --exit-code -- app/src/main direct-rime native build-logic gradle \
                 app/build.gradle.kts build.gradle.kts settings.gradle.kts gradle.properties
             git submodule status > "$output/$label-submodules.txt"
+            source "$root/tools/benchmark-android-variant.sh"
             ./gradlew -PbuildABI=x86_64 -Pkotlin.compiler.execution.strategy=in-process \
-                --max-workers=2 --console=plain :app:assembleFxDebug :app:assembleFxDebugAndroidTest \
+                --max-workers=2 --console=plain :app:assemble"${benchmark_variant}" :app:assemble"${benchmark_variant}"AndroidTest \
                 2>&1 | tee "$output/$label-build.log"
-            app_apks=(app/build/outputs/apk/fx/debug/*.apk)
-            test_apks=(app/build/outputs/apk/androidTest/fx/debug/*.apk)
+            app_apks=(app/build/outputs/apk/"${benchmark_apk_dir}"/*.apk)
+            test_apks=(app/build/outputs/apk/androidTest/"${benchmark_apk_dir}"/*.apk)
             [ "${#app_apks[@]}" -eq 1 ] && [ -f "${app_apks[0]}" ]
             [ "${#test_apks[@]}" -eq 1 ] && [ -f "${test_apks[0]}" ]
             cp "${app_apks[0]}" "$output/$label.apk"

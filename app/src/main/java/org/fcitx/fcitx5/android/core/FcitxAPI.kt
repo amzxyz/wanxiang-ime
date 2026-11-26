@@ -163,7 +163,7 @@ interface FcitxAPI {
     suspend fun triggerCandidateListTabAction(id: Int)
 
     suspend fun triggerCandidateListTabActionIfCurrent(target: CandidateTabActionTarget): Boolean {
-        if (candidateTabActionContext != target.context) return false
+        if (target.id < 0 || candidateTabActionContext != target.context) return false
         triggerCandidateListTabAction(target.id)
         return true
     }

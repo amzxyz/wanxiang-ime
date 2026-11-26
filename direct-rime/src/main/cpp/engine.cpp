@@ -380,8 +380,8 @@ void Engine::initialize(bool fullCheck) {
     }
     RimeTraits traits{}; RIME_STRUCT_INIT(RimeTraits, traits);
     traits.shared_data_dir = shared_.c_str(); traits.user_data_dir = user_.c_str();
-    traits.app_name = "rime.direct-android"; traits.distribution_name = "中州鹅";
-    traits.distribution_code_name = "中州鹅"; traits.distribution_version = version_.c_str();
+    traits.app_name = "rime.wanxiang"; traits.distribution_name = "万象输入法";
+    traits.distribution_code_name = "wanxiang-ime"; traits.distribution_version = version_.c_str();
     // librime applies min_log_level in setup(), which runs once per process; a later start
     // cannot change it, so the developer switch takes effect after the app restarts.
     traits.log_dir = ""; traits.min_log_level = minLogLevel_;
@@ -421,7 +421,6 @@ void Engine::clearSession() {
     // Never learn or deliver unfinished input from the previous editor.
     api_->set_option(session_, "_no_learning", true);
     api_->clear_composition(session_);
-    if (RIME_API_AVAILABLE(api_, clear_tabs)) api_->clear_tabs(session_);
     RimeCommit commit{}; RIME_STRUCT_INIT(RimeCommit, commit);
     if (api_->get_commit(session_, &commit)) {
         ScopeExit cleanup([&] { api_->free_commit(&commit); });
@@ -507,6 +506,7 @@ Snapshot Engine::action(int64_t generation, int64_t revision, int action, int in
     if (gate(generation) != Ready) return snapshot(generation);
     if (revision != revision_) { Snapshot s; s.generation = generation; s.gate = Stale; return s; }
     const auto inputStatistics = captureInputStatistics(statistics);
+    bool handled = action != 13;
     { CoreTrace core("rime.direct.action_core", timing_);
       switch (action) {
     case 0: api_->clear_composition(session_); break;
@@ -514,15 +514,23 @@ Snapshot Engine::action(int64_t generation, int64_t revision, int action, int in
     case 2: if (RIME_API_AVAILABLE(api_, change_page)) api_->change_page(session_, index < 0); break;
     case 3: api_->set_option(session_, "ascii_mode", false); api_->select_schema(session_, value.c_str()); break;
     case 4:
-        if (index >= 0 && static_cast<size_t>(index) < tabs_.size() && RIME_API_AVAILABLE(api_, select_tab))
-            api_->select_tab(session_, 0, tabs_[index].label.c_str(), tabs_[index].span);
+        handled = false;
+#ifdef RIME_EVO_CODE_CHOICES
+        if (index >= 0 && static_cast<size_t>(index) < tabs_.size() &&
+            RIME_API_AVAILABLE(api_, select_code_choice)) {
+            const auto& choice = tabs_[index];
+            handled = api_->select_code_choice(session_, choice.start, choice.end, choice.replacement.c_str());
+        }
+#endif
         break;
     case 5:
         if (index >= 0 && RIME_API_AVAILABLE(api_, delete_candidate_on_current_page))
             api_->delete_candidate_on_current_page(session_, index);
         break;
     case 6: setOption("ascii_mode", !api_->get_option(session_, "ascii_mode")); break;
-    case 7: if (RIME_API_AVAILABLE(api_, clear_tabs)) api_->clear_tabs(session_); break;
+    case 7: // Reserved former clear-tabs action; never report success.
+        handled = false;
+        break;
     case 8: setOption(value, index != 0); break;
     case 9: if (index >= 0 && RIME_API_AVAILABLE(api_, set_caret_pos)) api_->set_caret_pos(session_, index); break;
     case 10: api_->commit_composition(session_); break;
@@ -553,7 +561,7 @@ Snapshot Engine::action(int64_t generation, int64_t revision, int action, int in
     }
     default: throw std::invalid_argument("unknown direct Rime action");
       } }
-    return snapshot(generation, action != 13, inputStatistics);
+    return snapshot(generation, handled, inputStatistics);
 }
 int64_t Engine::captureInputStatistics(bool requested) const {
     if (!requested || sessionNoLearning_ || !RIME_API_AVAILABLE(api_, get_input)) return -1;
@@ -690,19 +698,29 @@ Snapshot Engine::snapshot(int64_t generation, bool handled, int64_t inputStatist
         }
       } }
     std::vector<Tab> nextTabs;
-    { TimedTrace tabsTrace("rime.direct.read_input_tabs", timing_[4]);
-      if (RIME_API_AVAILABLE(api_, get_input_tabs) && RIME_API_AVAILABLE(api_, free_input_tabs)) {
-          char** labels = nullptr; size_t* spans = nullptr; int* sources = nullptr; size_t count = 0;
-          if (api_->get_input_tabs(session_, 0, &labels, &spans, &sources, &count)) {
-              ScopeExit cleanup([&] { api_->free_input_tabs(labels, spans, sources, count); });
+    { TimedTrace tabsTrace("rime.direct.read_code_choices", timing_[4]);
+#ifdef RIME_EVO_CODE_CHOICES
+      if (RIME_API_AVAILABLE(api_, get_code_choices) &&
+          RIME_API_AVAILABLE(api_, free_code_choices) &&
+          RIME_API_AVAILABLE(api_, select_code_choice)) {
+          RimeCodeChoice* choices = nullptr;
+          size_t count = 0;
+          if (api_->get_code_choices(session_, &choices, &count)) {
+              ScopeExit cleanup([&] { api_->free_code_choices(choices, count); });
               std::u16string decoded;
               for (size_t i = 0; i < count; ++i) {
-                  auto label = safe(labels[i]);
-                  if (label.empty() || !utf16(label, decoded)) continue;
-                  nextTabs.push_back({label, spans[i]}); s.tabs.push_back(label);
+                  const auto& choice = choices[i];
+                  auto label = safe(choice.label);
+                  auto replacement = safe(choice.replacement);
+                  if (choice.start >= choice.end || label.empty() || replacement.empty() ||
+                      !utf16(label, decoded) || !utf16(replacement, decoded)) continue;
+                  nextTabs.push_back({label, replacement, choice.start, choice.end});
+                  s.tabs.push_back(std::move(label));
               }
-            }
-      } }
+          }
+      }
+#endif
+    }
     if (nextTabs != tabs_) {
         tabs_ = std::move(nextTabs);
         ++tabsRevision_;

@@ -111,8 +111,13 @@ class CandidateSelectionQueueTest {
             withTimeout(5_000) { service.postCandidateTabAction(currentTab).awaitServiceCompletion() }
             assertEquals(listOf(0), CandidateSelectionNativeShadow.tabSelections)
 
+            assertFalse(backend.triggerCandidateListTabActionIfCurrent(currentTab.copy(id = -1)))
             withTimeout(5_000) { service.postCandidateTabAction(currentTab.copy(id = -1)).awaitServiceCompletion() }
-            assertEquals(1, CandidateSelectionNativeShadow.clearedTabs)
+            assertEquals(listOf(0), CandidateSelectionNativeShadow.tabSelections)
+            CandidateSelectionNativeShadow.rejectTab = true
+            assertFalse(backend.triggerCandidateListTabActionIfCurrent(currentTab))
+            assertEquals(listOf(0, 0), CandidateSelectionNativeShadow.tabSelections)
+            CandidateSelectionNativeShadow.rejectTab = false
 
             // Expanded data retain their global index even while the compact UI is paged.
             val expanded = backend.getCandidates(16, 2)
@@ -143,14 +148,14 @@ internal class CandidateSelectionNativeShadow : NativeTestDelegate {
         var word = ""
         var committed = ""
         var tabVersion = 0L
-        var clearedTabs = 0
+        var rejectTab = false
         val selections = mutableListOf<Pair<Int, Int>>()
         val tabSelections = mutableListOf<Int>()
         fun reset(value: Long) {
-            generation = value; revision = 0; word = ""; committed = ""; tabVersion = 0; clearedTabs = 0
+            generation = value; revision = 0; word = ""; committed = ""; tabVersion = 0; rejectTab = false
             selections.clear(); tabSelections.clear()
         }
-        private fun snapshot(commit: String = "") = Snapshot(generation, ++revision, 0, true, 0,
+        private fun snapshot(commit: String = "", handled: Boolean = true) = Snapshot(generation, ++revision, 0, handled, 0,
             commit, "ni", "fixture", false, 0, true, 2, arrayOf(word), emptyArray(), arrayOf("同标签"),
             "Fixture", 0, word, arrayOf("1"), tabsRevision = tabVersion)
     }
@@ -170,10 +175,9 @@ internal class CandidateSelectionNativeShadow : NativeTestDelegate {
                 committed = if (action == 1) word else "扩展$index"
             }
             4 -> tabSelections += index
-            7 -> clearedTabs++
             else -> error("Unexpected action $action")
         }
-        return snapshot(if (action == 1 || action == 11) committed else "")
+        return snapshot(if (action == 1 || action == 11) committed else "", action != 4 || !rejectTab)
     }
     override fun candidates(value: Long, offset: Int, limit: Int): Array<String> {
         check(value == generation)

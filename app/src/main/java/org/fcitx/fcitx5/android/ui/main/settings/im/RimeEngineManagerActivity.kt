@@ -33,6 +33,7 @@ import org.fcitx.fcitx5.android.ui.common.WrappingActionRow
 import org.fcitx.fcitx5.android.ui.main.settings.behavior.editor.EditorUi
 import org.fcitx.fcitx5.android.utils.FileUtil
 import org.fcitx.fcitx5.android.utils.settingsColor
+import org.json.JSONObject
 import java.io.File
 import java.io.FileOutputStream
 import java.util.Locale
@@ -157,6 +158,19 @@ class RimeEngineManagerActivity : SettingsUiActivity() {
         }
     }
 
+    // Read the verified SDK manifest packaged with the APK, never infer the
+    // built-in engine from whichever imported engine happens to be active.
+    private val builtinSdk by lazy {
+        runCatching {
+            assets.open("bundled/rime-sdk-manifest.json").bufferedReader().use {
+                JSONObject(it.readText())
+            }
+        }.getOrNull()
+    }
+    private val builtinTitle: String
+        get() = getString(if (builtinSdk?.optString("engine_family") == "evo")
+            R.string.rime_engine_builtin_evo_name else R.string.rime_engine_builtin_name)
+
     private fun render(value: Screen) {
         body.removeAllViews()
         sectionTitle(R.string.rime_engine_builtin_section)
@@ -164,13 +178,17 @@ class RimeEngineManagerActivity : SettingsUiActivity() {
             value.directories.current
         } else value.state.builtinProfile ?: value.directories.current
         body.addView(engineCard(
-            title = getString(R.string.rime_engine_builtin_name),
-            details = getString(R.string.rime_engine_builtin_details, builtinProfile),
+            title = builtinTitle,
+            details = buildString {
+                append(getString(R.string.rime_engine_builtin_details, builtinProfile))
+                builtinSdk?.optString("librime_commit")?.takeIf { it.matches(Regex("[0-9a-f]{40}")) }
+                    ?.let { append("\n").append(it.take(12)) }
+            },
             active = value.state.active == RimeEngineSelection.Builtin,
             actions = buildList {
                 if (value.state.active != RimeEngineSelection.Builtin) add(
                     action(R.string.rime_engine_switch) {
-                        confirmSwitch(RimeEngineSelection.Builtin, getString(R.string.rime_engine_builtin_name))
+                        confirmSwitch(RimeEngineSelection.Builtin, builtinTitle)
                     }
                 )
             }

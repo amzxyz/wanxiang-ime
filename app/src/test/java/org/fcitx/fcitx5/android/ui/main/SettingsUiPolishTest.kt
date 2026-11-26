@@ -355,10 +355,10 @@ class SettingsUiPolishTest {
         val (activity, context) = host()
         val clicks = mutableListOf<String>()
         val adapter = UpdateAssetAdapter({ clicks += "download" }, { clicks += it.status.name })
-        val asset = ReleaseAsset("中州鹅 ARM64.apk", "https://example.invalid/app.apk", 24_000_000, null)
+        val asset = ReleaseAsset("万象输入法 ARM64.apk", "https://example.invalid/app.apk", 24_000_000, null)
         val states = listOf(AssetStatus.IDLE, AssetStatus.DOWNLOADING, AssetStatus.FINISHED, AssetStatus.FAILED)
         adapter.submitList(states.mapIndexed { index, state -> AssetUiState(asset.copy(
-            name = "中州鹅-${listOf("arm64", "armv7", "x86_64", "x86")[index]}.apk",
+            name = "万象输入法-${listOf("arm64", "armv7", "x86_64", "x86")[index]}.apk",
             browserDownloadUrl = "https://example.invalid/$index/app.apk"), state, progressPercent = 42) })
         val column = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL; setPadding(0, 8, 0, 8) }
         for (index in states.indices) {

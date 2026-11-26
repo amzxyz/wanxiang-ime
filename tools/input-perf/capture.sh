@@ -18,9 +18,9 @@ data_sources {
       atrace_categories: "gfx"
       atrace_categories: "view"
       atrace_categories: "dalvik"
-      atrace_apps: "org.fcitx.fcitx5.android.fx.rime.debug"
+      atrace_apps: "com.amzxyz.wanxiang.ime.debug"
       atrace_apps: "io.github.sandyyur.rime.direct"
-      atrace_apps: "org.fcitx.fcitx5.android.fx.rime"
+      atrace_apps: "com.amzxyz.wanxiang.ime"
     }
   }
 }

@@ -4,6 +4,8 @@
  */
 package org.fcitx.fcitx5.android.ui.main.settings.im
 
+import android.content.Intent
+import androidx.preference.Preference
 import androidx.preference.PreferenceScreen
 import org.fcitx.fcitx5.android.R
 import org.fcitx.fcitx5.android.core.FcitxAPI
@@ -13,6 +15,7 @@ import org.fcitx.fcitx5.android.ui.main.modified.MySwitchPreference
 import org.fcitx.fcitx5.android.ui.main.settings.FcitxPreferenceFragment
 import org.fcitx.fcitx5.android.ui.main.settings.SettingsRoute
 import org.fcitx.fcitx5.android.utils.lazyRoute
+import org.fcitx.fcitx5.android.utils.setup
 
 class InputMethodConfigFragment : FcitxPreferenceFragment() {
     val args by lazyRoute<SettingsRoute.InputMethodConfig>()
@@ -24,6 +27,19 @@ class InputMethodConfigFragment : FcitxPreferenceFragment() {
 
     override suspend fun saveConfig(fcitx: FcitxAPI, newConfig: RawConfig) {
         fcitx.setImConfig(args.uniqueName, newConfig)
+    }
+
+    override fun decoratePreferenceScreen(screen: PreferenceScreen) {
+        if (args.uniqueName != RIME_UNIQUE_NAME) return
+        screen.addPreference(Preference(requireContext()).apply {
+            key = "rime_engine_variants"
+            isPersistent = false
+            setup(getString(R.string.rime_engine_variants_title),
+                getString(R.string.rime_engine_variants_summary)) {
+                startActivity(Intent(requireContext(), RimeEngineManagerActivity::class.java))
+            }
+            widgetLayoutResource = R.layout.preference_settings_navigation
+        })
     }
 
     /**

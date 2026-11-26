@@ -3,7 +3,7 @@ from pathlib import Path
 import sys
 import xml.etree.ElementTree as ET
 
-root = Path(sys.argv[1] if len(sys.argv) > 1 else "app/build/test-results/testFxDebugUnitTest")
+root = Path(sys.argv[1] if len(sys.argv) > 1 else "app/build/test-results/testDebugUnitTest")
 totals = {key: 0 for key in ("tests", "failures", "errors", "skipped")}
 reports = list(root.rglob("TEST-*.xml"))
 for report in reports:
