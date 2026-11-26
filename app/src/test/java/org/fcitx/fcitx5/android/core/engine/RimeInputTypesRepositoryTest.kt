@@ -158,6 +158,53 @@ class RimeInputTypesRepositoryTest {
         assertTrue(restricted.selectableTypes(listOf("flypy")).isEmpty())
     }
 
+    @Test fun switchingPersistsOnlyResetAndPreservesEnabledAndOtherOverrides() {
+        val dir = user(customText = "patch:\n  input_types/enabled: [zrm, flypy, pinyin] # keep\n  input_types/reset: zrm\n  menu/page_size: 6\n")
+        val file = File(dir, "wanxiang.custom.yaml")
+        val before = requireNotNull(RimeInputTypesRepository.read(dir))
+        var applied = 0
+        RimeInputTypesRepository.select(dir, "wanxiang", "flypy") { applied++; true }
+        val after = requireNotNull(RimeInputTypesRepository.read(dir))
+        assertEquals(1, applied)
+        assertEquals("flypy", after.reset)
+        assertEquals(before.enabled, after.enabled)
+        assertEquals(before.types, after.types)
+        val yaml = org.fcitx.fcitx5.android.data.WanxiangYaml()
+        val doc = yaml.document(file.readText())
+        assertEquals("6", (yaml.get(doc, "patch") as org.yaml.snakeyaml.nodes.MappingNode).let {
+            (yaml.member(it, "menu/page_size") as org.yaml.snakeyaml.nodes.ScalarNode).value
+        })
+    }
+
+    @Test fun newCustomContainsOnlyResetAndRejectedSwitchRollsBack() {
+        val dir = user(schemaText = schema.replace("enabled: [zrm]", "enabled: [zrm, flypy]"), customText = null)
+        val file = File(dir, "wanxiang.custom.yaml")
+        assertTrue(runCatching {
+            RimeInputTypesRepository.select(dir, "wanxiang", "flypy") { false }
+        }.isFailure)
+        assertTrue(!file.exists())
+        RimeInputTypesRepository.select(dir, "wanxiang", "flypy") { true }
+        val before = file.readBytes()
+        assertTrue(!file.readText().contains("enabled"))
+        assertEquals("flypy", RimeInputTypesRepository.read(dir)?.reset)
+        assertTrue(runCatching {
+            RimeInputTypesRepository.select(dir, "wanxiang", "zrm") { false }
+        }.isFailure)
+        assertTrue(before.contentEquals(file.readBytes()))
+        assertTrue(runCatching {
+            RimeInputTypesRepository.select(dir, "wanxiang", "pinyin") { error("must not reach engine") }
+        }.isFailure)
+        assertTrue(before.contentEquals(file.readBytes()))
+    }
+
+    @Test fun wholeGroupOverrideKeepsItsDeploymentList() {
+        val dir = user(customText = "patch:\n  input_types:\n    enabled: [zrm, flypy]\n    reset: zrm\n    options: [{option: zrm, label: 自然码}, {option: flypy, label: 小鹤双拼}]\n")
+        RimeInputTypesRepository.select(dir, "wanxiang", "flypy") { true }
+        val result = requireNotNull(RimeInputTypesRepository.read(dir))
+        assertEquals("flypy", result.reset)
+        assertEquals(listOf("zrm", "flypy"), result.enabled)
+    }
+
     @Test fun catalogRemainsCompleteAndReadingNeverWritesCustom() {
         val dir = user()
         val file = File(dir, "wanxiang.custom.yaml")

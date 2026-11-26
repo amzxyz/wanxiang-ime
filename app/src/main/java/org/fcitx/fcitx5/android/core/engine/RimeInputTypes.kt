@@ -3,6 +3,7 @@ package org.fcitx.fcitx5.android.core.engine
 
 import org.fcitx.fcitx5.android.data.WanxiangAdvancedFiles
 import org.fcitx.fcitx5.android.data.WanxiangYaml
+import org.fcitx.fcitx5.android.utils.FileUtil
 import org.yaml.snakeyaml.nodes.MappingNode
 import org.yaml.snakeyaml.nodes.Node
 import org.yaml.snakeyaml.nodes.ScalarNode
@@ -36,7 +37,7 @@ internal data class RimeInputTypes(
         types.filter { it.option in enabled && it.option in deployed }
 }
 
-/** Read-only source catalog; runtime choices never edit deployment configuration. */
+/** Reads the effective catalog and persists only the selected type's reset. */
 internal object RimeInputTypesRepository {
     private const val SCHEMA_SUFFIX = ".schema.yaml"
     private const val CUSTOM_SUFFIX = ".custom.yaml"
@@ -61,6 +62,68 @@ internal object RimeInputTypesRepository {
         // InputTypesConfig::Load rejects a reset that is not enabled, so it is not active.
         if (reset !in known || reset !in enabled) reset = null
         return RimeInputTypes(types, enabled, reset, schema.id, schema.customFile)
+    }
+
+    /**
+     * Save the next default without changing the deployment list. The caller runs on the
+     * engine owner and applies the option to the existing runtime, not a full deployment.
+     * Reject an invalid patch before touching disk and roll back if the engine rejects it.
+     */
+    fun select(user: File, schemaId: String, option: String, apply: () -> Boolean) {
+        val state = read(user, schemaId) ?: error("当前方案未声明输入类型")
+        require(option in state.enabled) { "该输入类型未启用" }
+        val file = state.customFile
+        val original = if (file.isFile) file.readBytes() else null
+        val yaml = WanxiangYaml()
+        val source = findSchema(user, schemaId, yaml) ?: error("输入方案不存在")
+        val root = yaml.document(original?.toString(Charsets.UTF_8).orEmpty())
+        val patch = yaml.member(root, "patch")?.let {
+            require(it is MappingNode) { "补丁文件的 patch 节点不是映射" }
+            it
+        } ?: yaml.mapping().also { yaml.put(root, "patch", it) }
+
+        // A direct child override follows the whole-group patch in Rime's sorted key order.
+        // Reuse an explicit replacement key if present so it cannot shadow the new value.
+        val key = if (yaml.member(patch, "input_types/reset/=") != null)
+            "input_types/reset/=" else "input_types/reset"
+        val before = yaml.clone(root) as MappingNode
+        yaml.put(patch, key, yaml.string(option))
+        val updated = yaml.dump(root).let { if (it.endsWith('\n')) it else "$it\n" }
+        val checked = yaml.document(updated)
+        require(yaml.equivalent(root, checked)) { "补丁序列化校验失败" }
+        val checkedPatch = yaml.member(checked, "patch") as MappingNode
+        val effective = effectiveGroup(yaml, source.group, checkedPatch)
+            ?: error("无法解析输入类型补丁")
+        val previous = effectiveGroup(yaml, source.group, file)
+            ?: error("无法解析原输入类型补丁")
+        require((yaml.member(effective, "reset") as? ScalarNode)?.value == option) {
+            "补丁未写入所选输入类型"
+        }
+        // Compare the entire effective group except reset, and the original document except
+        // the single override being edited. Never remove or add enabled/options entries.
+        val expected = yaml.clone(previous) as MappingNode
+        yaml.put(expected, "reset", yaml.string(option))
+        require(yaml.equivalent(expected, effective)) { "输入类型部署配置发生意外变化" }
+        val beforePatch = yaml.member(before, "patch") as? MappingNode
+        val unchanged = yaml.clone(checked) as MappingNode
+        val unchangedPatch = yaml.member(unchanged, "patch") as MappingNode
+        yaml.put(unchangedPatch, key, beforePatch?.let { yaml.member(it, key) })
+        require(yaml.equivalent(before, unchanged)) { "其他补丁配置发生意外变化" }
+
+        val output = if (original?.toString(Charsets.UTF_8)?.contains("\r\n") == true)
+            updated.replace("\n", "\r\n") else updated
+        FileUtil.writeAtomically(file, output)
+        try {
+            require(apply()) { "该输入类型未部署或引擎拒绝切换" }
+        } catch (error: Throwable) {
+            try {
+                if (original == null) check(file.delete() || !file.exists())
+                else FileUtil.writeAtomically(file) { it.write(original) }
+            } catch (rollback: Throwable) {
+                error.addSuppressed(rollback)
+            }
+            throw error
+        }
     }
 
     private data class SchemaTypes(
@@ -101,6 +164,10 @@ internal object RimeInputTypesRepository {
     private fun effectiveGroup(yaml: WanxiangYaml, source: MappingNode, customFile: File): MappingNode? {
         if (!customFile.isFile) return source
         val custom = runCatching { patch(yaml, customFile) }.getOrNull() ?: return null
+        return effectiveGroup(yaml, source, custom)
+    }
+
+    private fun effectiveGroup(yaml: WanxiangYaml, source: MappingNode, custom: MappingNode): MappingNode? {
         val base = yaml.mapping()
         yaml.put(base, "input_types", yaml.clone(source))
         val patched = yaml.mapping()
