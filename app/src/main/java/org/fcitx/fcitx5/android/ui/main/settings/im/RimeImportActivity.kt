@@ -271,7 +271,12 @@ class RimeImportActivity : SettingsUiActivity() {
             } catch (e: kotlinx.coroutines.CancellationException) {
                 throw e
             } catch (e: Exception) {
-                showStatus(R.string.ui_operation_failed, State.ERROR, e.message.orEmpty())
+                timber.log.Timber.e(e, "Bundled Wanxiang installation failed (mode=%s)", request.findByName("Mode")?.value)
+                val detail = e.message?.takeUnless { it.isBlank() || it == "Failed requirement." || it == "Check failed." }
+                    ?: e.stackTrace.firstOrNull { it.className.startsWith("org.fcitx.") }?.let {
+                        "${e.javaClass.simpleName}: ${it.className.substringAfterLast('.') }.${it.methodName}:${it.lineNumber}"
+                    } ?: e.toString()
+                showStatus(R.string.ui_operation_failed, State.ERROR, detail)
             } finally {
                 choose.isEnabled = true
             }

@@ -897,7 +897,7 @@ class DirectRimeBackend(context: Context) : InputEngine {
                                 requireNotNull(config.findByName("Profile")).value,
                                 requireNotNull(config.findByName("Path")).value,
                             )
-                            val staging = File.createTempFile("bundled-update-", ".stage", archive.parentFile!!)
+                            val staging = File.createTempFile("bundled-update-", ".stage", archive.parentFile!!.canonicalFile)
                             check(staging.delete())
                             try {
                                 val plan = org.fcitx.fcitx5.android.data.BundledWanxiang.prepareUpdate(

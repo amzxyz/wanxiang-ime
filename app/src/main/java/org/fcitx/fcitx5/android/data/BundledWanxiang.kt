@@ -38,7 +38,7 @@ internal object BundledWanxiang {
             manifest.sha256.matches(Regex("[0-9a-f]{64}")) && manifest.files > 0) {
             "内置万象方案来源无效"
         }
-        val directory = File(context.cacheDir, "rime-import")
+        val directory = File(context.cacheDir.canonicalFile, "rime-import")
         check(directory.isDirectory || directory.mkdirs())
         val archive = File.createTempFile("bundled-wanxiang-", ".zip", directory)
         try {
@@ -51,7 +51,7 @@ internal object BundledWanxiang {
                         val count = input.read(buffer)
                         if (count < 0) break
                         bytes += count
-                        require(bytes <= MAX_BYTES)
+                        require(bytes <= MAX_BYTES) { "内置万象方案 ZIP 超过大小限制" }
                         digest.update(buffer, 0, count)
                         output.write(buffer, 0, count)
                     }
