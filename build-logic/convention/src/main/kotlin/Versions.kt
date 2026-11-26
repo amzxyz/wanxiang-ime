@@ -17,8 +17,8 @@ object Versions {
     const val defaultBuildTools = "36.1.0"
 
     // Single version source. Increase both values for each official release.
-    const val baseVersionCode = 12
-    const val baseVersionName = "0.1.4"
+    const val baseVersionCode = 13
+    const val baseVersionName = "0.1.5"
 
     val supportedABIs = setOf("armeabi-v7a", "arm64-v8a", "x86", "x86_64")
     const val fallbackABI = "arm64-v8a"
