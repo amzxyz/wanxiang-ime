@@ -18,6 +18,7 @@ jobs:
     runs-on: ubuntu-22.04
     outputs:
       version: ${{ steps.version.outputs.value }}
+      version_code: ${{ steps.version.outputs.code }}
       evo_commit: ${{ steps.evo.outputs.commit }}
       lua_commit: ${{ steps.evo.outputs.lua_commit }}
       octagram_commit: ${{ steps.evo.outputs.octagram_commit }}
@@ -32,15 +33,13 @@ jobs:
           set -euo pipefail
           git fetch origin refs/heads/wanxiang:refs/remotes/origin/wanxiang
           git merge-base --is-ancestor "$GITHUB_SHA" origin/wanxiang
+          python3 -m unittest discover -s tools -p test_validate_release_version.py
           if [[ "$GITHUB_REF_TYPE" == tag ]]; then
-            [[ "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
-            version="${GITHUB_REF_NAME#v}"
+            python3 tools/validate-release-version.py --tag "$GITHUB_REF_NAME" >> "$GITHUB_OUTPUT"
           else
             test "$GITHUB_REF" = refs/heads/wanxiang
-            version=$(sed -nE 's/.*const val baseVersionName = "([0-9]+\.[0-9]+\.[0-9]+)".*/\1/p' build-logic/convention/src/main/kotlin/Versions.kt)
+            python3 tools/validate-release-version.py >> "$GITHUB_OUTPUT"
           fi
-          test -n "$version"
-          echo "value=$version" >> "$GITHUB_OUTPUT"
       - name: Read immutable EVO release lock
         id: evo
         run: |
@@ -63,6 +62,7 @@ jobs:
     env:
       BUILD_ABI: ${{ matrix.abi }}
       BUILD_VERSION_NAME: ${{ needs.prepare.outputs.version }}
+      BASE_VERSION_CODE: ${{ needs.prepare.outputs.version_code }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -141,6 +141,14 @@ jobs:
           "$ANDROID_HOME/build-tools/36.1.0/apksigner" verify --verbose --print-certs "$apk"
           test "$("$ANDROID_HOME/cmdline-tools/latest/bin/apkanalyzer" manifest application-id "$apk")" = com.amzxyz.wanxiang.ime
           test "$("$ANDROID_HOME/cmdline-tools/latest/bin/apkanalyzer" manifest version-name "$apk")" = "$BUILD_VERSION_NAME"
+          case "$BUILD_ABI" in
+            armeabi-v7a) abi_id=1 ;;
+            arm64-v8a) abi_id=2 ;;
+            x86) abi_id=3 ;;
+            x86_64) abi_id=4 ;;
+            *) exit 1 ;;
+          esac
+          test "$("$ANDROID_HOME/cmdline-tools/latest/bin/apkanalyzer" manifest version-code "$apk")" = "$((BASE_VERSION_CODE * 10 + abi_id))"
           python3 -c 'import json, sys, zipfile; z=zipfile.ZipFile(sys.argv[1]); m=json.loads(z.read("assets/bundled/rime-sdk-manifest.json")); lock=json.load(open("native/evo-release.lock.json")); assert m["engine_family"] == "evo" and m["librime_commit"] == lock["commit"] and m["abis"] == [sys.argv[2]]' "$apk" "$BUILD_ABI"
           python3 -c 'import sys, zipfile; z = zipfile.ZipFile(sys.argv[1]); bad = z.testzip(); sys.exit(f"Corrupt APK member: {bad}" if bad else 0)' "$apk"
       - uses: actions/upload-artifact@v7
