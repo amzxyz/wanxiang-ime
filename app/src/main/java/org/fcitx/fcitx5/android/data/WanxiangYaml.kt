@@ -9,6 +9,7 @@ import org.yaml.snakeyaml.comments.CommentLine
 import org.yaml.snakeyaml.comments.CommentType
 import org.yaml.snakeyaml.nodes.*
 import org.yaml.snakeyaml.representer.Representer
+import org.yaml.snakeyaml.resolver.Resolver
 import java.io.StringReader
 import java.io.StringWriter
 import java.util.IdentityHashMap
@@ -120,8 +121,35 @@ internal class WanxiangYaml {
     }
     fun mapping() = MappingNode(Tag.MAP, mutableListOf(), DumperOptions.FlowStyle.BLOCK)
     fun sequence(nodes: List<Node>) = SequenceNode(Tag.SEQ, nodes.toMutableList(), DumperOptions.FlowStyle.BLOCK)
-    fun string(value: String) = ScalarNode(Tag.STR, value, null, null,
-        if ('\n' in value) DumperOptions.ScalarStyle.LITERAL else DumperOptions.ScalarStyle.SINGLE_QUOTED)
+    private val resolver = Resolver()
+
+    fun string(value: String): ScalarNode {
+        // Prefer ordinary YAML scalars. Keep quotes when implicit YAML typing
+        // would turn a string into a boolean, number, null or timestamp.
+        // The emitter handles context-dependent syntax (e.g. '#', ': ', '@').
+        val style = when {
+            '\n' in value -> DumperOptions.ScalarStyle.LITERAL
+            resolver.resolve(NodeId.scalar, value, true) != Tag.STR -> DumperOptions.ScalarStyle.SINGLE_QUOTED
+            else -> DumperOptions.ScalarStyle.PLAIN
+        }
+        return ScalarNode(Tag.STR, value, null, null, style)
+    }
+
+    /** Repair the spelling of an edited key without rebuilding unrelated entries. */
+    fun preferPlainKey(map: MappingNode, name: String) {
+        val index = map.value.indexOfFirst { key(it.keyNode) == name }
+        if (index < 0) return
+        val entry = map.value[index]
+        val old = entry.keyNode as ScalarNode
+        if (old.tag != Tag.STR || old.anchor != null ||
+            old.scalarStyle != DumperOptions.ScalarStyle.SINGLE_QUOTED) return
+        val next = string(name)
+        if (next.scalarStyle != DumperOptions.ScalarStyle.PLAIN) return
+        next.blockComments = old.blockComments
+        next.inLineComments = old.inLineComments
+        next.endComments = old.endComments
+        map.value[index] = NodeTuple(next, entry.valueNode)
+    }
     fun scalar(value: Boolean) = ScalarNode(Tag.BOOL, value.toString(), null, null, DumperOptions.ScalarStyle.PLAIN)
     fun scalar(value: Int) = ScalarNode(Tag.INT, value.toString(), null, null, DumperOptions.ScalarStyle.PLAIN)
     fun key(node: Node) = (node as ScalarNode).value
@@ -137,7 +165,10 @@ internal class WanxiangYaml {
             value.endComments = it.endComments
         }
         val pair = NodeTuple(previous?.keyNode ?: string(name), value)
-        if (index < 0) map.value.add(pair) else map.value[index] = pair
+        if (index < 0) map.value.add(pair) else {
+            map.value[index] = pair
+            preferPlainKey(map, name)
+        }
     }
 
     fun path(value: String): List<String> {

@@ -34,6 +34,53 @@ class WanxiangAdvancedSettingsTest {
         assertEquals(1, s.edits.size)
     }
 
+    @Test fun generatedPatchUsesPlainKeysAndStringsWhereYamlAllows() {
+        val s = session(snapshot("wanxiang.schema.yaml", source))
+        s.change("wanxiang.schema.yaml", "menu/page_size", y.scalar(8))
+        s.change("wanxiang.schema.yaml", "translator/user_dict", y.string("zc"))
+        s.change("wanxiang.schema.yaml", "translator/learning_mode", y.string("manual"))
+        val saved = s.changes().getValue("wanxiang.custom.yaml")
+        assertTrue(saved, saved.startsWith("patch:\n"))
+        assertTrue(saved, saved.contains("menu/page_size: 8"))
+        assertTrue(saved, saved.contains("translator/user_dict: zc"))
+        assertTrue(saved, saved.contains("translator/learning_mode: manual"))
+    }
+
+    @Test fun savingRepairsOldQuotedPatchKeyWithoutReplacingUnrelatedEntries() {
+        val custom = "# my patch\n'patch':\n  'menu/page_size': 7 # size\n  key_binder/bindings/+: [{when: always, accept: Control+g, toggle: charset_filter}]\n  switches/@0/reset: 0\n  translator/custom_setting: 'true'\n  extension: {code: '001', text: 'a: b'}\nother_metadata: keep\n"
+        val before = y.document(custom)
+        val s = session(snapshot("wanxiang.schema.yaml", source, custom))
+        s.change("wanxiang.schema.yaml", "menu/page_size", y.scalar(8))
+        val saved = s.changes().getValue("wanxiang.custom.yaml")
+        assertTrue(saved, saved.contains("\npatch:\n"))
+        assertTrue(saved, saved.contains("menu/page_size: 8"))
+        assertTrue(saved, saved.contains("# my patch"))
+        assertTrue(saved, saved.contains("# size"))
+        val after = y.document(saved)
+        val oldPatch = y.member(before, "patch") as MappingNode
+        val newPatch = y.member(after, "patch") as MappingNode
+        assertEquals(oldPatch.value.map { y.key(it.keyNode) }.toSet(),
+            newPatch.value.map { y.key(it.keyNode) }.toSet())
+        oldPatch.value.filter { y.key(it.keyNode) != "menu/page_size" }.forEach {
+            val key = y.key(it.keyNode)
+            assertTrue(key, y.equivalent(it.valueNode, y.member(newPatch, key)))
+        }
+        assertTrue(y.equivalent(y.member(before, "other_metadata"), y.member(after, "other_metadata")))
+        assertEquals("8", scalar(y.member(newPatch, "menu/page_size")))
+    }
+
+    @Test fun generatedStringsKeepTheirTypeEvenWhenYamlRequiresQuoting() {
+        for (text in listOf("true", "false", "on", "null", "001", "1.5", "2026-11-26",
+            "", "#", "a: b", "@next", "a # b", " leading", "trailing ", "[]", "a\\b", "中文")) {
+            val doc = y.mapping()
+            y.put(doc, "value", y.string(text))
+            val saved = y.dump(doc)
+            val actual = y.member(y.document(saved), "value") as ScalarNode
+            assertEquals(saved, Tag.STR, actual.tag)
+            assertEquals(saved, text, actual.value)
+        }
+    }
+
     @Test fun directWritesRetainCommentsAndUnknownTypedValues() {
         val s = session(snapshot("wanxiang.schema.yaml", source), direct = true)
         s.change("wanxiang.schema.yaml", "menu/page_size", y.scalar(9))

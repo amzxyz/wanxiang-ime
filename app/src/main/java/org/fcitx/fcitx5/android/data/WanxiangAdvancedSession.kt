@@ -119,7 +119,9 @@ internal class WanxiangAdvancedSession(val target: WanxiangTarget, val direct: B
         val patch = if (!writeSource) {
             val existing = yaml.member(result, "patch")
             require(existing == null || existing is MappingNode) { "当前补丁使用序列，不能安全合并为字段补丁" }
-            (existing as? MappingNode ?: yaml.mapping().also { yaml.put(result, "patch", it) })
+            (existing as? MappingNode ?: yaml.mapping().also { yaml.put(result, "patch", it) }).also {
+                yaml.preferPlainKey(result, "patch")
+            }
         } else null
         pending.filter { it.file == file }.forEach { edit ->
             val node = if (edit.reset) null else yaml.parse(edit.value!!)
@@ -156,7 +158,13 @@ internal class WanxiangAdvancedSession(val target: WanxiangTarget, val direct: B
             val destination = if (direct) name else WanxiangAdvancedFiles.patchFile(name) ?: name
             val next = output(name)
             val original = if (destination == name) documents.getValue(name).source else documents.getValue(name).custom
-            if (!yaml.equivalent(original, next)) result[destination] = yaml.dump(next).also(yaml::document)
+            if (!yaml.equivalent(original, next)) {
+                val serialized = yaml.dump(next)
+                require(yaml.equivalent(next, yaml.document(serialized))) {
+                    "YAML 保存前后键值不一致，已取消写入：$destination"
+                }
+                result[destination] = serialized
+            }
         }
         dictionaries.forEach { (name, data) ->
             val dictionary = name.removeSuffix(".dict.yaml")
