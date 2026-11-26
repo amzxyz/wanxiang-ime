@@ -49,6 +49,7 @@ jobs:
         with:
           packages: 'platform-tools cmake;3.31.6'
       - uses: gradle/actions/setup-gradle@v6
+      - run: ./gradlew --no-daemon -p build-logic :convention:test --tests RimeSdkArchiveTest
       - run: python3 tools/prepare-ci-ndk.py
       - run: ./prepare_personal_build.sh
       - name: Build current EVO engine against verified dependency SDK

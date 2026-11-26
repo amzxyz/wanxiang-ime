@@ -122,7 +122,7 @@ def main():
         rows = []
         for abi in expected_abis:
             source, _, _ = releases[abi]
-            target = staging / f"zhongzhoue-{version}-{abi}.apk"
+            target = staging / f"wanxiang-{version}-{abi}.apk"
             shutil.copyfile(source, target)
             digest = hashlib.sha256(target.read_bytes()).hexdigest()
             rows.append((abi, target.name, target.stat().st_size, digest))

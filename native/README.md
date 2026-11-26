@@ -1,28 +1,11 @@
-# Android Rime SDK and shared presets
+# Android Rime SDK
 
-`rime-sdk.lock.json` pins a release of [SandyYuR/librime](https://github.com/SandyYuR/librime/tree/zhongzhou): an exact tag, source commit and SDK SHA-256. The root Gradle task `prepareRimeSdk` downloads, verifies and extracts that version to the ignored `native/rime-sdk/` directory. Native configuration and OpenCC asset preparation depend on this task automatically, including JVM builds that prepare app assets.
+正式 APK 使用 `native/evo-release.lock.json` 锁定的 librime-evo、Lua 与 octagram 源码提交。CI 逐 ABI 从源码编译 EVO，验证其来源、链接和文件哈希；Release 必须传入 `-PreleaseEvoSdkDir=/absolute/path/to/evo-sdk`，拒绝未锁定的本地 SDK。
 
-The only remaining submodule, `rime-prelude`, supplies punctuation and key-binding presets. `rime-data/default.yaml` supplies shared defaults without bundling a Chinese scheme.
+Debug CI 使用 EVO dev 源码，开发者可通过 `-PlocalRimeSdkDir=/absolute/path/to/development-sdk` 验证本地 SDK；此参数不能用于 Release。
 
-```sh
-git submodule update --init --depth 1 native/rime-prelude
-./gradlew -PbuildABI=arm64-v8a :app:assembleFxDebug
-python3 tools/verify-direct-rime-apk.py app/build/outputs/apk/fx/debug/*.apk
-python3 tools/audit-direct-rime-link.py app/build/outputs/apk/fx/debug/*.apk
-```
+目前 `rime-sdk.lock.json` 仅作为过渡期依赖种子：`prepareRimeSdk` 下载并校验归档。EVO 构建仅复用与其 gitlink 一致且通过 SHA-256 校验的 LevelDB、Marisa、yaml-cpp，以及 OpenCC 数据和许可证，不链接归档中的旧 librime、Lua 或 OpenCC 静态库。正式 APK 内置引擎必须是 EVO。后续可迁移到独立的万象 Android 依赖 SDK。
 
-On Windows use `gradlew.bat`; downloading the SDK uses Java and does not require Python. The archive is cached under `GRADLE_USER_HOME/caches/rime-sdk/<sha256>.zip`. After one successful online preparation, `--offline` uses this verified cache. A missing cache, checksum mismatch or wrong source version fails the build. Gradle detects changed extracted files and restores them from the verified archive.
+构建步骤见 `.github/workflows/release.yml`，源码构建脚本为 `tools/build-evo-sdk.py`。审计工具 `tools/verify-direct-rime-apk.py` 与 `tools/audit-direct-rime-link.py` 校验 APK 与真实静态链接输入。APK 内的 `assets/bundled/rime-sdk-manifest.json` 记录内核来源。
 
-The SDK contains four ABIs of librime with Lua, octagram and predict, its six runtime dependency archives, public headers, OpenCC data, licenses and provenance. Boost is used only while building the engine. The [SDK build instructions](https://github.com/SandyYuR/librime/blob/zhongzhou/downstream/android/README.zh-CN.md) describe pinned sources, native regression tests and release creation. No prebuilder/prebuilt checkout is used in the current build. Historical performance comparisons fetch each historical revision's recorded submodules.
-
-To upgrade, first publish and verify a new immutable `android-sdk-*` release in librime, then change this project's lock. Never replace a published archive or follow a moving branch. To roll back, restore the prior lock; user data is unaffected.
-
-For local engine development, librime's `downstream/android/build.py --development` snapshots local edits without changing the real Git index or HEAD. Its packaging tool exports a development directory with an explicit marker, source tree, ABIs and file hashes. Windows can build it using the pinned NDK and MSVC host tools; the workspace `build-engine-local.ps1 -BuildApp` runs the complete SDK-to-Debug flow.
-
-Pass `-PlocalRimeSdkDir=/absolute/path/to/development-sdk` with the requested `-PbuildABI` to use that verified SDK in Debug. Missing ABIs, invalid provenance and changed files fail validation. Release tasks reject this option. Omitting it restores the SDK selected by `rime-sdk.lock.json`; the release lock and verified download cache remain separate from local builds.
-
-APK packaging keeps `jniLibs.useLegacyPackaging = true`: `.so` entries are ZIP-compressed and Android extracts them when installing the APK. This reduces the APK download size while keeping extracted libraries on disk; it does not reduce their loaded memory size. `verify-direct-rime-apk.py` checks compression together with the native library whitelist and ELF load alignment. It also rejects unused Commons Codec phonetic rule resources and retired frontend assets/classes. Compare APK sizes only after a clean build with the same ABI and Release shrinking settings.
-
-`librime.a` is linked directly into `libdirect-rime.so`. The linker writes `direct-rime.linkmap`; the audit checks the actual packaged ELF build ID, map/library hashes and static inputs: librime, spdlog, LevelDB, Lua, Marisa, OpenCC and yaml-cpp plus NDK runtime archives. Unexpected archives or Fcitx C++ symbols fail the check. Direct Rime is the only backend; Fcitx comparisons use separate historical checkouts.
-
-This lock and static link describe the always-present built-in engine. User-authorized runtime variants are complete self-contained Android DSOs loaded through the same Rime C API after ELF validation and an isolated-UID probe; they neither replace `rime-sdk.lock.json` nor restore another backend. Provider APK payloads are copied to hash-addressed read-only snapshots before the main process loads them.
+`rime-prelude` 子模块提供标点与快捷键预设；用户仍可授权加载兼容的外部 Rime 引擎变体。
