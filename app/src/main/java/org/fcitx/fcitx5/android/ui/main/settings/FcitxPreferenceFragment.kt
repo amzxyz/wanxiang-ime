@@ -11,8 +11,10 @@ import androidx.activity.OnBackPressedCallback
 import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
+import androidx.preference.Preference
 import androidx.preference.PreferenceScreen
 import androidx.preference.isEmpty
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -28,6 +30,7 @@ import org.fcitx.fcitx5.android.ui.common.withLoadingDialog
 import org.fcitx.fcitx5.android.ui.main.MainViewModel
 import org.fcitx.fcitx5.android.ui.main.settings.search.scrollToPendingPreference
 import org.fcitx.fcitx5.android.utils.addPreference
+import timber.log.Timber
 
 abstract class FcitxPreferenceFragment : PaddingPreferenceFragment() {
     abstract fun getPageTitle(): String
@@ -36,6 +39,7 @@ abstract class FcitxPreferenceFragment : PaddingPreferenceFragment() {
 
     private lateinit var raw: RawConfig
     private var configLoaded = false
+    private var screenResolved = false
 
     private val supportedExternalProtocol = 2
 
@@ -109,56 +113,94 @@ abstract class FcitxPreferenceFragment : PaddingPreferenceFragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         // make sure to create preference only once since `onViewCreated` is also called on Fragment resume
-        if (preferenceScreen?.isEmpty() == false) {
+        if (screenResolved && preferenceScreen?.isEmpty() == false) {
             // 列表已建好（例如从子页面返回）：直接消费待处理的滚动定位。
             scrollToPendingPreference(viewModel)
             return
         }
+        loadConfig(view)
+    }
+
+    private fun loadConfig(view: View) {
         val context = requireContext()
-        lifecycleScope.withLoadingDialog(context) {
-            raw = fcitx.runOnReady { obtainConfig(this) }
-            val hasCfgDesc = raw.findByName("cfg") != null && raw.findByName("desc") != null
-            val requiredExternalProtocol = maxRequiredExternalProtocol(raw)
-            val protocolCompatible = requiredExternalProtocol <= supportedExternalProtocol
-            configLoaded = hasCfgDesc && protocolCompatible
-            preferenceScreen = if (configLoaded) {
-                PreferenceScreenFactory.create(
-                    preferenceManager,
-                    parentFragmentManager,
-                    raw,
-                    ::save,
-                    ::decoratePreferenceScreen,
-                    ::postDecoratePreferenceScreen
-                ).apply {
-                    if (isEmpty()) {
-                        addPreference(R.string.no_config_options)
+        configLoaded = false
+        screenResolved = false
+        preferenceScreen = preferenceManager.createPreferenceScreen(context).apply {
+            decorateLoadingPreferenceScreen(this)
+        }
+        val preparing = view.findViewById<View>(R.id.settings_preparing_data)
+        preparing?.visibility = View.VISIBLE
+        // The configuration read may wait for resource extraction and native deployment.
+        // Keep the page navigable and cancel only this read when its view is destroyed.
+        viewLifecycleOwner.lifecycleScope.launch {
+            try {
+                raw = fcitx.runOnReady { obtainConfig(this) }
+                val hasCfgDesc = raw.findByName("cfg") != null && raw.findByName("desc") != null
+                val requiredExternalProtocol = maxRequiredExternalProtocol(raw)
+                val protocolCompatible = requiredExternalProtocol <= supportedExternalProtocol
+                configLoaded = hasCfgDesc && protocolCompatible
+                preferenceScreen = if (configLoaded) {
+                    PreferenceScreenFactory.create(
+                        preferenceManager,
+                        parentFragmentManager,
+                        raw,
+                        ::save,
+                        ::decoratePreferenceScreen,
+                        ::postDecoratePreferenceScreen
+                    ).apply {
+                        if (isEmpty()) {
+                            addPreference(R.string.no_config_options)
+                        }
+                    }
+                } else if (hasCfgDesc && !protocolCompatible) {
+                    preferenceManager.createPreferenceScreen(context).apply {
+                        decoratePreferenceScreen(this)
+                        addPreference(
+                            R.string.config_protocol_not_supported_title,
+                            context.getString(
+                                R.string.config_protocol_not_supported_summary,
+                                requiredExternalProtocol,
+                                supportedExternalProtocol
+                            )
+                        )
+                    }
+                } else {
+                    preferenceManager.createPreferenceScreen(context).apply {
+                        decoratePreferenceScreen(this)
+                        addPreference(R.string.direct_rime_config_unavailable)
                     }
                 }
-            } else if (hasCfgDesc && !protocolCompatible) {
-                preferenceManager.createPreferenceScreen(context).apply {
-                    decoratePreferenceScreen(this)
-                    addPreference(
-                        R.string.config_protocol_not_supported_title,
-                        context.getString(
-                            R.string.config_protocol_not_supported_summary,
-                            requiredExternalProtocol,
-                            supportedExternalProtocol
-                        )
-                    )
+                // 搜索跳转的滚动定位。本页的列表是**异步**建成的（要等引擎返回 `desc` 树），
+                // 所以只能放在赋值 `preferenceScreen` 之后——若像其它页那样写在
+                // `onViewCreated` 末尾，那时 `preferenceScreen` 还是空的，`findPreference`
+                // 必然找不到目标项，表现为「跳对了页面但不滚动」且无日志。
+                screenResolved = true
+                scrollToPendingPreference(viewModel)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Timber.w(e, "Unable to load engine settings")
+                configLoaded = false
+                preferenceScreen = preferenceManager.createPreferenceScreen(context).apply {
+                    decorateLoadingPreferenceScreen(this)
+                    addPreference(Preference(context).apply {
+                        isPersistent = false
+                        setTitle(R.string.direct_rime_config_retry)
+                        setSummary(R.string.direct_rime_config_unavailable)
+                        setOnPreferenceClickListener {
+                            loadConfig(view)
+                            true
+                        }
+                    })
                 }
-            } else {
-                preferenceManager.createPreferenceScreen(context).apply {
-                    decoratePreferenceScreen(this)
-                    addPreference(R.string.direct_rime_config_unavailable)
-                }
+            } finally {
+                preparing?.visibility = View.GONE
             }
-            // 搜索跳转的滚动定位。本页的列表是**异步**建成的（要等引擎返回 `desc` 树），
-            // 所以只能放在赋值 `preferenceScreen` 之后——若像其它页那样写在
-            // `onViewCreated` 末尾，那时 `preferenceScreen` 还是空的，`findPreference`
-            // 必然找不到目标项，表现为「跳对了页面但不滚动」且无日志。
-            scrollToPendingPreference(viewModel)
         }
     }
+
+    /** Only settings independent of the native owner are interactive while it starts. */
+    open fun decorateLoadingPreferenceScreen(screen: PreferenceScreen) = Unit
 
     /**
      * 配置页填充前的追加入口。

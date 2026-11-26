@@ -253,9 +253,13 @@ class MaterialSettingsPagesTest {
                     }
                 }) { activity ->
                     assertEquals(dark, SettingsUiPreferences.isDark(activity))
-                    assertTrue(descendants(activity.window.decorView).filterIsInstance<ImageView>().any {
+                    val brand = descendants(activity.window.decorView).filterIsInstance<ImageView>().first {
                         it.id == android.R.id.icon && it.isShown && it.drawable != null
-                    })
+                    }
+                    assertNull("Brand icon must keep its original colors", brand.imageTintList)
+                    assertNull("Brand icon must not have a color filter", brand.colorFilter)
+                    assertTrue("Brand icon is too small", brand.width >=
+                        (48 * activity.resources.displayMetrics.density).toInt())
                 }
             }
         } finally { needNotifications = originalNeedNotifications }
