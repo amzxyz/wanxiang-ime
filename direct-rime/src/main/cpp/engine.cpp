@@ -351,6 +351,7 @@ void Engine::start(const std::string& shared, const std::string& user,
     Trace trace("rime.direct.initialize");
     owner();
     if (started_) throw std::logic_error("engine already started");
+    if (user_ != user || shared_ != shared) inputTypeChoices_.clear();
     shared_ = shared; user_ = user; version_ = version;
     minLogLevel_ = std::clamp(minLogLevel, 0, 3);
     initialize(fullCheck);
@@ -450,7 +451,10 @@ Snapshot Engine::begin(int64_t generation, const std::string& program, bool noLe
             if (!schemas().empty()) {
                 Trace createTrace("rime.direct.create_session");
                 session_ = api_->create_session();
-                if (session_) ++sessionsCreated_;
+                if (session_) {
+                    ++sessionsCreated_;
+                    applyInputTypeChoice();
+                }
             }
         }
         if (session_) {
@@ -512,7 +516,10 @@ Snapshot Engine::action(int64_t generation, int64_t revision, int action, int in
     case 0: api_->clear_composition(session_); break;
     case 1: if (index >= 0) api_->select_candidate_on_current_page(session_, index); break;
     case 2: if (RIME_API_AVAILABLE(api_, change_page)) api_->change_page(session_, index < 0); break;
-    case 3: api_->set_option(session_, "ascii_mode", false); api_->select_schema(session_, value.c_str()); break;
+    case 3:
+        api_->set_option(session_, "ascii_mode", false);
+        if (api_->select_schema(session_, value.c_str())) applyInputTypeChoice();
+        break;
     case 4:
         handled = false;
 #ifdef RIME_EVO_CODE_CHOICES
@@ -959,6 +966,71 @@ std::vector<std::string> Engine::options() {
     }
     return result;
 }
+std::vector<std::string> Engine::inputTypeState(const std::string& schema) {
+    owner();
+    if (!started_ || api_->is_maintenance_mode() || deployFailed_.load()) return {};
+    if (schema.empty() || schema == "." || schema == ".." ||
+        schema.find_first_not_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-") != std::string::npos)
+        return {};
+    const auto deployed = schemas();
+    if (std::find(deployed.begin(), deployed.end(), schema) == deployed.end()) return {};
+    if (!RIME_API_AVAILABLE(api_, schema_open) || !RIME_API_AVAILABLE(api_, config_close) ||
+        !RIME_API_AVAILABLE(api_, config_begin_map) || !RIME_API_AVAILABLE(api_, config_begin_list) ||
+        !RIME_API_AVAILABLE(api_, config_next) || !RIME_API_AVAILABLE(api_, config_end) ||
+        !RIME_API_AVAILABLE(api_, config_list_size) || !RIME_API_AVAILABLE(api_, config_get_cstring)) return {};
+    RimeConfig config{};
+    if (!api_->schema_open(schema.c_str(), &config)) return {};
+    ScopeExit cleanup([&] { api_->config_close(&config); });
+    InputTypesConfig types;
+    if (!types.load(api_, &config) || types.options.empty()) return {};
+    std::string selected;
+    const bool live = session_ && api_->find_session(session_) && currentSchema() == schema;
+    if (live) {
+        for (const auto& item : types.enabled) {
+            if (api_->get_option(session_, item.option.c_str())) {
+                selected = item.option;
+                break;
+            }
+        }
+    } else {
+        const auto remembered = inputTypeChoices_.find(schema);
+        if (remembered != inputTypeChoices_.end() &&
+            std::any_of(types.enabled.begin(), types.enabled.end(), [&](const auto& item) {
+                return item.option == remembered->second;
+            })) selected = remembered->second;
+        else selected = types.initialOption();
+    }
+    std::vector<std::string> result{selected};
+    for (const auto& item : types.enabled) result.push_back(item.option);
+    return result;
+}
+
+bool Engine::selectInputType(const std::string& schema, const std::string& option) {
+    owner();
+    const auto state = inputTypeState(schema);
+    if (state.empty() || std::find(state.begin() + 1, state.end(), option) == state.end())
+        return false;
+    // Never persist a schema patch or redeploy. Only the core may enforce radio exclusivity.
+    if (session_ && api_->find_session(session_) && currentSchema() == schema) {
+        api_->set_option(session_, option.c_str(), true);
+        if (!api_->get_option(session_, option.c_str())) return false;
+        invalidateStatusCache();
+        ++optionsRevision_;
+    }
+    // An inactive schema or a new editor session receives this choice on activation.
+    inputTypeChoices_[schema] = option;
+    return true;
+}
+
+void Engine::applyInputTypeChoice() {
+    if (inputTypeChoices_.empty() || !session_) return;
+    const auto schema = currentSchema();
+    const auto found = inputTypeChoices_.find(schema);
+    if (found == inputTypeChoices_.end()) return;
+    const auto option = found->second;
+    if (!selectInputType(schema, option)) inputTypeChoices_.erase(schema);
+}
+
 void Engine::setOption(const std::string& option, bool value) {
     api_->set_option(session_, option.c_str(), value);
     if (saveableOption(option)) rememberOption(option, value);
