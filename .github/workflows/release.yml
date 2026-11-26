@@ -82,6 +82,11 @@ jobs:
       - uses: gradle/actions/setup-gradle@v6
         with:
           cache-disabled: true
+      - name: Install 32-bit host toolchain for LuaJIT
+        if: matrix.abi == 'armeabi-v7a' || matrix.abi == 'x86'
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y gcc-multilib
       - run: python3 tools/prepare-ci-ndk.py
       - run: ./prepare_personal_build.sh
       - uses: actions/checkout@v7
