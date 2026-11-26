@@ -4,7 +4,6 @@
  */
 package org.fcitx.fcitx5.android.ui.main.settings
 
-import android.content.Context
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -17,35 +16,31 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
-import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.fcitx.fcitx5.android.FcitxApplication
 import org.fcitx.fcitx5.android.R
-import org.fcitx.fcitx5.android.core.DirectRimeConfig
-import org.fcitx.fcitx5.android.core.DirectRimeStatusMenu
 import org.fcitx.fcitx5.android.core.RawConfig
-import org.fcitx.fcitx5.android.core.engine.RimeEngineStore
-import org.fcitx.fcitx5.android.core.engine.RimeEvoEngines
-import org.fcitx.fcitx5.android.core.engine.RimeInputTypes
-import org.fcitx.fcitx5.android.core.engine.RimeInputTypesRepository
-import org.fcitx.fcitx5.android.daemon.FcitxDaemon
 import org.fcitx.fcitx5.android.ui.common.BaseDynamicListUi
 import org.fcitx.fcitx5.android.ui.common.withLoadingDialog
 import org.fcitx.fcitx5.android.ui.main.MainViewModel
 import org.fcitx.fcitx5.android.ui.main.withSettingsPage
 import org.fcitx.fcitx5.android.utils.lazyRoute
 import org.fcitx.fcitx5.android.utils.toast
-import java.io.File
 import timber.log.Timber
 
 class GenericMultiSelectFragment : Fragment() {
+    private data class InputType(val option: String, val label: String)
+    private data class InputTypes(
+        val types: List<InputType>, val selected: String?, val path: String,
+    ) {
+        fun summary(): String? = types.firstOrNull { it.option == selected }?.label
+    }
+
     private data class MultiItem(
         val selected: Boolean,
         val id: String,
         val label: String,
-        val inputTypes: RimeInputTypes? = null,
-        val inputTypesEditable: Boolean = false,
+        val inputTypes: InputTypes? = null,
         val current: Boolean = false,
     )
 
@@ -113,13 +108,9 @@ class GenericMultiSelectFragment : Fragment() {
                         visibility = View.GONE
                     } else {
                         visibility = View.VISIBLE
-                        text = types.summary()
-                        isEnabled = item.inputTypesEditable
-                        contentDescription = if (item.inputTypesEditable) {
-                            getString(R.string.rime_input_types)
-                        } else {
-                            getString(R.string.rime_input_types_evo_only)
-                        }
+                        text = types.summary() ?: getString(R.string.rime_input_types)
+                        isEnabled = true
+                        contentDescription = getString(R.string.rime_input_types)
                         setOnClickListener { showInputTypeDialog(item) }
                     }
                 }
@@ -141,45 +132,29 @@ class GenericMultiSelectFragment : Fragment() {
         return withSettingsPage(root)
     }
 
-    /**
-     * Reads the scheme list's current selection and every scheme's effective input types.
-     *
-     * Only the EVO engine understands "input_types", but the declaration itself lives in the
-     * scheme YAML and is readable under any engine. The button is therefore shown whenever a
-     * scheme declares types (so the declaration is discoverable) and is only enabled under EVO.
-     */
-    private suspend fun annotateSchemes(
-        items: List<MultiItem>,
-        current: String?,
-    ): List<MultiItem> = withContext(Dispatchers.IO) {
-        val appContext = requireContext().applicationContext
-        try {
-            val repository = RimeEngineStore.repository(appContext)
-            val evo = RimeEvoEngines.isEvo(repository.state())
-            val config = DirectRimeConfig(appContext)
-            config.load()
-            val user = repository.activeExternalProfile()?.let(config::profileDir) ?: config.user
-            items.map { item ->
-                val types = try {
-                    RimeInputTypesRepository.read(user, item.id)
-                } catch (c: CancellationException) {
-                    throw c
-                } catch (e: Exception) {
-                    Timber.w(e, "Failed to read input types for scheme %s", item.id)
-                    null
-                }
-                item.copy(
-                    inputTypes = types,
-                    inputTypesEditable = evo,
-                    current = !current.isNullOrBlank() && item.id == current
-                )
-            }
+    private suspend fun org.fcitx.fcitx5.android.core.FcitxAPI.readInputTypes(schema: String): InputTypes? {
+        val raw = getAddonSubConfig(ADDON_RIME, "input-types/$schema")
+        val types = raw.findByName("Types")?.subItems.orEmpty().map { InputType(it.name, it.value) }
+        if (types.isEmpty()) return null
+        return InputTypes(
+            types,
+            raw.findByName("Selected")?.value?.takeIf(String::isNotBlank),
+            raw.findByName("Path")?.value.orEmpty(),
+        )
+    }
+
+    private suspend fun org.fcitx.fcitx5.android.core.FcitxAPI.annotateSchemes(
+        items: List<MultiItem>, current: String?,
+    ): List<MultiItem> = items.map { item ->
+        val types = try {
+            readInputTypes(item.id)
         } catch (c: CancellationException) {
             throw c
         } catch (e: Exception) {
-            Timber.w(e, "Failed to annotate schemes with input types")
-            items
+            Timber.w(e, "Failed to read input types for scheme %s", item.id)
+            null
         }
+        item.copy(inputTypes = types, current = item.id == current)
     }
 
     private suspend fun org.fcitx.fcitx5.android.core.FcitxAPI.readCurrentSchema(): String? = try {
@@ -194,15 +169,14 @@ class GenericMultiSelectFragment : Fragment() {
 
     private fun showInputTypeDialog(item: MultiItem) {
         val types = item.inputTypes ?: return
-        if (!item.inputTypesEditable) return
         val labels = types.types.map { it.label }.toTypedArray()
-        val checked = types.types.indexOfFirst { it.option == types.current?.option }
+        val checked = types.types.indexOfFirst { it.option == types.selected }
         MaterialAlertDialogBuilder(requireContext())
             .setTitle(getString(R.string.rime_input_types_for_scheme, item.label))
             .setSingleChoiceItems(labels, checked) { dialog, which ->
-                dialog.dismiss()
                 val option = types.types[which].option
-                if (option != types.current?.option) {
+                dialog.dismiss()
+                if (option != types.selected) {
                     switchInputType(item, types, option)
                 }
             }
@@ -210,96 +184,33 @@ class GenericMultiSelectFragment : Fragment() {
             .show()
     }
 
-    /** Persists the choice for this scheme and redeploys so its prisms match. */
-    private fun switchInputType(item: MultiItem, types: RimeInputTypes, option: String) {
+    private fun switchInputType(item: MultiItem, types: InputTypes, option: String) {
         val ctx = requireContext()
-        val app = ctx.applicationContext as FcitxApplication
-        val user = types.customFile.parentFile ?: return
-        val index = ui?.entries?.indexOfFirst { it.id == item.id } ?: -1
         lifecycleScope.withLoadingDialog(ctx, R.string.rime_input_types_switching) {
-            // The transaction is owned by the application scope: leaving this page may stop the
-            // progress dialog, but must not leave the file written and the engine not switched.
-            val outcome = app.coroutineScope.async(Dispatchers.IO) {
-                performInputTypeSwitch(
-                    appContext = ctx.applicationContext,
-                    option = option,
-                    user = user,
-                    schemaId = types.schemaId
-                )
-            }.await()
-            withContext(Dispatchers.Main) {
-                when {
-                    outcome.persistError != null -> {
-                        Timber.w(outcome.persistError, "Failed to persist input type %s", option)
-                        if (isAdded) ctx.toast(R.string.rime_input_types_failed)
-                    }
-                    outcome.engineError != null -> {
-                        Timber.w(
-                            outcome.engineError,
-                            "Failed to redeploy after switching to %s",
-                            option
-                        )
-                        if (isAdded) ctx.toast(R.string.rime_input_types_saved)
-                    }
-                    else -> if (isAdded) ctx.toast(R.string.rime_input_types_switched)
-                }
-                val updated = outcome.state
-                if (isAdded && updated != null && index >= 0) {
-                    ui?.updateItemSilently(index, item.copy(inputTypes = updated))
-                }
-            }
-        }
-    }
-
-    private suspend fun performInputTypeSwitch(
-        appContext: Context,
-        option: String,
-        user: File,
-        schemaId: String?,
-    ): SwitchOutcome {
-        val state = try {
-            withContext(Dispatchers.IO) {
-                // The page may have been opened before the engine or its working directory
-                // changed. Re-check both before touching a file, so a stale row can never write
-                // into a directory that is no longer the active one.
-                val repository = RimeEngineStore.repository(appContext)
-                require(RimeEvoEngines.isEvo(repository.state())) { "当前引擎不是 librime-evo" }
-                val config = DirectRimeConfig(appContext)
-                config.load()
-                val currentUser =
-                    repository.activeExternalProfile()?.let(config::profileDir) ?: config.user
-                require(currentUser.canonicalFile == user.canonicalFile) {
-                    "输入方案工作目录已改变"
-                }
-                RimeInputTypesRepository.select(user, option, schemaId)
-            }
-        } catch (c: CancellationException) {
-            throw c
-        } catch (e: Exception) {
-            return SwitchOutcome(state = null, engineError = null, persistError = e)
-        }
-        val engineError = try {
-            val name = "scheme-input-type-${System.nanoTime()}"
             try {
-                FcitxDaemon.connect(name).runOnReady {
-                    // set_option only affects the scheme the engine currently runs. Other
-                    // schemes receive the choice on their next activation via reset. Ask the
-                    // engine right before applying instead of trusting the row's load-time flag.
-                    val running = getAddonSubConfig(ADDON_RIME, PATH_CURRENT_SCHEMA)
-                        .findByName("Schema")?.value
-                    if (running == schemaId) setRimeOption(option, true)
-                    activateAction(DirectRimeStatusMenu.DEPLOY_ID)
+                val updated = viewModel.fcitx.runOnReady {
+                    setAddonSubConfig(ADDON_RIME, "input-type", RawConfig(arrayOf(
+                        RawConfig("Path", types.path),
+                        RawConfig("Schema", item.id),
+                        RawConfig("Option", option),
+                    )))
+                    readInputTypes(item.id)
                 }
-            } finally {
-                FcitxDaemon.disconnect(name)
+                if (isAdded && updated != null) {
+                    val list = ui
+                    val index = list?.entries?.indexOfFirst { it.id == item.id } ?: -1
+                    if (list != null && index >= 0) {
+                        list.updateItemSilently(index, list.entries[index].copy(inputTypes = updated))
+                    }
+                    ctx.toast(R.string.rime_input_types_switched)
+                }
+            } catch (c: CancellationException) {
+                throw c
+            } catch (e: Exception) {
+                Timber.w(e, "Failed to switch input type %s", option)
+                if (isAdded) ctx.toast(R.string.rime_input_types_failed)
             }
-            null
-        } catch (c: CancellationException) {
-            throw c
-        } catch (e: Exception) {
-            e
         }
-        return SwitchOutcome(state, engineError, null)
     }
 
     override fun onStop() {
@@ -358,12 +269,6 @@ class GenericMultiSelectFragment : Fragment() {
 
     private fun encodeItems(items: List<MultiItem>): String =
         items.joinToString("\n") { "${if (it.selected) "1" else "0"}\t${it.id}\t${it.label}" }
-
-    private data class SwitchOutcome(
-        val state: RimeInputTypes?,
-        val engineError: Throwable?,
-        val persistError: Throwable?
-    )
 
     companion object {
         private const val ADDON_RIME = "rime"

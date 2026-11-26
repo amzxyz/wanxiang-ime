@@ -132,8 +132,7 @@ interface FcitxAPI {
     /**
      * Toggle one Rime engine option in the current input session.
      *
-     * Evo engines use this to switch the active `input_types` option immediately; the persisted
-     * choice lives in the scheme's custom patch and is applied again on the next deployment.
+     * This does not change a scheme's deployment configuration or custom patch.
      * Returns false when no session is active or the engine rejects the option.
      */
     suspend fun setRimeOption(name: String, enabled: Boolean): Boolean = false

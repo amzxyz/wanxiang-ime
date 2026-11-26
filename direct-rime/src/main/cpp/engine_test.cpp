@@ -1,4 +1,5 @@
 #include "engine.h"
+#include <algorithm>
 #include <cstdio>
 #include <cstring>
 #include <iostream>
@@ -47,6 +48,7 @@ struct Fake {
     // Mirrors default.yaml's switcher/save_options and the user config it writes.
     std::vector<std::string> saveOptions{"ascii_punct", "s2t"};
     std::map<std::string, bool> savedOptions;
+    std::map<std::string, bool> inputTypeOptions;
     int userConfigOpens = 0;
     int keys = 0, mask = 0, created = 0, destroyed = 0, freedCommit = 0;
     int setups = 0, initialized = 0, finalized = 0, selected = -1, freedTabs = 0, freedCodes = 0;
@@ -158,19 +160,28 @@ RimeApi api() {
     };
     a.is_maintenance_mode = []() -> Bool { return f.maintenance; };
     a.join_maintenance_thread = [] {};
-    a.create_session = []() -> RimeSessionId { ++f.created; f.preedit.clear(); return 7; };
+    a.create_session = []() -> RimeSessionId {
+        ++f.created; f.preedit.clear(); f.inputTypeOptions.clear();
+        if (f.resetPresent) f.inputTypeOptions[f.resetType] = true;
+        return 7;
+    };
     a.find_session = [](RimeSessionId) -> Bool { return f.exists; };
     a.destroy_session = [](RimeSessionId) -> Bool { ++f.destroyed; return true; };
     a.set_option = [](RimeSessionId, const char* key, Bool value) {
         if (!std::strcmp(key, "_no_learning")) f.noLearning = value;
         else {
             if (!std::strcmp(key, "ascii_mode")) f.ascii = value;
+            if (std::find(f.enabledTypes.begin(), f.enabledTypes.end(), key) != f.enabledTypes.end() && value) {
+                for (const auto& option : f.enabledTypes) f.inputTypeOptions[option] = option == key;
+            }
             if (f.callback) f.callback(f.context, 7, "option", key);
         }
     };
     a.get_option = [](RimeSessionId, const char* key) -> Bool {
         if (!std::strcmp(key, "_no_learning")) return f.noLearning;
-        return !std::strcmp(key, "ascii_mode") && f.ascii;
+        if (!std::strcmp(key, "ascii_mode")) return f.ascii;
+        const auto type = f.inputTypeOptions.find(key);
+        return type != f.inputTypeOptions.end() && type->second;
     };
     a.set_property = [](RimeSessionId, const char* key, const char* value) { if (!std::strcmp(key, "client_app")) f.clientApp = value; };
     a.process_key = [](RimeSessionId, int, int mask) -> Bool { ++f.keys; f.mask = mask; f.preedit = "ni"; return false; };
@@ -1106,6 +1117,29 @@ void testEvoPrismResolution() {
     f.enabledPresent = true; f.enabledTypes = {"zrm"}; f.resetPresent = true; f.resetType = "flypy";
     CHECK(rejected(workspace("bad-reset", {"zrm.prism.bin", "flypy.prism.bin"})));
 }
+void testRuntimeInputTypes() {
+    f = {}; f.inputTypesPresent = true; f.enabledPresent = true; f.resetPresent = true;
+    f.inputOptions = {{"zrm", ""}, {"pinyin", ""}, {"flypy", ""}};
+    f.enabledTypes = {"zrm", "pinyin"}; f.resetType = "zrm";
+    auto a = api(); Engine engine(&a); engine.start("shared", "user");
+    CHECK((engine.inputTypeState("test") == std::vector<std::string>{"zrm", "zrm", "pinyin"}));
+    CHECK(!engine.selectInputType("test", "flypy"));
+    CHECK(!engine.selectInputType("other", "pinyin"));
+    CHECK(engine.selectInputType("test", "pinyin"));
+    CHECK(f.created == 0);
+    auto snapshot = engine.begin(1, "app");
+    CHECK(snapshot.gate == Ready);
+    CHECK(f.inputTypeOptions["pinyin"] && !f.inputTypeOptions["zrm"]);
+    CHECK(engine.selectInputType("test", "zrm"));
+    CHECK(f.inputTypeOptions["zrm"] && !f.inputTypeOptions["pinyin"]);
+    CHECK(engine.inputTypeState("test").front() == "zrm");
+    engine.end(1);
+    engine.begin(2, "another-app");
+    CHECK(f.inputTypeOptions["zrm"]);
+    CHECK(f.userConfigOpens == 0);
+    CHECK(f.initialized == 1);
+    engine.stop();
+}
 void testCurrentSchemaPreference() {
     namespace fs = std::filesystem;
     const TemporaryDirectory temporary;
@@ -1135,7 +1169,7 @@ int main(int argc, char** argv) {
             return 0;
         }
         if (argc != 1) { std::cerr << "usage: engine-test [--statistics]\n"; return 2; }
-        testInputContract(); testEngineLogLevel(); testMaintenanceAndAbi(); testFrontendExtensions(); testCandidateSequence(); testReadOnlyRefresh(); testOptionalInputStatistics(); testInputStatisticsUnicodeAndPresentationReuse(); testSyncCompletion(); testPresentationReuse(); testUnicode(); testOptionInvalidation(); testStatusCache(); testCandidateIteratorFailureDoesNotReclosePartialApiState(); testFrontendWritesOnlySaveableOptions(); testAsciiToggleSharesSavedOptionRule(); testSessionReuseAndEditorIsolation(); testGeneratedConfigInvalidation(); testUsableDeploymentWarning(); testEvoPrismResolution(); testCurrentSchemaPreference(); std::cout << "engine contract: passed\n";
+        testInputContract(); testEngineLogLevel(); testMaintenanceAndAbi(); testFrontendExtensions(); testCandidateSequence(); testReadOnlyRefresh(); testOptionalInputStatistics(); testInputStatisticsUnicodeAndPresentationReuse(); testSyncCompletion(); testPresentationReuse(); testUnicode(); testOptionInvalidation(); testStatusCache(); testCandidateIteratorFailureDoesNotReclosePartialApiState(); testFrontendWritesOnlySaveableOptions(); testAsciiToggleSharesSavedOptionRule(); testSessionReuseAndEditorIsolation(); testGeneratedConfigInvalidation(); testUsableDeploymentWarning(); testEvoPrismResolution(); testRuntimeInputTypes(); testCurrentSchemaPreference(); std::cout << "engine contract: passed\n";
     }
     catch (const std::exception& e) { std::cerr << e.what() << '\n'; return 1; }
 }

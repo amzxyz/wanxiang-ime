@@ -791,6 +791,20 @@ class DirectRimeBackend(context: Context) : InputEngine {
                 RawConfig(arrayOf(RawConfig("Snapshot", snapshot)))
             }
         }
+        if (path.startsWith("input-types/")) {
+            return onOwner {
+                val schema = path.removePrefix("input-types/")
+                val types = org.fcitx.fcitx5.android.core.engine.RimeInputTypesRepository.read(config.user, schema)
+                    ?: return@onOwner RawConfig()
+                val runtime = if (started && !directBootMode) Native.inputTypeState(schema).toList() else emptyList()
+                val selectable = types.selectableTypes(runtime.drop(1))
+                RawConfig(arrayOf(
+                    RawConfig("Path", config.user.canonicalPath),
+                    RawConfig("Selected", runtime.firstOrNull().orEmpty()),
+                    RawConfig("Types", selectable.map { RawConfig(it.option, it.label) }.toTypedArray())
+                ))
+            }
+        }
         return onOwner { when(path) {
             "profile-manager" -> config.directoryState()
             "schema-selector" -> RawConfig(arrayOf(RawConfig("Items", if (started) Native.schemaSelection() else "")))
@@ -803,6 +817,14 @@ class DirectRimeBackend(context: Context) : InputEngine {
     override suspend fun setAddonSubConfig(addon: String, path: String, config: RawConfig) {
         when(path) {
             "engine-variant-switch" -> switchEngineVariant()
+            "input-type" -> onOwner {
+                require(!directBootMode && started && !maintenance) { "输入引擎不可用" }
+                require(this.config.user.canonicalPath == config.findByName("Path")!!.value) { "输入方案工作目录已改变" }
+                val schema = config.findByName("Schema")!!.value
+                val option = config.findByName("Option")!!.value
+                require(Native.selectInputType(schema, option)) { "该输入类型未部署或引擎拒绝切换" }
+                refreshPresentation()
+            }
             "wanxiang-settings-repair" -> withContext(NonCancellable) { maintain {
                 org.fcitx.fcitx5.android.daemon.FcitxDaemon.requireUserDataAvailable()
                 this@DirectRimeBackend.config.requireUpdateTarget(config.findByName("Profile")!!.value, config.findByName("Path")!!.value)

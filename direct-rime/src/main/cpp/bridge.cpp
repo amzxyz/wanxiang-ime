@@ -323,6 +323,14 @@ extern "C" JNIEXPORT jobjectArray JNICALL JNI_METHOD(sequenceKeys)(JNIEnv* env, 
 extern "C" JNIEXPORT jstring JNICALL JNI_METHOD(schemaSelection)(JNIEnv* env, jobject) {
     try { return string(env, instance().schemaSelection()); } catch (const std::exception& e) { error(env, e); return nullptr; }
 }
+extern "C" JNIEXPORT jobjectArray JNICALL JNI_METHOD(inputTypeState)(JNIEnv* env, jobject, jstring schema) {
+    try { return strings(env, instance().inputTypeState(string(env, schema))); }
+    catch (const std::exception& e) { error(env, e); return nullptr; }
+}
+extern "C" JNIEXPORT jboolean JNICALL JNI_METHOD(selectInputType)(JNIEnv* env, jobject, jstring schema, jstring option) {
+    try { return instance().selectInputType(string(env, schema), string(env, option)); }
+    catch (const std::exception& e) { error(env, e); return false; }
+}
 extern "C" JNIEXPORT jstring JNICALL JNI_METHOD(currentSchema)(JNIEnv* env, jobject) {
     try { return string(env, instance().currentSchema()); } catch (const std::exception& e) { error(env, e); return nullptr; }
 }
