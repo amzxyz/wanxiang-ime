@@ -41,17 +41,13 @@ jobs:
             test "$GITHUB_REF" = refs/heads/wanxiang
             python3 tools/validate-release-version.py >> "$GITHUB_OUTPUT"
           fi
-      - name: Read immutable Wanxiang scheme lock
+      - name: Resolve latest Wanxiang scheme once for all ABIs
         id: scheme
         run: |
-          python3 - <<'PY' >> "$GITHUB_OUTPUT"
-          import json, re
-          lock = json.load(open("native/wanxiang-scheme.lock.json"))
-          assert lock["repository"] == "amzxyz/rime-wanxiang"
-          assert lock["branch"] == "rime-wanxiang-for-librime-evo"
-          assert re.fullmatch(r"[0-9a-f]{40}", lock["commit"])
-          print("commit=" + lock["commit"])
-          PY
+          set -euo pipefail
+          commit=$(python3 tools/bundle-wanxiang-scheme.py --resolve)
+          echo "commit=$commit" >> "$GITHUB_OUTPUT"
+          echo "Wanxiang scheme: $commit" >> "$GITHUB_STEP_SUMMARY"
       - name: Read immutable EVO release lock
         id: evo
         run: |
@@ -128,7 +124,7 @@ jobs:
           ref: ${{ needs.prepare.outputs.scheme_commit }}
           path: .ci/wanxiang-scheme
           persist-credentials: false
-      - run: python3 tools/bundle-wanxiang-scheme.py --source .ci/wanxiang-scheme --locked
+      - run: python3 tools/bundle-wanxiang-scheme.py --source .ci/wanxiang-scheme --expected-commit '${{ needs.prepare.outputs.scheme_commit }}'
       - name: Build locked EVO Android SDK
         run: python3 tools/build-evo-sdk.py --core .ci/evo --dependencies native/rime-sdk --output "$RUNNER_TEMP/evo-sdk" --abi "$BUILD_ABI"
       - name: Build signed Release APK
@@ -163,7 +159,7 @@ jobs:
           set -euo pipefail
           apk="$RUNNER_TEMP/release-product/direct.apk"
           "$ANDROID_HOME/build-tools/36.1.0/apksigner" verify --verbose --print-certs "$apk"
-          python3 tools/bundle-wanxiang-scheme.py --verify-apk "$apk"
+          python3 tools/bundle-wanxiang-scheme.py --verify-apk "$apk" --expected-commit '${{ needs.prepare.outputs.scheme_commit }}'
           test "$("$ANDROID_HOME/cmdline-tools/latest/bin/apkanalyzer" manifest application-id "$apk")" = com.amzxyz.wanxiang.ime
           test "$("$ANDROID_HOME/cmdline-tools/latest/bin/apkanalyzer" manifest version-name "$apk")" = "$BUILD_VERSION_NAME"
           case "$BUILD_ABI" in
@@ -233,7 +229,7 @@ jobs:
           ref: ${{ needs.prepare.outputs.scheme_commit }}
           path: .ci/wanxiang-scheme
           persist-credentials: false
-      - run: python3 tools/bundle-wanxiang-scheme.py --source .ci/wanxiang-scheme --locked
+      - run: python3 tools/bundle-wanxiang-scheme.py --source .ci/wanxiang-scheme --expected-commit '${{ needs.prepare.outputs.scheme_commit }}'
       - name: Build locked EVO Android SDK
         run: python3 tools/build-evo-sdk.py --core .ci/evo --dependencies native/rime-sdk --output "$RUNNER_TEMP/evo-sdk" --abi "$BUILD_ABI"
       - run: ./gradlew :app:testDebugUnitTest -PreleaseEvoSdkDir="$RUNNER_TEMP/evo-sdk"
@@ -265,6 +261,7 @@ jobs:
           set -euo pipefail
           python3 tools/foxy-perf/prepare-release-assets.py --artifacts release-artifacts --output final-release --expected-abis arm64-v8a,armeabi-v7a,x86,x86_64 --expected-commit "$GITHUB_SHA"
           test "$(cat final-release/version.txt)" = "$BUILD_VERSION_NAME"
+          python3 tools/bundle-wanxiang-scheme.py --verify-release final-release --expected-commit '${{ needs.prepare.outputs.scheme_commit }}'
           cd final-release
           sha256sum wanxiang-*.apk > SHA256SUMS.txt
       - name: Publish GitHub Release
@@ -278,3 +275,4 @@ jobs:
           files: |
             final-release/wanxiang-*.apk
             final-release/SHA256SUMS.txt
+            final-release/wanxiang-scheme-manifest.json
