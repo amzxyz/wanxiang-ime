@@ -1,4 +1,8 @@
-# Unmodified Foxy / updated direct-Rime comparison
+# Historical benchmark: Foxy and the earlier Rime frontend
+
+> Archived upstream experiment, not a benchmark of current Wanxiang IME/EVO. The workflow is archived under `.github/upstream-workflows/`. Historical product names, CLI options and APK identities below identify the actual test subjects and must not be relabelled as Wanxiang IME.
+
+For the current signed Wanxiang Release, use `.github/workflows/release.yml` with the locked EVO SDK and repository signing configuration. The legacy performance helper alone is not a current release build entry point.
 
 This harness only tests the updated product and the exact uploaded Foxy APK.
 The uploaded ARM64 APK is not repackaged. Both products run ARM64 on the same

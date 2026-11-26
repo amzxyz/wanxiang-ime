@@ -16,7 +16,7 @@ object Versions {
     const val defaultNDK = "28.0.13004108"
     const val defaultBuildTools = "36.1.0"
 
-    // NOTE: increase this value to bump version code
+    // Single version source. Increase both values for each official release.
     const val baseVersionCode = 11
     const val baseVersionName = "0.1.3"
 

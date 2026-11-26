@@ -52,6 +52,7 @@ jobs:
         with:
           cache-disabled: true
       - run: ./gradlew --no-daemon -p build-logic :convention:test --tests RimeSdkArchiveTest
+      - run: python3 -m unittest discover -s tools -p test_validate_release_version.py
       - run: python3 tools/prepare-ci-ndk.py
       - run: ./prepare_personal_build.sh
       - name: Build current EVO engine against verified dependency SDK

@@ -1,6 +1,6 @@
-# ASR 语音输入 AIDL 接入说明
+# 万象输入法 ASR 语音输入 AIDL 接入说明
 
-本文针对本仓库新增的语音输入桥接协议（IME 录音、插件识别）说明第三方如何接入。
+本文说明万象输入法的语音输入桥接协议（IME 录音、插件识别）。正式宿主应用 ID 为 `com.amzxyz.wanxiang.ime`，Debug 为 `com.amzxyz.wanxiang.ime.debug`；历史 AIDL 接口包名与兼容 Action 不等同于宿主应用 ID。
 
 ## 1. 协议文件（必须保持包名）
 
@@ -17,11 +17,10 @@
 
 主程序会按以下 Action 查询可绑定 Service（见 `VoiceInputProviderManager`）：
 
-- `${hostAppId}.plugin.VOICE_INPUT`
-- `${hostReleaseLikeId}.plugin.VOICE_INPUT`
-- `${hostReleaseLikeId}.debug.plugin.VOICE_INPUT`
-- `org.fcitx.fcitx5.android.plugin.VOICE_INPUT`
-- `org.fcitx.fcitx5.android.debug.plugin.VOICE_INPUT`
+- `com.amzxyz.wanxiang.ime.plugin.VOICE_INPUT`
+- `com.amzxyz.wanxiang.ime.debug.plugin.VOICE_INPUT`
+- `org.fcitx.fcitx5.android.plugin.VOICE_INPUT`（历史兼容）
+- `org.fcitx.fcitx5.android.debug.plugin.VOICE_INPUT`（历史兼容）
 
 其中后缀来自 `VoiceInputIpc.SERVICE_ACTION_SUFFIX`。
 
@@ -32,9 +31,10 @@
     android:name=".YourVoiceInputService"
     android:exported="true">
     <intent-filter>
-        <action android:name="${mainApplicationId}.plugin.VOICE_INPUT" />
+        <action android:name="com.amzxyz.wanxiang.ime.plugin.VOICE_INPUT" />
+        <action android:name="com.amzxyz.wanxiang.ime.debug.plugin.VOICE_INPUT" />
     </intent-filter>
-    <!-- 可选：兼容固定 host 包名 -->
+    <!-- 可选：兼容旧插件协议 -->
     <intent-filter>
         <action android:name="org.fcitx.fcitx5.android.plugin.VOICE_INPUT" />
     </intent-filter>

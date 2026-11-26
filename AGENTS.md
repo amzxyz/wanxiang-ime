@@ -1,19 +1,19 @@
-# AGENTS.md — 中州鹅
+# AGENTS.md — 万象输入法
 
 供本仓库及 fork 的 AI 编程助手使用。路径相对仓库根；遵循当前授权与目录指令。事实以代码、构建和 CI 为先，历史报告不代表当前验证。
 
 ## 项目与入口
 
-架构为 Kotlin → 单一 owner → JNI → librime，仅 `fx` flavor。Fcitx 类名、包名、IPC/AIDL 和布局字段保留兼容用途；不恢复旧原生后端／子模块、`app/src/main/cpp`、`mainline` 或后端开关。
+架构为 Kotlin → 单一 owner → JNI → librime-evo，仅 debug/release 两种构建类型，无产品 flavor。正式应用 ID 为 `com.amzxyz.wanxiang.ime`，Debug 为 `com.amzxyz.wanxiang.ime.debug`。现有 Java/Kotlin 命名空间、JNI、AIDL、兼容类名与布局字段保留；不得将这些接口标识当作应用 ID 批量替换。不恢复旧 Fcitx 原生后端或后端开关。
 
 | 位置 | 内容 |
 | --- | --- |
 | `app/src/main/` | 输入、键盘／候选、设置、布局／主题、语音／AI、数据与更新 |
 | `app/src/main/java/org/fcitx/fcitx5/android/core/engine/` | 运行时引擎来源、授权、探测与配置绑定 |
-| `direct-rime/src/engine/java/`、`direct-rime/src/main/cpp/` | 引擎接口、快照和 JNI，主应用与诊断模块共用 |
-| `native/rime-sdk.lock.json`、`native/rime-prelude` | 固定引擎 SDK 来源及唯一的共享预设子模块 |
+| `direct-rime/src/engine/java/`、`direct-rime/src/main/cpp/` | EVO 引擎接口、快照和 JNI，主应用与诊断模块共用（此处为现存内部目录名） |
+| `native/evo-release.lock.json`、`native/rime-sdk.lock.json`、`native/rime-prelude` | 正式 EVO 源码锁、过渡依赖归档锁及共享预设子模块 |
 
-直连后端位于 `app/src/main/java/org/fcitx/fcitx5/android/core/`。`DirectRimeBackend` 保留唯一 native owner、实时 Binding／Snapshot／started、输入 epoch、keyGate 与事件交付；展示缓存及发布版本由 `DirectRimePublicationState` 持有。
+EVO 前端的引擎桥接位于 `app/src/main/java/org/fcitx/fcitx5/android/core/`。`DirectRimeBackend` 保留唯一 native owner、实时 Binding／Snapshot／started、输入 epoch、keyGate 与事件交付；展示缓存及发布版本由 `DirectRimePublicationState` 持有。
 
 | 职责 | 当前入口 |
 | --- | --- |
@@ -25,11 +25,11 @@
 
 改动先从真实 API／服务调用定位职责类与测试，沿用既有 owner、dispatcher 和 scope。职责类不得建立可独立更新的实时绑定、native 快照或输入门控副本；保留动态状态读取、generation／native revision／candidateVersion／tabsRevision 各自的校验、取消恢复及事件交付顺序。
 
-完整手册在 `docs` 分支，使用独立 worktree 或[文档站][manual]，不在代码分支新建 `docs/`。fork 使用上游文档时核对代码差异；本仓库不依赖维护者私有脚本。
+当前说明随代码存放在本分支的 README、`docs/` 和各模块 README 中。旧上游文档只用于追溯历史，不作为万象输入法的现行规范或构建入口；本仓库不依赖维护者私有脚本。
 
 ## 开始修改前
 
-先查 `git status --short --branch`、`git branch -vv`、`git submodule status`、`git worktree list` 和远端，保留已有修改与暂存。上游默认分支为 `fx-rime-only`，fork 以现场为准。
+先查 `git status --short --branch`、`git branch -vv`、`git submodule status`、`git worktree list` 和远端，保留已有修改与暂存。本仓库正式分支为 `wanxiang`，开发分支为 `dev`；实际操作先核对远端与分支。
 
 获取远端用 `git fetch --no-recurse-submodules --prune origin`，仅按需初始化 `native/rime-prelude`。找符号同时查生产调用和测试，文件存在不等于仍在使用。
 
@@ -37,12 +37,12 @@
 
 | 改动 | 必读 |
 | --- | --- |
-| 输入、候选、生命周期、Direct Boot、配置、同步、统计与方案更新 | [正确性契约][contracts] |
-| 设置、布局、主题、辅助面板 | [DESIGN.md](DESIGN.md)、[设计与共用组件][design] |
-| JS 语音、AI 或工具宿主、网络授权与回填 | [JS 宿主协议][voice] |
-| SDK、引擎、插件与依赖 | [native/README.md](native/README.md)、[引擎更新流程][engine] |
-| 备份与恢复 | [恢复事务][restore]及其中的备份格式链接 |
-| 文档站、导航、搜索及历史记录 | [文档维护约定][docs] |
+| 输入、候选、生命周期、Direct Boot、配置、同步、统计与方案更新 | 本文的边界约定、相关实现及测试；[EVO 编码选择](docs/evo-code-choice.md) |
+| 设置、布局、主题、辅助面板 | [DESIGN.md](DESIGN.md) 及对应组件实现 |
+| JS 语音、AI 或工具宿主、网络授权与回填 | 当前 JS 宿主实现及测试；[AIDL 语音接入说明](ASR_VOICE_INPUT_AIDL_INTEGRATION.md) |
+| SDK、引擎、插件与依赖 | [native/README.md](native/README.md)、`.github/workflows/release.yml` |
+| 备份与恢复 | 当前备份／恢复事务实现与测试 |
+| 文档与历史记录 | [README.md](README.md)；文档引用以当前分支为准，历史记录标注来源 |
 
 ## 必须保持的边界
 
@@ -60,16 +60,16 @@
 
 ```sh
 ./prepare_personal_build.sh
-./gradlew -PbuildABI=arm64-v8a :app:assembleFxDebug
-./gradlew -PbuildABI=arm64-v8a :app:testFxDebugUnitTest --tests 'org.fcitx.fcitx5.android.core.InputEventQueueTest'
+./gradlew -PbuildABI=arm64-v8a :app:assembleDebug
+./gradlew -PbuildABI=arm64-v8a :app:testDebugUnitTest --tests 'org.fcitx.fcitx5.android.core.InputEventQueueTest'
 python3 tools/check-junit-results.py
 ```
 
 按改动选择测试类。Windows 用 `gradlew.bat` 和 Python；无 Bash 时以 `git submodule update --init --depth 1 native/rime-prelude`、`./gradlew.bat prepareRimeSdk` 准备。非空 `BUILD_ABI` 优先于 `-PbuildABI`，均未设则构建全部 ABI。
 
-SDK 按锁校验生成 `native/rime-sdk/`，首次准备后才离线，不改生成物／锁来绕过下载问题。开发 SDK 仅通过 `localRimeSdkDir` 接入 Debug，Release 拒绝；保留 `.debug` 后缀。`inputDiagnostics` 与用户统计独立。
+上述无 SDK 参数的命令用于基础依赖／本地验证；实际 EVO Debug 构建按 `native/README.md` 与 `.github/workflows/debug.yml` 生成并传入 `-PlocalRimeSdkDir`。Release 必须传入与 `native/evo-release.lock.json` 匹配的 `-PreleaseEvoSdkDir`，禁止回退旧内核。保留 `.debug` 后缀，可信 dev CI 和 Release 共用固定签名；PR 不使用正式密钥。`Versions.kt` 是唯一版本来源，正式标签及版本码须通过 CI 校验。`inputDiagnostics` 与用户统计独立。
 
-锁文件约束内置 SDK。运行时变体沿 `RimeEngineStore`／`DirectRimeEngineOperations` 的授权、来源校验、profile 绑定与进程重启／回退路径处理。
+EVO 源码锁约束正式内置引擎，过渡依赖归档锁仅校验依赖来源。运行时变体沿 `RimeEngineStore`／`DirectRimeEngineOperations` 的授权、来源校验、profile 绑定与进程重启／回退路径处理。
 
 | 改动 | 最低验证 |
 | --- | --- |
@@ -81,9 +81,9 @@ SDK 按锁校验生成 `native/rime-sdk/`，首次准备后才离线，不改生
 | 性能采样工具 | `python3 -m unittest discover -s tools/input-perf -p 'test_*.py' -v`；触摸探针改动另编译 AndroidTest |
 | JNI／native | 原生契约测试、出包、APK 白名单与链接审计 |
 | SDK 锁／下载器 | `./gradlew --no-daemon -p build-logic :convention:test --tests RimeSdkArchiveTest`；升级另核四 ABI 和设备 |
-| 文档站 | 构建、链接、历史完整性、目录、搜索五项检查，命令见[维护约定][docs] |
+| 文档 | 核对本仓库路径、链接、应用 ID、构建入口和实际实现；区分历史与现行说明 |
 
-APK 门禁为 `tools/verify-direct-rime-apk.py`、`tools/audit-direct-rime-link.py`，须匹配本次 APK 与构建输入。测试及 CI 条件查[维护手册][manual]和 workflow。
+APK 门禁为 `tools/verify-direct-rime-apk.py`、`tools/audit-direct-rime-link.py`，须匹配本次 APK 与构建输入。测试及 CI 条件查本仓库 `.github/workflows/` 与 `native/README.md`。
 
 设备操作核对目标、授权及数据影响，不自行清空。JUnit 须实际执行且失败／错误／跳过全零，阻塞写明原因。组件图、旧 CI 和构建成功不能当设备验收。
 
@@ -94,11 +94,3 @@ APK 门禁为 `tools/verify-direct-rime-apk.py`、`tools/audit-direct-rime-link.
 行为同步手册，构建／协议同步维护文档，实测结果进入日期报告。复查 diff、Git 状态，报告检查及未验证范围。
 
 提交／推送／PR／发布、依赖变更与上传须明确授权；仅暂存指定文件，保护签名、数据和未知目录。保持线性历史，强推须授权并用 `--force-with-lease`；沿用仓库身份与中文提交风格。
-
-[manual]: https://sandyyur.github.io/fcitx5-android/maintainer/DIRECT_RIME_MAINTAINER_GUIDE_zh-CN
-[contracts]: https://sandyyur.github.io/fcitx5-android/maintainer/implementation/correctness-contracts
-[design]: https://sandyyur.github.io/fcitx5-android/maintainer/implementation/design-system
-[voice]: https://sandyyur.github.io/fcitx5-android/maintainer/implementation/js-voice-plugins
-[engine]: https://sandyyur.github.io/fcitx5-android/maintainer/engine-update
-[restore]: https://sandyyur.github.io/fcitx5-android/maintainer/implementation/user-data-restore
-[docs]: https://sandyyur.github.io/fcitx5-android/maintainer/documentation

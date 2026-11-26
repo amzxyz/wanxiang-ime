@@ -1,27 +1,9 @@
-<b>Supported languages</b>
+<b>Wanxiang IME</b>
+<p>An open-source Android input method powered by librime-evo. Import compatible Rime schemes for Pinyin, double Pinyin, shape-based or mixed input.</p>
 <ul>
-<li>English (with spellcheck)</li>
-<li>Chinese
-  <ul>
-  <li>Pinyin, Shuangpin, Wubi, Cangjie and custom tables (built-in)</li>
-  <li>Zhuyin/Bopomofo (via Chewing Plugin)</li>
-  <li>Jyutping (via Jyutping Plugin)</li>
-  </ul>
-</li>
-<li>Vietnamese (via on UniKey Plugin, supports Telex, VNI and VIQR)</li>
-<li>Japanese (via Anthy Plugin)</li>
-<li>Korean (via Hangul Plugin)</li>
-<li>Sinhala (via Sayura Plugin)</li>
-<li>Thai (via Thai Plugin)
-<li>Generic (via RIME Plugin, supports importing custom schemas)</li>
+<li>Custom keyboard layouts, themes and candidate display</li>
+<li>Clipboard, symbols and emoji tools</li>
+<li>Local Rime scheme deployment, user dictionaries, backup and restore</li>
+<li>Optional voice and other supported plugins</li>
 </ul>
-<b>Features</b>
-<ul>
-<li>Virtual Keyboard (layout not customizable yet)</li>
-<li>Expandable candidate view</li>
-<li>Clipboard management (plain text only)</li>
-<li>Theming (custom color scheme and background image)</li>
-<li>Popup preview on key press</li>
-<li>Long press popup keyboard for convenient symbol input</li>
-<li>Symbol and Emoji picker</li>
-</ul>
+<p>Available schemes depend on the files you install. Project and support: https://github.com/amzxyz/wanxiang-ime</p>
