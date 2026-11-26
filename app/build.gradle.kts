@@ -48,6 +48,10 @@ android {
             proguardFile("proguard-rules.pro")
         }
         debug {
+            // CI can opt into a stable signing identity without changing the application ID.
+            if (providers.gradleProperty("signDebugWithRelease").orNull == "true") {
+                signingConfig = signingConfigs.getByName("release")
+            }
             manifestPlaceholders["appLabel"] = "@string/app_name_debug"
             resValue("mipmap", "app_icon", "@mipmap/ic_launcher_debug")
             resValue("mipmap", "app_icon_round", "@mipmap/ic_launcher_round_debug")

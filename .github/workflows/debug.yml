@@ -47,15 +47,46 @@ jobs:
           java-version: '17'
       - uses: android-actions/setup-android@v4
         with:
-          packages: 'platform-tools cmake;3.31.6'
+          packages: 'platform-tools cmake;3.31.6 build-tools;36.1.0'
       - uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-disabled: true
       - run: ./gradlew --no-daemon -p build-logic :convention:test --tests RimeSdkArchiveTest
       - run: python3 tools/prepare-ci-ndk.py
       - run: ./prepare_personal_build.sh
       - name: Build current EVO engine against verified dependency SDK
         run: |
           python3 tools/build-evo-sdk.py --core .ci/evo --dependencies native/rime-sdk --output "$RUNNER_TEMP/evo-sdk" --abi "$BUILD_ABI"
-      - run: ./gradlew :app:assembleDebug -PlocalRimeSdkDir="$RUNNER_TEMP/evo-sdk"
+      - name: Build Debug APK with stable signing key
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/dev'
+        env:
+          RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+          SIGN_KEY_PWD: ${{ secrets.RELEASE_STORE_PASSWORD }}
+          SIGN_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          SIGN_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          : "${RELEASE_KEYSTORE_BASE64:?Missing RELEASE_KEYSTORE_BASE64}"
+          : "${SIGN_KEY_PWD:?Missing RELEASE_STORE_PASSWORD}"
+          : "${SIGN_KEY_ALIAS:?Missing RELEASE_KEY_ALIAS}"
+          : "${SIGN_KEY_PASSWORD:?Missing RELEASE_KEY_PASSWORD}"
+          umask 077
+          export SIGN_KEY_FILE="$(mktemp "$RUNNER_TEMP/wanxiang-debug-signing-XXXXXX.jks")"
+          trap 'rm -f "$SIGN_KEY_FILE"' EXIT
+          printf '%s' "$RELEASE_KEYSTORE_BASE64" | base64 --decode > "$SIGN_KEY_FILE"
+          unset RELEASE_KEYSTORE_BASE64
+          test -s "$SIGN_KEY_FILE"
+          ./gradlew --no-daemon :app:assembleDebug -PsignDebugWithRelease=true -PlocalRimeSdkDir="$RUNNER_TEMP/evo-sdk"
+          expected=$(keytool -exportcert -keystore "$SIGN_KEY_FILE" -alias "$SIGN_KEY_ALIAS" -storepass:env SIGN_KEY_PWD | sha256sum | cut -d' ' -f1)
+          apks=(app/build/outputs/apk/debug/*.apk)
+          test "${#apks[@]}" -eq 1
+          test -f "${apks[0]}"
+          actual=$("$ANDROID_HOME/build-tools/36.1.0/apksigner" verify --print-certs "${apks[0]}" | awk -F': ' '/^Signer #1 certificate SHA-256 digest: / {print $2}')
+          test "$actual" = "$expected"
+      - name: Build PR or other branch Debug APK without release secrets
+        if: github.event_name == 'pull_request' || github.ref != 'refs/heads/dev'
+        run: ./gradlew :app:assembleDebug -PlocalRimeSdkDir="$RUNNER_TEMP/evo-sdk"
       - name: Verify and stage Debug APK
         run: |
           mkdir -p dist
@@ -70,7 +101,7 @@ jobs:
           python3 tools/audit-direct-rime-link.py dist/wanxiang-debug.apk > dist/native-link-audit.json
       - uses: actions/upload-artifact@v7
         with:
-          name: Wanxiang-IME-arm64-debug
+          name: ${{ github.event_name != 'pull_request' && github.ref == 'refs/heads/dev' && 'Wanxiang-IME-arm64-debug' || 'Wanxiang-IME-arm64-debug-ci-test-key' }}
           path: dist/
           if-no-files-found: error
       - run: ./gradlew :app:testDebugUnitTest -PlocalRimeSdkDir="$RUNNER_TEMP/evo-sdk"

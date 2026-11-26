@@ -8,7 +8,7 @@
 
 ## 开发与发版
 
-- dev：Debug CI 使用 librime-evo dev；包名 `com.amzxyz.wanxiang.ime.debug`。
+- dev：Debug CI 使用 librime-evo dev，与 Release 共用仓库配置的稳定签名；包名 `com.amzxyz.wanxiang.ime.debug`。PR 和其他分支构建不接入正式密钥，产物标记为 `ci-test-key`，不用于日常覆盖更新。
 - wanxiang：正式分支，Release 使用 `native/evo-release.lock.json` 锁定的 EVO、Lua 与 octagram 提交；包名 `com.amzxyz.wanxiang.ime`。
 - 在正式分支提交上推送 `vX.Y.Z` 标签，四种 ABI 签名构建、单测及 APK 校验通过后发布。手动运行正式工作流只生成产物。
 - [构建产物与 CI](https://github.com/amzxyz/wanxiang-ime/actions)；[原生 SDK 说明](native/README.md)。
