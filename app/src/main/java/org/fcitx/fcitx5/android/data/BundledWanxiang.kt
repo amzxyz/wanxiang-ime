@@ -67,6 +67,21 @@ internal object BundledWanxiang {
         }
     }
 
+    /** Stage only APK resources, including data/ and Lua binary assets. Never replace user state. */
+    internal fun prepareUpdate(archive: File, staging: File, target: File): PreparedRimeInstall {
+        archive.inputStream().use { ProfileArchive.extract(it, staging) }
+        require(File(staging, "wanxiang.schema.yaml").isFile) { "内置万象方案缺失" }
+        staging.walkTopDown().filter(File::isFile).toList().forEach { file ->
+            val path = file.relativeTo(staging).invariantSeparatorsPath
+            if (WanxiangPayload.protected(path) || !RimeSchemePayload.resource(path)) {
+                check(file.delete()) { "无法排除用户配置：$path" }
+            }
+        }
+        // Generic resource installation includes data/; the staging filter above also
+        // protects personal overrides, which the generic updater can otherwise replace.
+        return PreparedRimeInstall(target, staging, RimeInstallPolicy.CUSTOM_UPDATE)
+    }
+
     /** First installation only. Publish a whole directory atomically, never merge into user data. */
     fun installInitial(context: Context, target: File) {
         val archive = copyArchive(context)

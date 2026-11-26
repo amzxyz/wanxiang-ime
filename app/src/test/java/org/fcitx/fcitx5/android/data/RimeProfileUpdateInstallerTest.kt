@@ -42,6 +42,19 @@ class RimeProfileUpdateInstallerTest {
         assertEquals("new", File(user, "default.yaml").readText())
     }
 
+    @Test fun bundledOverwriteKeepsUserDatabaseAndFilesOutsideThePayload() {
+        val (plan, user) = plan(RimeInstallPolicy.CUSTOM_UPDATE)
+        File(user, "zc.userdb").mkdir()
+        File(user, "zc.userdb/data").writeText("db")
+        File(user, "default.custom.yaml").writeText("personal")
+        File(user, "wanxiang-lts-zh-hans.gram").writeText("model")
+        RimeProfileUpdateInstaller.install(plan, stop = {}, restart = {})
+        assertEquals("new", File(user, "default.yaml").readText())
+        assertEquals("db", File(user, "zc.userdb/data").readText())
+        assertEquals("personal", File(user, "default.custom.yaml").readText())
+        assertEquals("model", File(user, "wanxiang-lts-zh-hans.gram").readText())
+    }
+
     @Test fun failedActivationRetriesRecoveryBeforeRestartingTheOriginalFiles() {
         val (plan, user) = plan()
         val calls = mutableListOf<String>()

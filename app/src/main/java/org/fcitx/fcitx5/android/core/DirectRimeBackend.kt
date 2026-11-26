@@ -809,6 +809,10 @@ class DirectRimeBackend(context: Context) : InputEngine {
         }
         return onOwner { when(path) {
             "profile-manager" -> config.directoryState()
+            "restore-bundled-wanxiang" -> RawConfig(arrayOf(
+                RawConfig("Profile", config.current),
+                RawConfig("Path", config.user.canonicalPath),
+            ))
             "schema-selector" -> RawConfig(arrayOf(RawConfig("Items", if (started) Native.schemaSelection() else "")))
             // The schema a new session would use; settings pages must read the scheme files
             // belonging to it instead of assuming the fixed Wanxiang file names.
@@ -881,18 +885,41 @@ class DirectRimeBackend(context: Context) : InputEngine {
                 org.fcitx.fcitx5.android.daemon.FcitxDaemon.requireUserDataAvailable()
                 engineRepository.requireProfileMutationIdle()
                 engineRepository.requireBuiltinForProfileSwitch()
+                val directConfig = this@DirectRimeBackend.config
+                val mode = config.findByName("Mode")?.value
+                require(mode == "overwrite" || mode == "new") { "请选择安装方式" }
                 val archive = org.fcitx.fcitx5.android.data.BundledWanxiang.copyArchive(context)
                 try {
-                    val profiles = this@DirectRimeBackend.config.directoryState().findByName("Profiles")?.value
-                        .orEmpty().lineSequence().filter(String::isNotBlank).toSet()
-                    val transaction = RimeProfileImportTransaction.prepare(
-                        archive.absolutePath,
-                        File(context.cacheDir, "rime-import"),
-                        this@DirectRimeBackend.config.dataRoot.canonicalFile,
-                        profiles,
-                        preferredName = "wanxiang",
-                    )
-                    profileOperations.installImported(transaction)
+                    if (mode == "overwrite") {
+                        engineRepository.profileMutationLease().use {
+                            engineRepository.requireBuiltinForProfileSwitch()
+                            directConfig.requireUpdateTarget(
+                                requireNotNull(config.findByName("Profile")).value,
+                                requireNotNull(config.findByName("Path")).value,
+                            )
+                            val staging = File.createTempFile("bundled-update-", ".stage", archive.parentFile!!)
+                            check(staging.delete())
+                            try {
+                                val plan = org.fcitx.fcitx5.android.data.BundledWanxiang.prepareUpdate(
+                                    archive, staging, directConfig.user,
+                                )
+                                RimeProfileUpdateInstaller.install(plan, ::stopNativeForRestart, ::restartNative)
+                            } finally {
+                                staging.deleteRecursively()
+                            }
+                        }
+                    } else {
+                        val profiles = directConfig.directoryState().findByName("Profiles")?.value
+                            .orEmpty().lineSequence().filter(String::isNotBlank).toSet()
+                        val transaction = RimeProfileImportTransaction.prepare(
+                            archive.absolutePath,
+                            File(context.cacheDir, "rime-import"),
+                            directConfig.dataRoot.canonicalFile,
+                            profiles,
+                            exactName = requireNotNull(config.findByName("Name")).value,
+                        )
+                        profileOperations.installImported(transaction)
+                    }
                 } finally {
                     archive.delete()
                 }

@@ -21,6 +21,11 @@
     <string name="direct_rime_preparing_data">正在准备数据…</string>
     <string name="direct_rime_config_retry">重新加载设置</string>
     <string name="bundled_wanxiang_restore">更新/恢复内置万象拼音</string>
-    <string name="bundled_wanxiang_restore_summary">从安装包离线导入 EVO 专用万象方案到新的工作目录并切换。保留原有方案、用户词典和自定义文件；不包含语言模型。</string>
+    <string name="bundled_wanxiang_restore_summary">从安装包离线安装 EVO 专用万象拼音，可覆盖当前工作目录或新建目录。不包含语言模型。</string>
+    <string name="bundled_wanxiang_overwrite">覆盖原目录</string>
+    <string name="bundled_wanxiang_new_directory">新建目录</string>
+    <string name="bundled_wanxiang_directory_name">目录名称</string>
+    <string name="bundled_wanxiang_invalid_name">请输入有效的目录名称，而不是路径。</string>
+    <string name="bundled_wanxiang_overwrite_confirm">覆盖当前工作目录「%1$s」中的同名方案资源并重新部署。保留用户词典、个人补丁及安装包未包含的文件，是否继续？</string>
     <string name="bundled_wanxiang_restored">内置万象拼音已安装</string>
 </resources>

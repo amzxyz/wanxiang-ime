@@ -27,6 +27,7 @@ import kotlinx.coroutines.withContext
 import org.fcitx.fcitx5.android.R
 import org.fcitx.fcitx5.android.core.RawConfig
 import org.fcitx.fcitx5.android.daemon.FcitxDaemon
+import org.fcitx.fcitx5.android.data.RimeDataDirectoryState
 import org.fcitx.fcitx5.android.ui.main.ShareReceiveDirectoryPicker
 import org.fcitx.fcitx5.android.ui.common.SettingsUiActivity
 import org.fcitx.fcitx5.android.ui.common.OperationStatusView
@@ -134,7 +135,7 @@ class RimeImportActivity : SettingsUiActivity() {
             setText(if (bundledMode) R.string.bundled_wanxiang_restore else R.string.direct_rime_choose_zip)
             isEnabled = pendingArchivePath == null
             setOnClickListener {
-                if (bundledMode) confirmBundledRestore()
+                if (bundledMode) chooseBundledInstallMode()
                 else zipPicker.launch(arrayOf("application/zip", "application/octet-stream", "application/x-zip-compressed"))
             }
         }
@@ -165,35 +166,116 @@ class RimeImportActivity : SettingsUiActivity() {
         setContentView(root)
         setSupportActionBar(toolbar)
         when {
+            bundledMode && savedInstanceState == null -> chooseBundledInstallMode()
             pendingFallbackMessage != null -> offerAppDirectoryFallback(pendingFallbackMessage!!)
             pendingSelectionStep == STEP_DESTINATION_CHOICE -> showDestinationChoice()
             pendingSelectionStep == STEP_APP_DIRECTORY -> chooseAppDirectory()
         }
     }
 
-    private fun confirmBundledRestore() {
+    private fun chooseBundledInstallMode() {
         MaterialAlertDialogBuilder(this)
             .setTitle(R.string.bundled_wanxiang_restore)
-            .setMessage(R.string.bundled_wanxiang_restore_summary)
+            .setItems(arrayOf(
+                getString(R.string.bundled_wanxiang_overwrite),
+                getString(R.string.bundled_wanxiang_new_directory),
+            )) { _, which ->
+                if (which == 0) confirmBundledOverwrite()
+                else chooseBundledDirectoryName()
+            }
             .setNegativeButton(android.R.string.cancel, null)
-            .setPositiveButton(android.R.string.ok) { _, _ ->
-                choose.isEnabled = false
-                showStatus(R.string.direct_rime_importing, State.WORKING)
-                lifecycleScope.launch {
-                    try {
-                        connection.runOnReady {
-                            setAddonSubConfig("rime", "restore-bundled-wanxiang", RawConfig())
-                        }
-                        showStatus(R.string.bundled_wanxiang_restored, State.SUCCESS)
-                    } catch (e: kotlinx.coroutines.CancellationException) {
-                        throw e
-                    } catch (e: Exception) {
-                        showStatus(R.string.ui_operation_failed, State.ERROR, e.message.orEmpty())
-                    } finally {
-                        choose.isEnabled = true
-                    }
+            .show()
+    }
+
+    private fun confirmBundledOverwrite() {
+        choose.isEnabled = false
+        lifecycleScope.launch {
+            try {
+                val target = connection.runOnReady {
+                    getAddonSubConfig("rime", "restore-bundled-wanxiang")
                 }
-            }.show()
+                val profile = requireNotNull(target.findByName("Profile")).value
+                val path = requireNotNull(target.findByName("Path")).value
+                MaterialAlertDialogBuilder(this@RimeImportActivity)
+                    .setTitle(R.string.bundled_wanxiang_overwrite)
+                    .setMessage(getString(R.string.bundled_wanxiang_overwrite_confirm, profile))
+                    .setNegativeButton(android.R.string.cancel, null)
+                    .setPositiveButton(android.R.string.ok) { _, _ ->
+                        installBundled(RawConfig(arrayOf(
+                            RawConfig("Mode", "overwrite"),
+                            RawConfig("Profile", profile),
+                            RawConfig("Path", path),
+                        )))
+                    }
+                    .show()
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                showStatus(R.string.ui_operation_failed, State.ERROR, e.message.orEmpty())
+            } finally {
+                choose.isEnabled = true
+            }
+        }
+    }
+
+    private fun chooseBundledDirectoryName() {
+        val margin = (24 * resources.displayMetrics.density).toInt()
+        val field = TextInputLayout(this).apply {
+            boxBackgroundMode = TextInputLayout.BOX_BACKGROUND_OUTLINE
+            hint = getString(R.string.bundled_wanxiang_directory_name)
+        }
+        val name = TextInputEditText(field.context).apply {
+            isSingleLine = true
+            inputType = android.text.InputType.TYPE_CLASS_TEXT
+            setText("wanxiang")
+            selectAll()
+        }
+        field.addView(name, LinearLayout.LayoutParams(-1, -2))
+        val content = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(margin, margin / 2, margin, 0)
+            addView(field, LinearLayout.LayoutParams(-1, -2))
+        }
+        val dialog = MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.bundled_wanxiang_new_directory)
+            .setView(content)
+            .setNegativeButton(android.R.string.cancel, null)
+            .setPositiveButton(android.R.string.ok, null)
+            .create()
+        dialog.setOnShowListener {
+            dialog.getButton(android.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                val value = name.text?.toString().orEmpty().trim()
+                if (!RimeDataDirectoryState.isValidName(value) || value.startsWith(".")) {
+                    field.error = getString(R.string.bundled_wanxiang_invalid_name)
+                    return@setOnClickListener
+                }
+                dialog.dismiss()
+                installBundled(RawConfig(arrayOf(
+                    RawConfig("Mode", "new"),
+                    RawConfig("Name", value),
+                )))
+            }
+        }
+        dialog.show()
+    }
+
+    private fun installBundled(request: RawConfig) {
+        choose.isEnabled = false
+        showStatus(R.string.direct_rime_importing, State.WORKING)
+        lifecycleScope.launch {
+            try {
+                connection.runOnReady {
+                    setAddonSubConfig("rime", "restore-bundled-wanxiang", request)
+                }
+                showStatus(R.string.bundled_wanxiang_restored, State.SUCCESS)
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                showStatus(R.string.ui_operation_failed, State.ERROR, e.message.orEmpty())
+            } finally {
+                choose.isEnabled = true
+            }
+        }
     }
 
     private fun copyArchiveAndChooseDestination(uri: Uri) {
