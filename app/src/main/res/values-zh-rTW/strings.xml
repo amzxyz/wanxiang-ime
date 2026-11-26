@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name_release">万象输入法</string>
-    <string name="app_name_debug">万象输入法 Debug</string>
+    <string name="app_name_release">萬象拼音</string>
+    <string name="app_name_debug">萬象拼音 Debug</string>
     <string name="save">儲存</string>
     <string name="input_methods">輸入法</string>
     <string name="rime_settings">中州韻引擎</string>
