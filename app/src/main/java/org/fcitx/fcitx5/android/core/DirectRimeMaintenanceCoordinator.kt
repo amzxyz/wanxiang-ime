@@ -30,27 +30,34 @@ internal class DirectRimeMaintenanceCoordinator<B>(private val owner: Owner<B>) 
 
     private val mutex = Mutex()
 
-    suspend fun run(refreshAfterOperation: Boolean = true, operation: () -> Unit) = mutex.withLock {
+    suspend fun run(
+        refreshAfterOperation: Boolean = true,
+        synchronizing: Boolean = false,
+        operation: () -> Unit,
+    ) = mutex.withLock {
         // Keep the original barrier outside try: entering can fail before recovery is active.
         val (token, previousBinding) = owner.enterMaintenance()
         try {
             owner.onOwner {
                 owner.clearBinding(token)
                 owner.publishMaintenanceStatus(token)
-                owner.showUnavailable("正在部署，请稍候…")
+                owner.showUnavailable(if (synchronizing) "正在同步用户词典…" else "正在部署，请稍候…")
                 operation()
                 if (refreshAfterOperation) owner.refreshSchemas()
-                owner.completeActivation()
+                if (!synchronizing) owner.completeActivation()
                 restoreBinding(token, previousBinding)
             }
         } catch (error: Exception) {
             try {
                 withContext(NonCancellable) {
                     owner.onOwner {
-                        val failedExternal = owner.failActivation(error)
+                        // Synchronization never activates an engine variant. Restore input
+                        // without marking a variant failed or replacing the recovered binding
+                        // with an unavailable hint; the caller receives the original error.
+                        val failedExternal = !synchronizing && owner.failActivation(error)
                         if (token == owner.inputSession) {
                             if (!failedExternal) restoreBinding(token, previousBinding)
-                            if (error !is CancellationException &&
+                            if (!synchronizing && error !is CancellationException &&
                                 error !is DirectRimeEngineOperations.EngineSwitchRecoveredException) {
                                 owner.showUnavailable(error.message ?: "操作失败，请检查方案文件")
                             }
