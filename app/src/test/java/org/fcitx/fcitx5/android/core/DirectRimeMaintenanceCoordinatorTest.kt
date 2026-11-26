@@ -510,6 +510,29 @@ class DirectRimeMaintenanceCoordinatorTest {
         assertFalse(fixture.gate.canProcess())
     }
 
+    @Test fun synchronizationFailureRestoresInputWithoutFailingActivation() = exercise { fixture ->
+        val original = Failure("用户词典同步失败")
+        assertSame(original, failure {
+            fixture.coordinator.run(synchronizing = true) { throw original }
+        })
+        assertTrue(fixture.failures.isEmpty())
+        assertEquals(0, fixture.completions.get())
+        assertEquals(1, fixture.begun.size)
+        assertEquals(listOf("正在同步用户词典…"), fixture.messages.toList())
+        assertTrue(fixture.gate.canProcess())
+        assertFalse(fixture.maintenance)
+    }
+
+    @Test fun synchronizationSuccessRestoresInputWithoutCompletingActivation() = exercise { fixture ->
+        fixture.coordinator.run(synchronizing = true) {}
+        assertEquals(0, fixture.completions.get())
+        assertTrue(fixture.failures.isEmpty())
+        assertEquals(1, fixture.refreshes.get())
+        assertEquals(1, fixture.begun.size)
+        assertEquals(listOf("正在同步用户词典…"), fixture.messages.toList())
+        assertTrue(fixture.gate.canProcess())
+    }
+
     @Test fun skippingSchemaRefreshStillCompletesActivationAndRestoresInput() = exercise { fixture ->
         fixture.onRefresh = { fail("Switch already refreshed schemas") }
         fixture.coordinator.run(refreshAfterOperation = false) {}

@@ -80,6 +80,45 @@ class RimeProfileImportTransactionTest {
         assertEquals("keep", File(parent, "wanxiang/personal.txt").readText())
     }
 
+    @Test fun exactNameIsUsedWithoutSuffixAndCollisionsAreRejected() {
+        val imports = temporary.newFolder("named-imports")
+        val parent = temporary.newFolder("named-profiles")
+        val archive = File(imports, "profile.zip")
+        zip(archive, "default.yaml" to "schema_list: []")
+        fun prepare(name: String, registered: Set<String> = emptySet()) =
+            RimeProfileImportTransaction.prepare(
+                archive.absolutePath, imports, parent, registered, exactName = name,
+            )
+        for (name in listOf("", "../outside", "a/b", "/absolute", ".hidden", " padded ")) {
+            assertThrows(IllegalArgumentException::class.java) { prepare(name) }
+        }
+        assertThrows(IllegalArgumentException::class.java) { prepare("existing", setOf("existing")) }
+        val transaction = prepare("万象新版")
+        assertEquals("万象新版", transaction.name)
+        assertEquals(File(parent, "万象新版"), transaction.install())
+        assertThrows(IllegalArgumentException::class.java) { prepare("万象新版") }
+        File(parent, ".busy.importing").mkdir()
+        assertThrows(IllegalArgumentException::class.java) { prepare("busy") }
+    }
+
+    @Test fun bundledOverwriteStagesOfficialDataButNotUserState() {
+        val parent = temporary.newFolder("bundled-overwrite")
+        val archive = File(parent, "profile.zip")
+        zip(archive, "default.yaml" to "new", "wanxiang.schema.yaml" to "schema",
+            "data/example.txt" to "data", "lua/data/charset.reverse.bin" to "binary",
+            "user.yaml" to "state", "zc.userdb/data" to "db",
+            "default.custom.yaml" to "override", "custom_phrase.dict.yaml" to "personal")
+        val user = File(parent, "user").apply { mkdir() }
+        File(user, "default.custom.yaml").writeText("keep")
+        val staging = File(parent, "stage")
+        val plan = BundledWanxiang.prepareUpdate(archive, staging, user)
+        assertEquals(user, plan.user)
+        assertEquals(setOf("default.yaml", "wanxiang.schema.yaml", "data/example.txt",
+            "lua/data/charset.reverse.bin"), staging.walkTopDown().filter(File::isFile)
+            .map { it.relativeTo(staging).invariantSeparatorsPath }.toSet())
+        assertEquals("keep", File(user, "default.custom.yaml").readText())
+    }
+
     @Test fun initialInstallNeverOverwritesAnExistingDirectory() {
         val parent = temporary.newFolder("first-install")
         val archive = File(parent, "profile.zip")

@@ -18,7 +18,14 @@
     <string name="direct_rime_about_credits">Acknowledgements</string>
     <string name="direct_rime_about_credits_summary">Based on the Android frontend by Fcitx5 for Android and fxliang, with the Rime engine. Thanks to the upstream authors and community contributors. This is an independent project.</string>
     <string name="direct_rime_input_summary">Candidate bar, candidate window and voice input</string>
-    <string name="bundled_wanxiang_restore">Restore bundled Wanxiang scheme</string>
-    <string name="bundled_wanxiang_restore_summary">Import the APK\'s EVO scheme into a new working directory and switch to it. Existing schemes, user dictionaries and custom files remain unchanged. No language model is included.</string>
-    <string name="bundled_wanxiang_restored">Bundled Wanxiang scheme restored</string>
+    <string name="direct_rime_preparing_data">Preparing data…</string>
+    <string name="direct_rime_config_retry">Retry loading settings</string>
+    <string name="bundled_wanxiang_restore">Update/restore bundled Wanxiang Pinyin</string>
+    <string name="bundled_wanxiang_restore_summary">Install the APK’s EVO Wanxiang scheme offline. Choose whether to update the current directory or create a new one. No language model is included.</string>
+    <string name="bundled_wanxiang_overwrite">Overwrite current directory</string>
+    <string name="bundled_wanxiang_new_directory">Create new directory</string>
+    <string name="bundled_wanxiang_directory_name">Directory name</string>
+    <string name="bundled_wanxiang_invalid_name">Enter a valid directory name, not a path.</string>
+    <string name="bundled_wanxiang_overwrite_confirm">Replace the bundled scheme files in “%1$s” and redeploy. User dictionaries, personal overrides and files not included in the APK are retained. Continue?</string>
+    <string name="bundled_wanxiang_restored">Bundled Wanxiang Pinyin installed</string>
 </resources>

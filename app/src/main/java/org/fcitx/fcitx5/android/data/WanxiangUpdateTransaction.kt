@@ -44,10 +44,14 @@ internal object WanxiangUpdateTransaction {
             require(manifest.isFile && manifest.length() <= 4 * 1024 * 1024) { "Invalid Wanxiang recovery journal" }
             val journal = Json.decodeFromString<Journal>(manifest.readText())
             require(journal.entries.size in 1..WanxiangPayload.MAX_ENTRIES &&
-                journal.entries.map { it.path }.distinct().size == journal.entries.size)
+                journal.entries.map { it.path }.distinct().size == journal.entries.size) {
+                "Invalid update recovery journal entry count or duplicate paths"
+            }
             // Validate the complete journal and backups before making any recovery changes.
             journal.entries.forEach { entry ->
-                require(allowed(entry.path, journal.settings, journal.overrides, journal.generic))
+                require(allowed(entry.path, journal.settings, journal.overrides, journal.generic)) {
+                    "Invalid update recovery resource: ${entry.path}"
+                }
                 if (!journal.committed) {
                     val target = WanxiangPayload.child(root, entry.path)
                     require(!target.exists() || target.isFile) { "Recovery destination is not a file" }
@@ -76,11 +80,26 @@ internal object WanxiangUpdateTransaction {
     fun install(user: File, payload: File, activate: () -> Unit, deactivate: () -> Unit, settings: Boolean = false, overrides: Boolean = false, generic: Boolean = false) {
         val root = user.canonicalFile
         recover(root)
-        require(root.isDirectory && payload.isDirectory)
-        val files = payload.walkTopDown().filter { it.isFile }.map { file ->
-            val path = file.relativeTo(payload).invariantSeparatorsPath
-            require(allowed(path, settings, overrides, generic))
-            require(WanxiangPayload.child(payload.canonicalFile, path) == file.absoluteFile)
+        // Android may return a cache path through /data/user/0 rather than its
+        // canonical parent. Normalize the trusted parent before walking the payload,
+        // but still reject a redirected payload leaf and every redirected child.
+        val absolutePayload = payload.absoluteFile
+        val payloadRoot = File(requireNotNull(absolutePayload.parentFile).canonicalFile, absolutePayload.name)
+        require(root.isDirectory) { "Update target directory does not exist: $root" }
+        require(payloadRoot.isDirectory && payloadRoot.canonicalFile == payloadRoot) {
+            "Invalid or redirected update payload directory: $payload"
+        }
+        val files = payloadRoot.walkTopDown().onEnter { directory ->
+            require(directory.canonicalFile == directory.absoluteFile) {
+                "Update payload directory is redirected: $directory"
+            }
+            true
+        }.filter { it.isFile }.map { file ->
+            val path = file.relativeTo(payloadRoot).invariantSeparatorsPath
+            require(allowed(path, settings, overrides, generic)) { "Protected or invalid update resource: $path" }
+            require(WanxiangPayload.child(payloadRoot, path) == file.absoluteFile) {
+                "Update payload file is redirected: $path"
+            }
             path to file
         }.toList()
         require(files.size in 1..WanxiangPayload.MAX_ENTRIES) { "No update files" }
@@ -89,7 +108,10 @@ internal object WanxiangUpdateTransaction {
             require(!target.exists() || target.isFile) { "Update destination is not a file: $path" }
             // Reject parent file conflicts before touching the profile.
             var parent = target.parentFile!!
-            while (parent != root) { require(!parent.exists() || parent.isDirectory); parent = parent.parentFile!! }
+            while (parent != root) {
+                require(!parent.exists() || parent.isDirectory) { "Update parent is not a directory: $parent" }
+                parent = parent.parentFile!!
+            }
             Entry(path, target.exists())
         }
         val needed = files.sumOf { it.second.length() } + entries.filter { it.existed }.sumOf { File(root, it.path).length() }

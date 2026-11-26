@@ -103,6 +103,40 @@ class WanxiangUpdateTransactionTest {
         }
     }
 
+    @Test fun updateAcceptsAnAndroidStyleAliasOfThePayloadParent() {
+        val user = temp.newFolder("alias-user")
+        val cache = temp.newFolder("real-cache").canonicalFile
+        val alias = File(temp.root, "cache-alias")
+        FilesystemFixtures.symbolicLink(alias.toPath(), cache.toPath())
+        val realPayload = File(cache, "payload").apply { mkdir() }
+        put(realPayload, "default.yaml", "new")
+        put(realPayload, "data/charset.txt", "charset")
+        put(user, "default.yaml", "old")
+        put(user, "zc.userdb/data", "keep")
+        val aliasedPayload = File(alias, "payload")
+        assertNotEquals(aliasedPayload.absoluteFile, aliasedPayload.canonicalFile)
+        WanxiangUpdateTransaction.install(user, aliasedPayload, {}, {}, generic = true)
+        assertEquals("new", File(user, "default.yaml").readText())
+        assertEquals("charset", File(user, "data/charset.txt").readText())
+        assertEquals("keep", File(user, "zc.userdb/data").readText())
+    }
+
+    @Test fun redirectedPayloadLeafAndChildrenAreStillRejected() {
+        val user = temp.newFolder("redirect-user")
+        val outside = temp.newFolder("redirect-outside")
+        val payload = temp.newFolder("redirect-payload")
+        put(user, "default.yaml", "keep")
+        put(outside, "default.yaml", "outside")
+        val alias = File(temp.root, "payload-link")
+        FilesystemFixtures.symbolicLink(alias.toPath(), outside.toPath())
+        assertTrue(runCatching { WanxiangUpdateTransaction.install(user, alias, {}, {}, generic = true) }.isFailure)
+        put(payload, "default.yaml", "new")
+        FilesystemFixtures.symbolicLink(File(payload, "data").toPath(), outside.toPath())
+        assertTrue(runCatching { WanxiangUpdateTransaction.install(user, payload, {}, {}, generic = true) }.isFailure)
+        assertEquals("keep", File(user, "default.yaml").readText())
+        assertFalse(File(user, ".wanxiang-update").exists())
+    }
+
     @Test fun redirectedDestinationsNeverWriteOutsideTheProfile() {
         val user = temp.newFolder("user")
         val outside = temp.newFolder("outside")

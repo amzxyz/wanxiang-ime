@@ -29,6 +29,17 @@ class InputMethodConfigFragment : FcitxPreferenceFragment() {
         fcitx.setImConfig(args.uniqueName, newConfig)
     }
 
+    override fun decorateLoadingPreferenceScreen(screen: PreferenceScreen) {
+        if (args.uniqueName != RIME_UNIQUE_NAME) return
+        // Both management actions eventually need the native owner. Keep them visible,
+        // but do not start a second maintenance operation during initialization.
+        decoratePreferenceScreen(screen)
+        for (index in 0 until screen.preferenceCount) {
+            screen.getPreference(index).isEnabled = false
+        }
+        postDecoratePreferenceScreen(screen)
+    }
+
     override fun decoratePreferenceScreen(screen: PreferenceScreen) {
         if (args.uniqueName != RIME_UNIQUE_NAME) return
         screen.addPreference(Preference(requireContext()).apply {

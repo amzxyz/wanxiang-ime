@@ -38,7 +38,7 @@ internal object BundledWanxiang {
             manifest.sha256.matches(Regex("[0-9a-f]{64}")) && manifest.files > 0) {
             "内置万象方案来源无效"
         }
-        val directory = File(context.cacheDir, "rime-import")
+        val directory = File(context.cacheDir.canonicalFile, "rime-import")
         check(directory.isDirectory || directory.mkdirs())
         val archive = File.createTempFile("bundled-wanxiang-", ".zip", directory)
         try {
@@ -51,7 +51,7 @@ internal object BundledWanxiang {
                         val count = input.read(buffer)
                         if (count < 0) break
                         bytes += count
-                        require(bytes <= MAX_BYTES)
+                        require(bytes <= MAX_BYTES) { "内置万象方案 ZIP 超过大小限制" }
                         digest.update(buffer, 0, count)
                         output.write(buffer, 0, count)
                     }
@@ -65,6 +65,21 @@ internal object BundledWanxiang {
             archive.delete()
             throw error
         }
+    }
+
+    /** Stage only APK resources, including data/ and Lua binary assets. Never replace user state. */
+    internal fun prepareUpdate(archive: File, staging: File, target: File): PreparedRimeInstall {
+        archive.inputStream().use { ProfileArchive.extract(it, staging) }
+        require(File(staging, "wanxiang.schema.yaml").isFile) { "内置万象方案缺失" }
+        staging.walkTopDown().filter(File::isFile).toList().forEach { file ->
+            val path = file.relativeTo(staging).invariantSeparatorsPath
+            if (WanxiangPayload.protected(path) || !RimeSchemePayload.resource(path)) {
+                check(file.delete()) { "无法排除用户配置：$path" }
+            }
+        }
+        // Generic resource installation includes data/; the staging filter above also
+        // protects personal overrides, which the generic updater can otherwise replace.
+        return PreparedRimeInstall(target, staging, RimeInstallPolicy.CUSTOM_UPDATE)
     }
 
     /** First installation only. Publish a whole directory atomically, never merge into user data. */

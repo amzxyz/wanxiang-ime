@@ -2,6 +2,7 @@
 """Package the EVO-specific Wanxiang scheme without models or user state."""
 import argparse
 import hashlib
+import io
 import json
 import re
 from pathlib import Path, PurePosixPath
@@ -13,6 +14,11 @@ SOURCE = Path("native/wanxiang-scheme.json")
 REQUIRED = {"default.yaml", "wanxiang.schema.yaml", "wanxiang.dict.yaml",
             "aux_code.yaml", "wanxiang_algebra.yaml", "dicts/zi.dict.yaml",
             "dicts/jichu.dict.yaml"}
+# Inputs of the default schema's native Rewrite compiler, not generated binaries.
+REWRITE_SOURCES = {"data/charset.txt", "data/emoji.txt", "data/abbrev.txt",
+                   "data/sentence.txt", "data/STPhrases.txt", "data/STCharacters.txt",
+                   "data/HKVariants.txt", "data/TWVariants.txt"}
+REQUIRED |= REWRITE_SOURCES
 
 
 def allowed(name):
@@ -39,7 +45,13 @@ def validate_zip(archive):
     infos = archive.infolist()
     names = [i.filename for i in infos]
     assert len(names) == len(set(names)), "duplicate scheme entries"
-    assert REQUIRED <= set(names), "scheme missing: " + str(REQUIRED - set(names))
+    missing = REQUIRED - set(names)
+    if missing:
+        raise ValueError("scheme missing required files: " + ", ".join(sorted(missing)))
+    empty = sorted(info.filename for info in infos
+                   if info.filename in REQUIRED and info.file_size == 0)
+    if empty:
+        raise ValueError("scheme has empty required files: " + ", ".join(empty))
     assert all(allowed(n) for n in names), "unexpected scheme file"
     assert sum(i.file_size for i in infos) <= 512 * 1024 * 1024, "scheme too large"
     assert archive.testzip() is None, "invalid scheme ZIP"
@@ -116,6 +128,8 @@ def verify(apk, expected, bundle=None):
         if bundle is not None:
             assert manifest == json.loads((bundle / "manifest.json").read_text()), "APK scheme provenance mismatch"
         assert hashlib.sha256(packed).hexdigest() == manifest["sha256"], "APK scheme checksum mismatch"
+        with zipfile.ZipFile(io.BytesIO(packed)) as scheme:
+            assert validate_zip(scheme) == manifest["files"], "APK scheme file count mismatch"
         descriptor = json.loads(archive.read("assets/descriptor.json"))
         assert not any(n.startswith("bundled/rime/") for n in descriptor["files"]), "scheme must not enter shared data sync"
     print(f"Verified bundled Wanxiang {manifest['commit']} in {apk}")

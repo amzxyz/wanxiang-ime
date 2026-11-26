@@ -330,7 +330,8 @@ void Engine::notification(void* context, RimeSessionId, const char* type, const 
         const bool failure = std::strcmp(value, "failure") == 0;
         const bool success = std::strcmp(value, "success") == 0;
         const bool start = std::strcmp(value, "start") == 0;
-        if (failure || success || start) engine->deployFailed_.store(failure);
+        // librime reports synchronization through the same deploy notification channel.
+        // The owner joins each maintenance worker before switching operation contexts.
         if (engine->syncResult_.load() != SyncResult::Idle) {
             if (failure) {
                 engine->syncResult_.store(SyncResult::Failed);
@@ -343,6 +344,8 @@ void Engine::notification(void* context, RimeSessionId, const char* type, const 
                 auto expected = SyncResult::Succeeded;
                 engine->syncResult_.compare_exchange_strong(expected, SyncResult::Waiting);
             }
+        } else if (failure || success || start) {
+            engine->deployFailed_.store(failure);
         }
     }
 }
@@ -1183,22 +1186,22 @@ bool Engine::sync() {
         // process-wide setup and avoid a forced schema rebuild on every sync.
         stop();
         initialize(false);
-        if (deployFailed_.load()) return false;
-        syncResult_.store(SyncResult::Waiting);
-        const bool launched = api_->sync_user_data();
-        // RimeSyncUserData cleans up every native session before launching work.
-        session_ = 0; active_ = false; sessionProgram_.clear(); tabs_.clear();
-        api_->join_maintenance_thread();
-        const bool succeeded = launched && syncResult_.load() == SyncResult::Succeeded;
-        syncResult_.store(SyncResult::Idle);
-        deployFailed_.store(!succeeded);
-        return succeeded;
     } catch (...) {
-        syncResult_.store(SyncResult::Idle);
+        // Only a failure to restart the runtime can invalidate deployment here.
         deployFailed_.store(true);
         active_ = false;
         throw;
     }
+    if (deployFailed_.load()) return false;
+
+    // Startup maintenance has already joined. Route only the following worker's
+    // notifications to the sync result, including failures to launch or complete.
+    syncResult_.store(SyncResult::Waiting);
+    ScopeExit resetSync([&] { syncResult_.store(SyncResult::Idle); });
+    // stop() has invalidated all editor sessions before sync_user_data().
+    const bool launched = api_->sync_user_data();
+    api_->join_maintenance_thread();
+    return launched && syncResult_.load() == SyncResult::Succeeded;
 }
 
 std::vector<std::string> Engine::candidates(int64_t generation, int offset, int limit) {

@@ -661,28 +661,35 @@ void testSyncCompletion() {
     CHECK(engine.key(1, 'n', 0, false).gate == NoSession && f.keys == 0);
     CHECK(engine.begin(2, "editor").gate == Ready && f.created == 2);
     f.syncMessages = {"start", "failure"};
-    CHECK(!engine.sync()); CHECK(engine.begin(3, "editor").gate == DeployFailed);
+    CHECK(!engine.sync()); CHECK(engine.begin(3, "editor").gate == Ready);
     f.syncMessages = {"start", "success"};
     CHECK(engine.sync()); CHECK(engine.begin(4, "editor").gate == Ready);
     f.syncMessages = {"start", "failure", "success"};
-    CHECK(!engine.sync()); CHECK(engine.begin(5, "editor").gate == DeployFailed);
-    f.syncMessages = {"start"}; CHECK(!engine.sync());
-    f.syncMessages = {"start", "success", "start"}; CHECK(!engine.sync());
+    CHECK(!engine.sync()); CHECK(engine.begin(5, "editor").gate == Ready);
+    f.syncMessages = {"start"};
+    CHECK(!engine.sync()); CHECK(engine.begin(6, "editor").gate == Ready);
+    f.syncMessages = {"start", "success", "start"};
+    CHECK(!engine.sync()); CHECK(engine.begin(7, "editor").gate == Ready);
     f.syncLaunch = false;
     f.callback(f.context, 0, "deploy", "success"); // An old completion is not this attempt's result.
-    CHECK(!engine.sync());
+    CHECK(!engine.sync()); CHECK(engine.begin(8, "editor").gate == Ready);
     f.syncLaunch = true; f.syncThrows = true;
     bool threw = false;
     try { engine.sync(); } catch (const std::runtime_error&) { threw = true; }
-    CHECK(threw);
+    CHECK(threw); CHECK(engine.begin(9, "editor").gate == Ready);
     f.syncThrows = false; f.syncMessages = {"start", "success"};
-    CHECK(engine.sync()); CHECK(engine.begin(6, "editor").gate == Ready);
+    CHECK(engine.sync()); CHECK(engine.begin(10, "editor").gate == Ready);
     f.failStartup = true;
     const int callsBeforeFailedStartup = f.syncCalls;
     CHECK(!engine.sync() && f.syncCalls == callsBeforeFailedStartup);
-    CHECK(engine.begin(7, "editor").gate == DeployFailed);
+    CHECK(engine.begin(11, "editor").gate == DeployFailed);
     f.failStartup = false;
-    CHECK(engine.sync()); CHECK(engine.begin(8, "editor").gate == Ready);
+    CHECK(engine.sync()); CHECK(engine.begin(12, "editor").gate == Ready);
+    // A real deployment failure is still classified as such after synchronization.
+    f.failDeploy = true;
+    CHECK(!engine.deploy()); CHECK(engine.begin(13, "editor").gate == DeployFailed);
+    f.failDeploy = false;
+    CHECK(engine.deploy()); CHECK(engine.begin(14, "editor").gate == Ready);
     const int calls = f.syncCalls;
     f.maintenance = true; CHECK(!engine.sync() && f.syncCalls == calls); f.maintenance = false;
     engine.stop(); CHECK(!engine.sync() && f.syncCalls == calls);

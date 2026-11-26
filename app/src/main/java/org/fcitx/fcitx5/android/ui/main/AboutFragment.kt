@@ -32,8 +32,15 @@ class AboutFragment : PaddingPreferenceFragment() {
 
     override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
         preferenceScreen = preferenceManager.createPreferenceScreen(requireContext()).apply {
-            addPreference(R.string.direct_rime_app_name, R.string.direct_rime_about_description,
-                R.mipmap.app_icon)
+            addPreference(Preference(context).apply {
+                layoutResource = R.layout.preference_about_brand
+                setTitle(R.string.direct_rime_app_name)
+                setSummary(R.string.direct_rime_about_description)
+                setIcon(R.mipmap.app_icon)
+                isIconSpaceReserved = true
+                isSelectable = false
+                isPersistent = false
+            })
             addPreference(R.string.direct_rime_about_engine, R.string.direct_rime_about_engine_summary) {
                 open(Const.directRimeMaintainerUrl)
             }
