@@ -12,7 +12,7 @@
 - wanxiang：正式分支，Release 使用 `native/evo-release.lock.json` 锁定的 EVO、Lua 与 octagram 提交；包名 `com.amzxyz.wanxiang.ime`。
 - 发版前在 `build-logic/convention/src/main/kotlin/Versions.kt` 修改 `baseVersionName`（X.Y.Z）并递增 `baseVersionCode`。Debug、Release 与原生构建均使用此版本来源；提交哈希独立记录。
 - 在正式分支提交上推送与源码一致的 `vX.Y.Z` 标签。CI 拒绝不匹配的标签及相对历史正式标签未递增的版本号/版本码；四种 ABI 签名构建、单测及 APK 校验通过后发布。手动运行正式工作流只生成产物。
-- Debug 拉取 EVO 专用万象方案分支最新提交，Release 按 `native/wanxiang-scheme.lock.json` 固定提交。构建生成 ZIP 和来源清单，不将大词库提交到前端仓库；APK 检查内置 ZIP 的 SHA-256。
+- Debug 和 Release 每次 CI 开始时都从 `native/wanxiang-scheme.json` 指定的 EVO 专用方案分支解析最新提交。Release 的四种 ABI 与单元测试使用同一个提交快照；APK 校验提交号和 ZIP SHA-256，产物附带方案来源清单。不将大词库提交到前端仓库。覆盖安装不会替换已经释放的用户方案，查看新内置方案请使用「恢复内置万象方案」。
 - [构建产物与 CI](https://github.com/amzxyz/wanxiang-ime/actions)；[原生 SDK 说明](native/README.md)。
 
 ## 隐私与数据

@@ -3,12 +3,13 @@
 import argparse
 import hashlib
 import json
+import re
 from pathlib import Path, PurePosixPath
 import subprocess
 import tempfile
 import zipfile
 
-LOCK = Path("native/wanxiang-scheme.lock.json")
+SOURCE = Path("native/wanxiang-scheme.json")
 REQUIRED = {"default.yaml", "wanxiang.schema.yaml", "wanxiang.dict.yaml",
             "aux_code.yaml", "wanxiang_algebra.yaml", "dicts/zi.dict.yaml",
             "dicts/jichu.dict.yaml"}
@@ -47,11 +48,38 @@ def validate_zip(archive):
     return len(names)
 
 
-def build(source, output, locked):
-    lock = json.loads(LOCK.read_text())
+def source_config():
+    config = json.loads(SOURCE.read_text())
+    if config != {"repository": "amzxyz/rime-wanxiang",
+                  "branch": "rime-wanxiang-for-librime-evo"}:
+        raise ValueError("Unexpected Wanxiang scheme source")
+    return config
+
+
+def resolve():
+    config = source_config()
+    ref = "refs/heads/" + config["branch"]
+    result = subprocess.check_output(
+        ["git", "ls-remote", "--exit-code", "https://github.com/" + config["repository"] + ".git", ref],
+        text=True,
+    ).strip().splitlines()
+    if len(result) != 1:
+        raise ValueError("Expected exactly one scheme branch ref")
+    commit, actual_ref = result[0].split("\t")
+    if actual_ref != ref or not re.fullmatch(r"[0-9a-f]{40}", commit):
+        raise ValueError("Invalid scheme branch ref")
+    return commit
+
+
+def check_commit(commit, expected):
+    if not re.fullmatch(r"[0-9a-f]{40}", commit) or (expected is not None and commit != expected):
+        raise ValueError(f"Expected scheme {expected}, got {commit}")
+
+
+def build(source, output, expected):
+    config = source_config()
     commit = subprocess.check_output(["git", "-C", str(source), "rev-parse", "HEAD"], text=True).strip()
-    if locked and commit != lock["commit"]:
-        raise ValueError(f"Expected scheme {lock['commit']}, got {commit}")
+    check_commit(commit, expected)
     output.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(dir=output) as temporary:
         raw = Path(temporary) / "source.zip"
@@ -71,35 +99,59 @@ def build(source, output, locked):
                 dest.writestr(fixed, original.read(info), compresslevel=9)
         with zipfile.ZipFile(packed) as archive:
             count = validate_zip(archive)
-        manifest = {"repository": lock["repository"], "branch": lock["branch"],
+        manifest = {"repository": config["repository"], "branch": config["branch"],
                     "commit": commit, "sha256": sha(packed), "files": count}
         packed.replace(output / "wanxiang.zip")
         (output / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
     print(json.dumps(manifest))
 
 
-def verify(apk, bundle):
-    manifest = json.loads((bundle / "manifest.json").read_text())
+def verify(apk, expected, bundle=None):
+    config = source_config()
     with zipfile.ZipFile(apk) as archive:
         packed = archive.read("assets/bundled/rime/wanxiang.zip")
-        actual = json.loads(archive.read("assets/bundled/rime/manifest.json"))
-        assert actual == manifest, "APK scheme provenance mismatch"
+        manifest = json.loads(archive.read("assets/bundled/rime/manifest.json"))
+        check_commit(manifest["commit"], expected)
+        assert all(manifest[k] == v for k, v in config.items()), "APK scheme source mismatch"
+        if bundle is not None:
+            assert manifest == json.loads((bundle / "manifest.json").read_text()), "APK scheme provenance mismatch"
         assert hashlib.sha256(packed).hexdigest() == manifest["sha256"], "APK scheme checksum mismatch"
         descriptor = json.loads(archive.read("assets/descriptor.json"))
         assert not any(n.startswith("bundled/rime/") for n in descriptor["files"]), "scheme must not enter shared data sync"
     print(f"Verified bundled Wanxiang {manifest['commit']} in {apk}")
+    return manifest
+
+
+def verify_release(directory, expected):
+    apks = sorted(directory.glob("wanxiang-*.apk"))
+    if len(apks) != 4:
+        raise ValueError("Expected four release APKs")
+    manifests = [verify(apk, expected) for apk in apks]
+    if any(manifest != manifests[0] for manifest in manifests[1:]):
+        raise ValueError("Release APKs contain different scheme bundles")
+    (directory / "wanxiang-scheme-manifest.json").write_text(
+        json.dumps(manifests[0], indent=2) + "\n", encoding="utf-8"
+    )
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--source", type=Path)
     parser.add_argument("--output", type=Path, default=Path("native/wanxiang-bundle"))
-    parser.add_argument("--locked", action="store_true")
+    parser.add_argument("--resolve", action="store_true")
+    parser.add_argument("--expected-commit")
     parser.add_argument("--verify-apk", type=Path)
+    parser.add_argument("--verify-release", type=Path)
     args = parser.parse_args()
-    if args.verify_apk:
-        verify(args.verify_apk, args.output)
+    if args.resolve:
+        print(resolve())
+    elif args.verify_release:
+        if not args.expected_commit:
+            parser.error("--verify-release requires --expected-commit")
+        verify_release(args.verify_release, args.expected_commit)
+    elif args.verify_apk:
+        verify(args.verify_apk, args.expected_commit, args.output)
     elif args.source:
-        build(args.source, args.output, args.locked)
+        build(args.source, args.output, args.expected_commit)
     else:
-        parser.error("--source or --verify-apk is required")
+        parser.error("--resolve, --source, --verify-apk or --verify-release is required")

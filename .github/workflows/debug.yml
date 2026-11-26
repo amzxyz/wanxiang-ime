@@ -38,15 +38,22 @@ jobs:
           ref: f9652e7ed0e699d55588418ae492edddeaf28360
           path: .ci/evo/plugins/octagram
           persist-credentials: false
-      - uses: actions/checkout@v7
-        with:
-          repository: amzxyz/rime-wanxiang
-          ref: rime-wanxiang-for-librime-evo
-          path: .ci/wanxiang-scheme
-          persist-credentials: false
       - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
+      - name: Resolve latest Wanxiang scheme
+        id: scheme
+        run: |
+          set -euo pipefail
+          commit=$(python3 tools/bundle-wanxiang-scheme.py --resolve)
+          echo "commit=$commit" >> "$GITHUB_OUTPUT"
+          echo "Wanxiang scheme: $commit" >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/checkout@v7
+        with:
+          repository: amzxyz/rime-wanxiang
+          ref: ${{ steps.scheme.outputs.commit }}
+          path: .ci/wanxiang-scheme
+          persist-credentials: false
       - uses: actions/setup-java@v5
         with:
           distribution: temurin
@@ -59,7 +66,7 @@ jobs:
           cache-disabled: true
       - run: ./gradlew --no-daemon -p build-logic :convention:test --tests RimeSdkArchiveTest
       - run: python3 -m unittest discover -s tools -p test_validate_release_version.py
-      - run: python3 tools/bundle-wanxiang-scheme.py --source .ci/wanxiang-scheme
+      - run: python3 tools/bundle-wanxiang-scheme.py --source .ci/wanxiang-scheme --expected-commit '${{ steps.scheme.outputs.commit }}'
       - run: python3 tools/prepare-ci-ndk.py
       - run: ./prepare_personal_build.sh
       - name: Build current EVO engine against verified dependency SDK
@@ -105,7 +112,8 @@ jobs:
           test "$package" = com.amzxyz.wanxiang.ime.debug
           cp "${apks[0]}" dist/wanxiang-debug.apk
           python3 tools/verify-direct-rime-apk.py dist/wanxiang-debug.apk
-          python3 tools/bundle-wanxiang-scheme.py --verify-apk dist/wanxiang-debug.apk
+          python3 tools/bundle-wanxiang-scheme.py --verify-apk dist/wanxiang-debug.apk --expected-commit '${{ steps.scheme.outputs.commit }}'
+          cp native/wanxiang-bundle/manifest.json dist/wanxiang-scheme-manifest.json
           python3 -c 'import json, subprocess, zipfile; m = json.loads(zipfile.ZipFile("dist/wanxiang-debug.apk").read("assets/bundled/rime-sdk-manifest.json")); assert m["engine_family"] == "evo"; assert m["librime_commit"] == subprocess.check_output(["git", "-C", ".ci/evo", "rev-parse", "HEAD"], text=True).strip()'
           python3 tools/audit-direct-rime-link.py dist/wanxiang-debug.apk > dist/native-link-audit.json
       - uses: actions/upload-artifact@v7

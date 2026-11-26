@@ -822,7 +822,12 @@ class DirectRimeBackend(context: Context) : InputEngine {
                 require(this.config.user.canonicalPath == config.findByName("Path")!!.value) { "输入方案工作目录已改变" }
                 val schema = config.findByName("Schema")!!.value
                 val option = config.findByName("Option")!!.value
-                require(Native.selectInputType(schema, option)) { "该输入类型未部署或引擎拒绝切换" }
+                val user = this.config.user
+                val runtime = Native.inputTypeState(schema)
+                require(runtime.drop(1).contains(option)) { "该输入类型未部署" }
+                org.fcitx.fcitx5.android.core.engine.RimeInputTypesRepository.select(user, schema, option) {
+                    Native.selectInputType(schema, option)
+                }
                 refreshPresentation()
             }
             "wanxiang-settings-repair" -> withContext(NonCancellable) { maintain {
