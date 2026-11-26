@@ -6,6 +6,7 @@ import json
 import os
 from pathlib import Path
 import shutil
+import shlex
 import subprocess
 import tarfile
 import tempfile
@@ -32,6 +33,38 @@ def git(root, *args):
 
 def run(*args):
     subprocess.run([str(arg) for arg in args], check=True)
+
+
+def prepare_luajit_host_compiler(work, abi):
+    """Return a host compiler matching LuaJIT's target pointer width."""
+    gcc = shutil.which("gcc")
+    if not gcc:
+        raise RuntimeError("LuaJIT host build requires gcc")
+    if abi in {"armeabi-v7a", "x86"}:
+        wrapper = work / "luajit-host-cc"
+        wrapper.write_text(
+            "#!/bin/sh\nexec " + shlex.quote(gcc) + ' -m32 "$@"\n',
+            encoding="utf-8",
+        )
+        wrapper.chmod(0o755)
+        return wrapper, 32
+    return Path(gcc), 64
+
+
+def verify_host_compiler(host_cc, expected_bits, work):
+    probe = work / "host-pointer-size.c"
+    executable = work / "host-pointer-size"
+    probe.write_text(
+        "#include <stdio.h>\n"
+        "int main(void) { printf(\"%zu\\n\", sizeof(void *)); return 0; }\n",
+        encoding="utf-8",
+    )
+    run(host_cc, probe, "-o", executable)
+    actual = subprocess.check_output([str(executable)], text=True).strip()
+    if actual != str(expected_bits // 8):
+        raise RuntimeError(
+            f"LuaJIT host compiler is {actual}-byte, expected {expected_bits // 8}-byte pointers"
+        )
 
 
 def prepare_boost(work):
@@ -89,9 +122,9 @@ def main():
         if digest(deps / relative) != dependency_manifest["files"][relative]:
             raise RuntimeError(f"Dependency checksum mismatch: {relative}")
 
-    # LuaJIT invokes GNU make, not the Android CMake toolchain. Supply the
-    # NDK's target/API-specific compiler wrapper; the host compiler remains
-    # native for generated VM tools. This modifies only the CI checkout.
+    # LuaJIT's buildvm executable must have the same pointer width as its
+    # Android target. A 32-bit Android target therefore needs a runnable
+    # 32-bit host compiler; CI installs gcc-multilib for those ABI jobs.
     template = plugin / "cmake/BuildLuaJIT.cmake.in"
     original = template.read_text()
     old = '"CC=\\"@CMAKE_C_COMPILER@\\""'
@@ -112,6 +145,8 @@ def main():
 
     with tempfile.TemporaryDirectory(prefix="evo-android-", dir=os.environ.get("RUNNER_TEMP")) as temporary:
         work = Path(temporary)
+        host_cc, host_pointer_bits = prepare_luajit_host_compiler(work, abi)
+        verify_host_compiler(host_cc, host_pointer_bits, work)
         boost = prepare_boost(work)
         build = work / "build"
         install = work / "install"
@@ -129,7 +164,8 @@ def main():
             "-DBUILD_TEST=OFF", "-DBUILD_TOOLS=OFF", "-DBUILD_DATA=OFF", "-DALSO_LOG_TO_STDERR=ON",
             f"-DCMAKE_INSTALL_PREFIX={install}", "-DCMAKE_INSTALL_LIBDIR=lib",
             f"-DBoost_INCLUDE_DIR={boost}", "-DBoost_NO_BOOST_CMAKE=ON",
-            f"-DLUAJIT_ANDROID_CC={target_cc}", "-DCMAKE_CXX_FLAGS=-DBOOST_ALL_NO_EMBEDDED_GDB_SCRIPTS",
+            f"-DLUAJIT_ANDROID_CC={target_cc}", f"-Dluajit_host_cc={host_cc}",
+            "-DCMAKE_CXX_FLAGS=-DBOOST_ALL_NO_EMBEDDED_GDB_SCRIPTS",
             *flags)
         run(cmake, "--build", build, "--parallel", "2", "--target", "rime-static", "spdlog")
         run(cmake, "--install", build)
@@ -170,6 +206,8 @@ def main():
         "librime_repository": "amzxyz/librime-evo", "librime_commit": commit,
         "source_tree": tree, "lua_commit": lua_commit, "octagram_commit": octagram_commit,
         "lua_android_recipe_sha256": patch_digest,
+        "luajit_host_pointer_bits": host_pointer_bits,
+        "luajit_host_compiler": "gcc -m32" if host_pointer_bits == 32 else "gcc",
         "abi": abi, "ndk": NDK, "cmake": CMAKE, "boost_sha256": BOOST_SHA,
         "dependency_sdk": dependency_manifest["librime_commit"],
         "link_smoke_test": "passed",
