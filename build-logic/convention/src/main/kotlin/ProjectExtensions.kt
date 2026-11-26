@@ -98,6 +98,10 @@ val Project.signKey: File?
 val Project.signKeyPwd: String?
     get() = epn("SIGN_KEY_PWD", "signKeyPwd")
 
+// Allow different passwords for the keystore and private key; keep legacy callers working.
+val Project.signKeyPassword: String?
+    get() = epn("SIGN_KEY_PASSWORD", "signKeyPassword") ?: signKeyPwd
+
 val Project.signKeyAlias: String?
     get() = epn("SIGN_KEY_ALIAS", "signKeyAlias")
 
@@ -108,6 +112,6 @@ fun NamedDomainObjectContainer<out ApkSigningConfig>.fromProjectEnv(project: Pro
         storeFile = keyFile
         storePassword = project.signKeyPwd
         keyAlias = project.signKeyAlias
-        keyPassword = project.signKeyPwd
+        keyPassword = project.signKeyPassword
     }
 }

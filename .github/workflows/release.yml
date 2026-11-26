@@ -1,0 +1,181 @@
+name: Wanxiang Release APK
+
+on:
+  push:
+    tags:
+      - 'v[0-9]*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: wanxiang-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    runs-on: ubuntu-22.04
+    outputs:
+      version: ${{ steps.version.outputs.value }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Validate release source and version
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin refs/heads/wanxiang:refs/remotes/origin/wanxiang
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/wanxiang
+          if [[ "$GITHUB_REF_TYPE" == tag ]]; then
+            [[ "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+            version="${GITHUB_REF_NAME#v}"
+          else
+            test "$GITHUB_REF" = refs/heads/wanxiang
+            version=$(sed -nE 's/.*const val baseVersionName = "([0-9]+\.[0-9]+\.[0-9]+)".*/\1/p' build-logic/convention/src/main/kotlin/Versions.kt)
+          fi
+          test -n "$version"
+          echo "value=$version" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: prepare
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: true
+      matrix:
+        abi: [arm64-v8a, armeabi-v7a, x86, x86_64]
+    env:
+      BUILD_ABI: ${{ matrix.abi }}
+      BUILD_VERSION_NAME: ${{ needs.prepare.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          submodules: recursive
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools cmake;3.31.6 build-tools;36.1.0'
+      - uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-disabled: true
+      - run: python3 tools/prepare-ci-ndk.py
+      - run: ./prepare_personal_build.sh
+      - name: Build signed Release APK
+        env:
+          RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+          SIGN_KEY_PWD: ${{ secrets.RELEASE_STORE_PASSWORD }}
+          SIGN_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          SIGN_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+          REQUIRE_RELEASE_SIGNING: 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          : "${RELEASE_KEYSTORE_BASE64:?Missing RELEASE_KEYSTORE_BASE64}"
+          : "${SIGN_KEY_PWD:?Missing RELEASE_STORE_PASSWORD}"
+          : "${SIGN_KEY_ALIAS:?Missing RELEASE_KEY_ALIAS}"
+          : "${SIGN_KEY_PASSWORD:?Missing RELEASE_KEY_PASSWORD}"
+          umask 077
+          export SIGN_KEY_FILE="$(mktemp "$RUNNER_TEMP/wanxiang-signing-XXXXXX.jks")"
+          cleanup() {
+            ./gradlew --stop >/dev/null 2>&1 || true
+            rm -f "$SIGN_KEY_FILE"
+          }
+          trap cleanup EXIT
+          printf '%s' "$RELEASE_KEYSTORE_BASE64" | base64 --decode > "$SIGN_KEY_FILE"
+          unset RELEASE_KEYSTORE_BASE64
+          test -s "$SIGN_KEY_FILE"
+          bash tools/foxy-perf/build-release.sh "$RUNNER_TEMP/release-product"
+      - name: Verify package, signature and ZIP integrity
+        shell: bash
+        run: |
+          set -euo pipefail
+          apk="$RUNNER_TEMP/release-product/direct.apk"
+          "$ANDROID_HOME/build-tools/36.1.0/apksigner" verify --verbose --print-certs "$apk"
+          test "$("$ANDROID_HOME/cmdline-tools/latest/bin/apkanalyzer" manifest application-id "$apk")" = com.amzxyz.wanxiang.ime
+          test "$("$ANDROID_HOME/cmdline-tools/latest/bin/apkanalyzer" manifest version-name "$apk")" = "$BUILD_VERSION_NAME"
+          python3 -c 'import sys, zipfile; z = zipfile.ZipFile(sys.argv[1]); bad = z.testzip(); sys.exit(f"Corrupt APK member: {bad}" if bad else 0)' "$apk"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: wanxiang-release-${{ matrix.abi }}
+          path: ${{ runner.temp }}/release-product/
+          if-no-files-found: error
+
+  unit_test:
+    needs: prepare
+    runs-on: ubuntu-22.04
+    env:
+      BUILD_ABI: arm64-v8a
+      BUILD_VERSION_NAME: ${{ needs.prepare.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: recursive
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools cmake;3.31.6'
+      - uses: gradle/actions/setup-gradle@v6
+      - run: python3 tools/prepare-ci-ndk.py
+      - run: ./prepare_personal_build.sh
+      - run: ./gradlew :app:testDebugUnitTest
+      - run: python3 tools/check-junit-results.py
+
+  publish:
+    needs: [prepare, build, unit_test]
+    if: github.event_name == 'push' && github.ref_type == 'tag'
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: wanxiang-release-*
+          path: release-artifacts
+      - name: Verify and prepare complete release
+        shell: bash
+        env:
+          BUILD_VERSION_NAME: ${{ needs.prepare.outputs.version }}
+        run: |
+          set -euo pipefail
+          python3 tools/foxy-perf/prepare-release-assets.py --artifacts release-artifacts --output final-release --expected-abis arm64-v8a,armeabi-v7a,x86,x86_64 --expected-commit "$GITHUB_SHA"
+          test "$(cat final-release/version.txt)" = "$BUILD_VERSION_NAME"
+          cd final-release
+          for apk in zhongzhoue-*.apk; do
+            mv "$apk" "wanxiang-${apk#zhongzhoue-}"
+          done
+          sha256sum wanxiang-*.apk > SHA256SUMS.txt
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: 万象输入法 ${{ github.ref_name }}
+          generate_release_notes: true
+          prerelease: false
+          fail_on_unmatched_files: true
+          files: |
+            final-release/wanxiang-*.apk
+            final-release/SHA256SUMS.txt
