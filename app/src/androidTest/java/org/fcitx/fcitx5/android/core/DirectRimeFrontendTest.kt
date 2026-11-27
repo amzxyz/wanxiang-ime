@@ -95,15 +95,13 @@ class DirectRimeFrontendTest {
             if (testName.methodName == "schemaSwitchPreferencesSurviveNewSessionsAndRestart") writeSavedOptionsFixture(directory)
             if (testName.methodName == "preeditCursorUsesRawCoordinates") writeCursorFixture(directory)
             if (testName.methodName == "symbolKeysAndPopupsUseRimePunctuation") writePunctuationFixture(directory)
-            if (testName.methodName in setOf("newSessionsKeepRimeSavedAscii", "modeMenuRemembersBothDirections",
-                    "modeMenuWithoutSaveOptionsStaysSessionLocal")) {
+            if (testName.methodName in setOf("newSessionsKeepRimeSavedAscii", "modeMenuRemembersBothDirections")) {
                 val schema = File(directory, "direct_smoke.schema.yaml")
                 val text = schema.readText().replace("\r\n", "\n")
                 val reset = "  - name: ascii_mode\n    reset: 0\n"
                 check(text.contains(reset))
                 schema.writeText(text.replace(reset, "  - name: ascii_mode\n"))
-                val options = if (testName.methodName == "modeMenuWithoutSaveOptionsStaysSessionLocal") "[]" else "[ascii_mode]"
-                File(directory, "default.yaml").appendText("\nswitcher:\n  save_options: $options\n")
+                // No save_options entry is needed with the new native switch API.
             }
             if (testName.methodName == "newApplicationDoesNotInheritInlineAscii") {
                 File(directory, "direct_smoke.schema.yaml").appendText("\nascii_composer:\n  inline_uppercase: true\n")
@@ -258,7 +256,6 @@ end
         schema.writeText(text.replace(speller, rules))
     }
     private fun writeSavedOptionsFixture(directory: File) {
-        File(directory, "default.yaml").appendText("\nswitcher:\n  save_options: [remembered, radio_a, radio_b, reset_preference]\n")
         val schema = File(directory, "direct_smoke.schema.yaml")
         schema.writeText(schema.readText().replace("\r\n", "\n").replace("engine:\n", """
   - name: remembered
@@ -269,6 +266,7 @@ end
     reset: 1
     states: [关闭, 开启]
   - name: local_only
+    reset: 0
     states: [关闭, 开启]
 engine:
 """.trimStart('\n')))
@@ -311,13 +309,14 @@ engine:
         newSession("frontend.options.disabled")
         expect(remembered = false, radio = "radio_a")
 
-        val default = File(context.getExternalFilesDir(null), "data/$profile/default.yaml")
-        default.writeText(default.readText().replace("[remembered, radio_a", "[local_only, radio_a"))
-        connection.runOnReady { activateAction(11) }
-        toggle("local_only")
+        connection.runOnReady { selectTestSchema("second") }
+        expect(remembered = false, radio = "radio_a")
         toggle("remembered")
-        newSession("frontend.options.new-whitelist")
-        expect(remembered = false, radio = "radio_a", local = true)
+        selectRadio("radio_b")
+        connection.runOnReady { selectTestSchema("direct_smoke") }
+        expect(remembered = false, radio = "radio_a")
+        connection.runOnReady { selectTestSchema("second") }
+        expect(remembered = true, radio = "radio_b")
     }
 
     private suspend fun FcitxAPI.expectRimeState(schema: String, ascii: Boolean) {
@@ -367,7 +366,7 @@ engine:
         org.junit.Assume.assumeTrue("Uses the disposable smoke fixture", fixtureArchive == null)
         connection.runOnReady {
             expectRimeState("direct_smoke", ascii = false)
-            // This fixture declares save_options without an ascii_mode reset.
+            // This fixture has no ascii_mode reset or save_options whitelist.
             activateAction(statusArea().first { it.name == "ascii_mode" }.id)
             expectRimeState("direct_smoke", ascii = true)
             startInputSession(invalidateInputSession(), "frontend.saved-ascii.other")
@@ -410,7 +409,7 @@ engine:
         }
     }
 
-    @Test fun modeMenuWithoutSaveOptionsStaysSessionLocal(): Unit = runBlocking {
+    @Test fun modeMenuWithResetStaysSessionLocal(): Unit = runBlocking {
         connection.runOnReady {
             val mode = statusArea().first { it.name == "rime" }.menu!!.first { it.name == "ascii_mode" }
             activateAction(mode.id)
@@ -419,7 +418,7 @@ engine:
             expectRimeState("direct_smoke", false)
             val file = File(context.getExternalFilesDir(null), "data/$profile/user.yaml")
             val config = if (file.exists()) file.readText() else ""
-            assertFalse("An unlisted option must not be saved", Regex("(?m)^\\s+ascii_mode:").containsMatchIn(config))
+            assertFalse("A reset option must not be saved", Regex("(?m)^\\s+ascii_mode:").containsMatchIn(config))
         }
     }
 
@@ -1158,6 +1157,7 @@ end
         val prefs = AppPrefs.getInstance()
         val oldFloating = prefs.candidates.mode.getValue()
         val oldLayout = prefs.keyboard.textKeyboardLayoutProfile.getValue()
+        val oldHold = prefs.keyboard.longPressDelay.getValue()
         val imm = context.getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as InputMethodManager
         var activity: RimeImportActivity? = null
         fun descendants(view: View): Sequence<View> = sequence {
@@ -1182,12 +1182,15 @@ end
             }
             return visible
         }
+        val shieldField = org.fcitx.fcitx5.android.input.BaseInputView::class.java
+            .getDeclaredField("candidateActionShield").apply { isAccessible = true }
         try {
             shell("input keyevent KEYCODE_WAKEUP")
             shell("settings put secure show_ime_with_hard_keyboard 1")
             instrumentation.runOnMainSync {
                 prefs.candidates.mode.setValue(FloatingCandidatesMode.Disabled)
                 prefs.keyboard.textKeyboardLayoutProfile.setValue("default")
+                prefs.keyboard.longPressDelay.setValue(300)
             }
             shell("ime enable $component"); shell("ime set $component")
             activity = instrumentation.startActivitySync(Intent(context, RimeImportActivity::class.java)
@@ -1227,11 +1230,37 @@ end
                 assertNotNull("The editor session must still be active", view.service.editorSession.capture())
                 assertEquals("Displayed candidates must keep their producer context",
                     connection.runImmediately { candidateActionContext }, field.get(view))
-                view.showCandidateActionMenu(0, "你", requireNotNull(anchor))
             }
-            await("The current candidate action menu must be usable") { menuVisible() }
+            val longPressDown = SystemClock.uptimeMillis()
+            instrumentation.runOnMainSync {
+                val target = requireNotNull(anchor)
+                val event = MotionEvent.obtain(longPressDown, longPressDown, MotionEvent.ACTION_DOWN,
+                    target.width / 2f, target.height / 2f, 0)
+                try { target.dispatchTouchEvent(event) } finally { event.recycle() }
+            }
+            await("The candidate menu must open at the long-press timeout before release") { menuVisible() }
+            instrumentation.runOnMainSync {
+                val target = requireNotNull(anchor)
+                val event = MotionEvent.obtain(longPressDown, SystemClock.uptimeMillis(), MotionEvent.ACTION_CANCEL,
+                    target.width / 2f, target.height / 2f, 0)
+                try { target.dispatchTouchEvent(event) } finally { event.recycle() }
+            }
+            instrumentation.runOnMainSync {
+                val shield = shieldField.get(inputView()) as? android.widget.PopupWindow
+                assertNotNull("The candidate list must be shielded while its menu is open", shield)
+                assertTrue(requireNotNull(shield).isShowing)
+                assertTrue(shield.isTouchable)
+            }
             delay(800)
             assertTrue("The current candidate menu must stay open", menuVisible())
+            instrumentation.runOnMainSync {
+                val shield = requireNotNull(shieldField.get(inputView()) as? android.widget.PopupWindow)
+                assertTrue("An outside tap must be consumed by the candidate shield", shield.contentView.performClick())
+            }
+            await("The candidate shield must dismiss the menu without selecting a candidate") { !menuVisible() }
+            instrumentation.runOnMainSync { assertEquals("", editor.text.toString()) }
+            instrumentation.runOnMainSync { inputView()!!.showCandidateActionMenu(0, "你", requireNotNull(anchor)) }
+            await("The candidate action menu must reopen after the shield is dismissed") { menuVisible() }
             instrumentation.runOnMainSync {
                 assertTrue("Candidate actions must keep the editor window focused", activity!!.hasWindowFocus())
                 assertTrue(editor.hasFocus())
@@ -1249,11 +1278,16 @@ end
                 imm.restartInput(editor)
             }
             await("Changing the editor must dismiss its old candidate actions") { !menuVisible() }
+            instrumentation.runOnMainSync {
+                val shield = shieldField.get(inputView()) as? android.widget.PopupWindow
+                assertTrue("Invalidating the menu must also remove its touch shield", shield == null || !shield.isShowing)
+            }
             shell("screencap -p /data/local/tmp/candidate-menu-invalidated.png")
         } finally {
             activity?.let { instrumentation.runOnMainSync { it.finish() } }
             instrumentation.runOnMainSync {
                 prefs.candidates.mode.setValue(oldFloating)
+                prefs.keyboard.longPressDelay.setValue(oldHold)
                 prefs.keyboard.textKeyboardLayoutProfile.setValue(oldLayout)
             }
             if (previous.isNotBlank() && previous != "null") shell("ime set $previous")

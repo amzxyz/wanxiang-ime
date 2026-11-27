@@ -165,7 +165,9 @@ class CandidatesView(
         },
         onPrevPage = { fcitx.launchOnReady { it.offsetCandidatePage(-1) } },
         onNextPage = { fcitx.launchOnReady { it.offsetCandidatePage(1) } },
-        highlightRadius = dp(highlightRadius).toFloat()
+        highlightRadius = dp(highlightRadius).toFloat(),
+        onCandidateBound = ::registerCandidateActionAnchor,
+        onCandidateRecycled = ::unregisterCandidateActionAnchor
     )
 
     override fun onStartHandleFcitxEvent() {

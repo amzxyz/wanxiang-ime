@@ -295,6 +295,9 @@ extern "C" JNIEXPORT jboolean JNICALL JNI_METHOD(deploy)(JNIEnv* env, jobject) {
     try { const bool ok = instance().deploy(); clearSnapshotCache(env); return ok; }
     catch (const std::exception& e) { error(env, e); return false; }
 }
+extern "C" JNIEXPORT jboolean JNICALL JNI_METHOD(deploymentDegraded)(JNIEnv* env, jobject) {
+    try { return instance().deploymentDegraded(); } catch (const std::exception& e) { error(env, e); return false; }
+}
 extern "C" JNIEXPORT jobject JNICALL JNI_METHOD(rawInput)(JNIEnv* env, jobject, jlong generation, jlong revision) {
     try {
         auto value = instance().rawInput(generation, revision);
@@ -317,8 +320,14 @@ extern "C" JNIEXPORT jobjectArray JNICALL JNI_METHOD(options)(JNIEnv* env, jobje
 extern "C" JNIEXPORT jobjectArray JNICALL JNI_METHOD(prewarmAssets)(JNIEnv* env, jobject) {
     try { return strings(env, instance().prewarmAssets()); } catch (const std::exception& e) { error(env, e); return nullptr; }
 }
-extern "C" JNIEXPORT jobjectArray JNICALL JNI_METHOD(sequenceKeys)(JNIEnv* env, jobject) {
-    try { return strings(env, instance().sequenceKeys()); } catch (const std::exception& e) { error(env, e); return nullptr; }
+extern "C" JNIEXPORT void JNICALL JNI_METHOD(releasePrewarm)(JNIEnv* env, jobject) {
+    try { instance().releasePrewarm(); } catch (const std::exception& e) { error(env, e); }
+}
+extern "C" JNIEXPORT jboolean JNICALL JNI_METHOD(candidateEditAvailable)(JNIEnv* env, jobject) {
+    try { return instance().candidateEditAvailable(); } catch (const std::exception& e) { error(env, e); return false; }
+}
+extern "C" JNIEXPORT jboolean JNICALL JNI_METHOD(schemaSwitchSelectionAvailable)(JNIEnv* env, jobject) {
+    try { return instance().schemaSwitchSelectionAvailable(); } catch (const std::exception& e) { error(env, e); return false; }
 }
 extern "C" JNIEXPORT jstring JNICALL JNI_METHOD(schemaSelection)(JNIEnv* env, jobject) {
     try { return string(env, instance().schemaSelection()); } catch (const std::exception& e) { error(env, e); return nullptr; }

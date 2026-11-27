@@ -160,7 +160,7 @@ jobs:
           apk="$RUNNER_TEMP/release-product/direct.apk"
           "$ANDROID_HOME/build-tools/36.1.0/apksigner" verify --verbose --print-certs "$apk"
           python3 tools/bundle-wanxiang-scheme.py --verify-apk "$apk" --expected-commit '${{ needs.prepare.outputs.scheme_commit }}'
-          test "$("$ANDROID_HOME/cmdline-tools/latest/bin/apkanalyzer" manifest application-id "$apk")" = com.amzxyz.wanxiang.ime
+          test "$("$ANDROID_HOME/cmdline-tools/latest/bin/apkanalyzer" manifest application-id "$apk")" = wanxiang.pinyin.ime
           test "$("$ANDROID_HOME/cmdline-tools/latest/bin/apkanalyzer" manifest version-name "$apk")" = "$BUILD_VERSION_NAME"
           case "$BUILD_ABI" in
             armeabi-v7a) abi_id=1 ;;

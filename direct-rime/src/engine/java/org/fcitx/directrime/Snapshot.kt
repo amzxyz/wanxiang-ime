@@ -117,14 +117,19 @@ internal object Native {
     external fun action(generation: Long, revision: Long, action: Int, index: Int, value: String, statistics: Boolean = false): Snapshot
     external fun rawInput(generation: Long, revision: Long): RawInputState?
     external fun deploy(): Boolean
+    external fun deploymentDegraded(): Boolean
     external fun schemas(): Array<String>
     external fun schemaEntries(): Array<String>
     external fun options(): Array<String>
     external fun typeGroupState(schema: String, group: String): Array<String>
     external fun selectTypeOption(schema: String, group: String, option: String): Boolean
+    /** Actual read-only resource paths from the core, before any input session. */
     external fun prewarmAssets(): Array<String>
-    /** Current schema's manual ordering keys (up, down, reset, pin); empty when unsupported. */
-    external fun sequenceKeys(): Array<String>
+    external fun releasePrewarm()
+    /** Whether the loaded API provides native candidate editing. */
+    external fun candidateEditAvailable(): Boolean
+    /** Available even without an input session. */
+    external fun schemaSwitchSelectionAvailable(): Boolean
     external fun schemaSelection(): String
     /** Schema a new session would activate; empty when no schema is available. */
     external fun currentSchema(): String

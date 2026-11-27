@@ -86,10 +86,10 @@ open class CustomGestureView(ctx: Context) : FrameLayout(ctx) {
      *   [swipeEnabled] 做不到的：它在按下时就夺走拦截权，展开面板无法滚动。
      * - 按满长按判定时间才进入「已按住」，此时才补发 `GestureType.Down`；监听者
      *   收到 Down 后调用 `requestDisallowInterceptTouchEvent(true)`，此后位移归本视图。
-     * - 已按住但一次滑动都没发生（原地不动）时，抬手回落到 [performLongClick]，
-     *   保持「长按弹出菜单」的既有语义。
-     * - 本模式不启动常规 [longPressEnabled] 的 job（否则每次按住都会先弹菜单），
-     *   长按语义由抬手时的 [performLongClick] 回落承担。
+     * - 到达长按阈值时立即调用 [performLongClick]，不再等待抬手；触摸流仍保留，
+     *   允许用户在阈值后继续上滑选择单字。
+     * - 已处理的长按不会在抬手时重复触发；后续方向手势仍可接管位移。
+     * - 本模式不启动常规 [longPressEnabled] 的 job，避免两套长按计时重复触发。
      */
     var holdSwipeEnabled = false
 
@@ -371,6 +371,7 @@ open class CustomGestureView(ctx: Context) : FrameLayout(ctx) {
                             InputFeedbacks.hapticFeedback(this@CustomGestureView, true)
                         }
                         dispatchGestureEvent(GestureType.Down, x, y)
+                        longPressTriggered = performLongClick()
                     }
                 } else {
                     dispatchGestureEvent(GestureType.Down, x, y)
@@ -425,20 +426,15 @@ open class CustomGestureView(ctx: Context) : FrameLayout(ctx) {
                 if (!holdSwipeEnabled || holdSwipeWasArmed) {
                     dispatchGestureEvent(GestureType.Up, event.x, event.y)
                 }
-                // 已按住但一次滑动都没被消费（原地没怎么动）：回落到长按语义，
-                // 候选词那里就是呼出操作菜单。必须在 resetState() 前取值。
-                val holdSwipeFallbackLongClick = holdSwipeWasArmed && !gestureConsumed
-                // 未进入「已按住」的快速点击照常触发 click（候选词即选词）；
-                // 已按住时不再触发 click，由上面的长按回落/手势监听接管。
+                // 已达到长按阈值的按住手势由菜单/方向手势接管，不触发候选 click。
+                // 未进入「已按住」的快速点击照常触发 click（候选词即选词）。
                 val shouldPerformClick = !holdSwipeWasArmed && !(touchMovedOutside ||
                         longPressTriggered ||
                         repeatStarted ||
                         swipeRepeatTriggered ||
                         gestureConsumed)
                 resetState()
-                if (holdSwipeFallbackLongClick) {
-                    performLongClick()
-                } else if (shouldPerformClick) {
+                if (shouldPerformClick) {
                     if (doubleTapEnabled) {
                         val now = System.currentTimeMillis()
                         if (maybeDoubleTap && now - lastClickTime <= longPressDelay) {

@@ -19,6 +19,7 @@ internal interface NativeTestDelegate {
     fun action(value: Long, previous: Long, action: Int, index: Int, name: String, statistics: Boolean): Snapshot = action(value, previous, action, index, name)
     fun options(): Array<String> = error("Unexpected native options")
     fun schemaEntries(): Array<String> = error("Unexpected native schemaEntries")
+    fun schemaSwitchSelectionAvailable(): Boolean = false
     fun candidates(value: Long, offset: Int, limit: Int): Array<String> = error("Unexpected native candidates")
     fun rawInput(value: Long, previous: Long): RawInputState? = error("Unexpected native rawInput")
     fun end(value: Long): Snapshot = error("Unexpected native end")
@@ -45,6 +46,7 @@ internal class NativeTestShadow {
         delegate.action(value, previous, action, index, name, statistics)
     @Implementation fun options() = delegate.options()
     @Implementation fun schemaEntries() = delegate.schemaEntries()
+    @Implementation fun schemaSwitchSelectionAvailable() = delegate.schemaSwitchSelectionAvailable()
     @Implementation fun candidates(value: Long, offset: Int, limit: Int) = delegate.candidates(value, offset, limit)
     @Implementation fun rawInput(value: Long, previous: Long) = delegate.rawInput(value, previous)
     @Implementation fun end(value: Long) = delegate.end(value)

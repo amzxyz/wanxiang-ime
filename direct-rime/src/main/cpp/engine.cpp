@@ -90,140 +90,6 @@ struct CoreTrace {
 #endif
 };
 std::string safe(const char* value) { return value ? value : ""; }
-// A deployed resource name is joined to the user build directory. Reject separators and
-// traversal segments before the name reaches the filesystem.
-bool safeComponent(const std::string& value) {
-    return !value.empty() && value != "." && value != ".." &&
-           value.find_first_not_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-") ==
-               std::string::npos;
-}
-int readConfigString(RimeApi* api, RimeConfig* config, const char* key, std::string& value) {
-    char buffer[512]{};
-    if (!api->config_get_string || !api->config_get_string(config, key, buffer, sizeof(buffer)))
-        return 0;
-    value = safe(buffer);
-    return 1;
-}
-// ConfigMap is ordered by key. Iterating here mirrors the order librime's patch compiler uses.
-bool readConfigMapKeys(RimeApi* api, RimeConfig* config, const std::string& path,
-                       std::vector<std::string>& keys) {
-    keys.clear();
-    RimeConfigIterator iterator{};
-    if (!api->config_begin_map(&iterator, config, path.c_str())) return false;
-    while (api->config_next(&iterator))
-        if (iterator.key) keys.emplace_back(iterator.key);
-    api->config_end(&iterator);
-    return true;
-}
-bool configListExists(RimeApi* api, RimeConfig* config, const std::string& path) {
-    RimeConfigIterator iterator{};
-    if (!api->config_begin_list(&iterator, config, path.c_str())) return false;
-    api->config_end(&iterator);
-    return true;
-}
-bool containsKey(const std::vector<std::string>& keys, const std::string& key) {
-    return std::find(keys.begin(), keys.end(), key) != keys.end();
-}
-// Type options come from the deployed schema; the core owns the current selection.
-struct InputTypesConfig {
-    struct Selection {
-        std::string option, name, label;
-    };
-    std::vector<Selection> options;
-    std::string initialOption() const {
-        return options.empty() ? std::string() : options.front().option;
-    }
-    bool load(RimeApi* api, RimeConfig* config, const std::string& groupName = "input_types") {
-        options.clear();
-        if (!configListExists(api, config, groupName)) {
-            std::vector<std::string> legacy;
-            return !readConfigMapKeys(api, config, groupName, legacy);
-        }
-        const size_t count = api->config_list_size(config, groupName.c_str());
-        for (size_t i = 0; i < count; ++i) {
-            const std::string entryPath = groupName + "/@" + std::to_string(i);
-            std::vector<std::string> entry;
-            if (!readConfigMapKeys(api, config, entryPath, entry)) return false;
-            Selection selection;
-            if (!readConfigString(api, config, (entryPath + "/option").c_str(), selection.option) ||
-                selection.option.empty())
-                return false;
-            if (groupName == "input_types" && containsKey(entry, "name")) {
-                if (!readConfigString(api, config, (entryPath + "/name").c_str(), selection.name) ||
-                    selection.name.empty())
-                    return false;
-            } else {
-                selection.name = selection.option;
-            }
-            if (!readConfigString(api, config, (entryPath + "/label").c_str(), selection.label) || selection.label.empty())
-                selection.label = selection.option;
-            for (const auto& existing : options)
-                if (existing.option == selection.option) return false;
-            options.push_back(selection);
-        }
-        return true;
-    }
-};
-// Mirrors librime-evo's PrismConfig. The dictionary component resolves the primary prism from
-// an explicit prism, a prisms list, or the input_types group, and only then from algebra.
-struct PrismConfig {
-    std::string name;
-    std::vector<InputTypesConfig::Selection> selections;
-    bool followsInputTypes = false;
-    bool load(RimeApi* api, RimeConfig* config, const std::string& nameSpace) {
-        name.clear();
-        selections.clear();
-        followsInputTypes = false;
-        std::vector<std::string> keys;
-        if (!readConfigMapKeys(api, config, nameSpace, keys)) return true;
-        const bool hasPrism = containsKey(keys, "prism");
-        const bool hasPrisms = containsKey(keys, "prisms");
-        if (hasPrism && hasPrisms) return false;
-        if (hasPrism && !readConfigString(api, config, (nameSpace + "/prism").c_str(), name))
-            return false;
-        if (!hasPrisms) return true;
-        std::string reference;
-        if (readConfigString(api, config, (nameSpace + "/prisms").c_str(), reference)) {
-            InputTypesConfig types;
-            if (reference != "input_types" || !types.load(api, config) || types.options.empty())
-                return false;
-            selections = types.options;
-            followsInputTypes = true;
-            return true;
-        }
-        const std::string listPath = nameSpace + "/prisms";
-        if (!configListExists(api, config, listPath)) return false;
-        const size_t count = api->config_list_size(config, listPath.c_str());
-        if (count == 0) return false;
-        for (size_t i = 0; i < count; ++i) {
-            const std::string entryPath = listPath + "/@" + std::to_string(i);
-            std::vector<std::string> entry;
-            if (!readConfigMapKeys(api, config, entryPath, entry)) return false;
-            InputTypesConfig::Selection selection;
-            if (!readConfigString(api, config, (entryPath + "/name").c_str(), selection.name) ||
-                !readConfigString(api, config, (entryPath + "/option").c_str(), selection.option) ||
-                selection.name.empty() || selection.option.empty())
-                return false;
-            selections.push_back(selection);
-        }
-        return true;
-    }
-};
-// DictionaryComponent::ResolvePrismName: a qualified <dict>.<prism> resource wins when the
-// algebra map names the prism or the qualified file exists; otherwise the bare name is used.
-std::string resolvePrismName(RimeApi* api, RimeConfig* config, const std::filesystem::path& build,
-                             const std::string& dictionary, const std::string& prism) {
-    std::vector<std::string> algebra;
-    readConfigMapKeys(api, config, "build/dictionaries/" + dictionary + "/algebra", algebra);
-    const std::string qualified = dictionary + "." + prism;
-    if (containsKey(algebra, prism)) return qualified;
-    std::error_code error;
-    const auto path = build / (qualified + ".prism.bin");
-    if (safeComponent(qualified) && std::filesystem::is_regular_file(path, error) &&
-        std::filesystem::file_size(path, error) > 0)
-        return qualified;
-    return prism;
-}
 // Exactly the mask used by fcitx5-rime, including IBus's virtual Super and release.
 int rimeMask(int mask, bool release) {
     int states = mask & ((1 << 0) | (1 << 1) | (1 << 2) | (1 << 3) | (1 << 6));
@@ -327,7 +193,7 @@ void Engine::start(const std::string& shared, const std::string& user,
     shared_ = shared; user_ = user; version_ = version;
     minLogLevel_ = std::clamp(minLogLevel, 0, 3);
     initialize(fullCheck);
-    acceptUsableDeployment();
+    acceptPartialDeployment();
     if (fullCheck && deployFailed_.load()) {
         stop();
         throw std::runtime_error("部署失败，请检查方案文件后重新部署");
@@ -353,8 +219,8 @@ void Engine::initialize(bool fullCheck) {
     }
     RimeTraits traits{}; RIME_STRUCT_INIT(RimeTraits, traits);
     traits.shared_data_dir = shared_.c_str(); traits.user_data_dir = user_.c_str();
-    traits.app_name = "rime.wanxiang"; traits.distribution_name = "万象拼音";
-    traits.distribution_code_name = "wanxiang-ime"; traits.distribution_version = version_.c_str();
+    traits.app_name = "rime.wanxiang.pinyin.ime"; traits.distribution_name = "万象拼音";
+    traits.distribution_code_name = "wanxiang.pinyin.ime"; traits.distribution_version = version_.c_str();
     // librime applies min_log_level in setup(), which runs once per process; a later start
     // cannot change it, so the developer switch takes effect after the app restarts.
     traits.log_dir = ""; traits.min_log_level = minLogLevel_;
@@ -462,18 +328,6 @@ Snapshot Engine::key(int64_t generation, int sym, int mask, bool release, bool s
     { CoreTrace trace("rime.direct.process_key", timing_); handled = api_->process_key(session_, sym, states); }
     return snapshot(generation, handled, inputStatistics);
 }
-bool Engine::highlightLanded(size_t index, bool pageLocal) {
-    if (!RIME_API_AVAILABLE(api_, get_context) || !RIME_API_AVAILABLE(api_, free_context)) return false;
-    RimeContext context{}; RIME_STRUCT_INIT(RimeContext, context);
-    if (!api_->get_context(session_, &context)) return false;
-    ScopeExit cleanup([&] { api_->free_context(&context); });
-    if (context.menu.num_candidates <= 0 || context.menu.page_size <= 0) return false;
-    const auto pageSize = static_cast<size_t>(context.menu.page_size);
-    const auto highlighted = static_cast<size_t>(context.menu.highlighted_candidate_index);
-    // The page-local index equals the highlighted slot; a global index is only
-    // observable through its page offset.
-    return pageLocal ? highlighted == index : highlighted == index % pageSize;
-}
 Snapshot Engine::action(int64_t generation, int64_t revision, int action, int index, const std::string& value, bool statistics) {
     Trace trace(action == 1 || action == 11 ? "rime.direct.select_candidate" : "rime.direct.action");
     owner();
@@ -516,25 +370,19 @@ Snapshot Engine::action(int64_t generation, int64_t revision, int action, int in
     case 12: if (index >= 0 && RIME_API_AVAILABLE(api_, delete_candidate)) api_->delete_candidate(session_, index); break;
     case 13: break; // Read current output without moving the caret or recomposing.
     case 14: case 15: {
-        // Manual ordering (Wanxiang super_sequence) acts on the highlighted candidate:
-        // highlight the target of this snapshot, then deliver the schema's own key to it.
-        // value is "<keysym> <frontend mask>", resolved from sequenceKeys() by the frontend.
-        std::istringstream parsed(value);
-        int sym = 0, mask = 0;
-        if (index < 0 || !(parsed >> sym >> mask) || sym <= 0) break;
-        const auto target = static_cast<size_t>(index);
-        const bool pageLocal = action == 14;
-        if (pageLocal) {
-            if (RIME_API_AVAILABLE(api_, highlight_candidate_on_current_page))
-                api_->highlight_candidate_on_current_page(session_, target);
-        } else if (RIME_API_AVAILABLE(api_, highlight_candidate)) {
-            api_->highlight_candidate(session_, target);
+        handled = false;
+        if (index < 0) break;
+#ifdef RIME_CANDIDATE_EDIT_ACTIONS
+        if (RIME_API_AVAILABLE(api_, edit_candidate))
+            handled = api_->edit_candidate(session_, static_cast<size_t>(index), action == 14, value.c_str());
+        else
+#endif
+        if (value == "auto_delete") {
+            if (action == 14 && RIME_API_AVAILABLE(api_, delete_candidate_on_current_page))
+                handled = api_->delete_candidate_on_current_page(session_, index);
+            else if (action == 15 && RIME_API_AVAILABLE(api_, delete_candidate))
+                handled = api_->delete_candidate(session_, index);
         }
-        // Context::Highlight() reports false when the target is already selected,
-        // which is the normal case for a pinned or already-forwarded candidate, so
-        // observe the selection instead of trusting that Bool to decide delivery.
-        if (highlightLanded(target, pageLocal))
-            api_->process_key(session_, sym, rimeMask(mask, false));
         break;
     }
     default: throw std::invalid_argument("unknown direct Rime action");
@@ -718,111 +566,38 @@ bool Engine::deploy() {
     // setup/logging remains process-wide and must not be run a second time.
     stop();
     initialize(true);
-    acceptUsableDeployment();
+    acceptPartialDeployment();
     return !deployFailed_.load();
 }
 bool Engine::deploymentDegraded() const {
     return deployDegraded_.load();
 }
-bool Engine::deploymentUsable() {
-    // Foxy only checks that build/default.yaml exists. That is necessary but not enough: a
-    // workspace whose active schema has no compiled YAML cannot serve input either, so a
-    // failed task is downgraded to a warning only when both the workspace manifest and the
-    // first (initially active) schema's compiled output are present and non-empty.
-    std::error_code ec;
-    const auto build = std::filesystem::path(user_) / "build";
-    if (!std::filesystem::is_regular_file(build / "default.yaml", ec)) return false;
-    if (!api_ || !started_ || api_->is_maintenance_mode()) return false;
-    RimeSchemaList list{};
-    if (!api_->get_schema_list(&list)) return false;
-    ScopeExit cleanup([&] { api_->free_schema_list(&list); });
-    if (list.size == 0) return false;
-    // The active schema is not necessarily the first entry: librime restores the previously
-    // selected schema (unless fixed ordering is enabled). Inspect the same one a new session
-    // would activate so a usable schema is not rejected because an unused sibling is partial.
-    const auto schema = currentSchema();
-    // Never join a schema id containing separators or traversal segments to the build path.
-    if (schema.empty() || schema == "." || schema == ".." ||
-        schema.find_first_not_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-") != std::string::npos)
+void Engine::acceptPartialDeployment() {
+    if (!deployFailed_.load()) return;
+#if defined(RIME_SCHEMA_PREWARM) && defined(RIME_DEPLOYMENT_FAILURE_SCOPE)
+    if (!RIME_API_AVAILABLE(api_, deployment_has_other_failure) ||
+        api_->deployment_has_other_failure() ||
+        !RIME_API_AVAILABLE(api_, get_deployment_result) ||
+        !RIME_API_AVAILABLE(api_, free_deployment_result) ||
+        !RIME_API_AVAILABLE(api_, get_initial_schema)) return;
+    RimeDeploymentResult result{};
+    if (!api_->get_deployment_result(&result)) return;
+    ScopeExit cleanup([&] { api_->free_deployment_result(&result); });
+    // Only a known successful initial schema in a partial batch can downgrade
+    // the failure. A global/unknown failure is never guessed from files.
+    if (result.success || result.failed_schemas.size == 0) return;
+    char schema[1024]{};
+    if (!api_->get_initial_schema(schema, sizeof(schema))) return;
+    auto contains = [&](const RimeStringList& list) {
+        for (size_t i = 0; i < list.size; ++i)
+            if (safe(list.list[i]) == schema) return true;
         return false;
-    const auto compiled = build / (schema + ".schema.yaml");
-    if (!std::filesystem::is_regular_file(compiled, ec) ||
-        std::filesystem::file_size(compiled, ec) == 0) return false;
-    // A compiled schema YAML appears before its dictionaries finish compiling. EVO can write
-    // it and then fail on the dictionary unit, so also require the active schema's main
-    // dictionary table, mirroring what the first keystroke needs.
-    const bool configReadable = RIME_API_AVAILABLE(api_, schema_open) &&
-        RIME_API_AVAILABLE(api_, config_get_string) && RIME_API_AVAILABLE(api_, config_close);
-    if (!configReadable) return true;
-    RimeConfig config{};
-    if (!api_->schema_open(schema.c_str(), &config)) return false;
-    ScopeExit close([&] { api_->config_close(&config); });
-    std::string dict;
-    if (!readConfigString(api_, &config, "translator/dictionary", dict) || !safeComponent(dict))
-        return false;
-    const auto table = build / (dict + ".table.bin");
-    if (!std::filesystem::is_regular_file(table, ec) ||
-        std::filesystem::file_size(table, ec) == 0) return false;
-    // The compiler writes the table before the prism. A failure in the prism stage leaves a
-    // non-empty table behind, but Dictionary::Load needs both. Resolve the same resource name
-    // DictionaryComponent uses: translator/prism, translator/prisms, the input_types group,
-    // and finally the qualified <dict>.<algebra-key> name.
-    const bool prismResolvable = RIME_API_AVAILABLE(api_, config_begin_map) &&
-        RIME_API_AVAILABLE(api_, config_begin_list) && RIME_API_AVAILABLE(api_, config_next) &&
-        RIME_API_AVAILABLE(api_, config_end) && RIME_API_AVAILABLE(api_, config_list_size);
-    if (prismResolvable) {
-        PrismConfig prism;
-        if (!prism.load(api_, &config, "translator")) return false;
-        std::string prismName = prism.name;
-        if (!prism.selections.empty()) {
-            auto choice = prism.selections.front();
-            if (prism.followsInputTypes) {
-                InputTypesConfig types;
-                if (!types.load(api_, &config)) return false;
-                const std::string option = types.initialOption();
-                const auto found = std::find_if(
-                    prism.selections.begin(), prism.selections.end(),
-                    [&](const InputTypesConfig::Selection& item) { return item.option == option; });
-                if (found == prism.selections.end()) return false;
-                choice = *found;
-            }
-            prismName = choice.name;
-        }
-        if (prismName.empty()) {
-            prismName = dict;
-            std::vector<std::string> algebra;
-            if (readConfigMapKeys(api_, &config, "build/dictionaries/" + dict + "/algebra", algebra) &&
-                !algebra.empty())
-                prismName += "." + algebra.front();
-        } else {
-            prismName = resolvePrismName(api_, &config, build, dict, prismName);
-        }
-        if (!safeComponent(prismName)) return false;
-        const auto compiledPrism = build / (prismName + ".prism.bin");
-        return std::filesystem::is_regular_file(compiledPrism, ec) &&
-               std::filesystem::file_size(compiledPrism, ec) > 0;
-    }
-    // Older imported engines expose no map/list iteration. Keep the previous conservative
-    // check there instead of treating every scheme as usable.
-    std::string prism = dict;
-    auto appendType = [&](const char* key) -> int {
-        std::string type;
-        if (!readConfigString(api_, &config, key, type)) return 0;
-        if (!safeComponent(type)) return -1;
-        prism += "." + type;
-        return 1;
     };
-    if (appendType("input_types/@0/option") < 0) return false;
-    const auto compiledPrism = build / (prism + ".prism.bin");
-    return std::filesystem::is_regular_file(compiledPrism, ec) &&
-           std::filesystem::file_size(compiledPrism, ec) > 0;
-}
-void Engine::acceptUsableDeployment() {
-    if (!deployFailed_.load() || !deploymentUsable()) return;
-    // Keep the engine: a single failed dictionary unit must not make an otherwise usable
-    // plan unusable. The warning state is queryable by the frontend for its UI.
+    if (!contains(result.schema_ids) || !contains(result.successful_schemas) ||
+        contains(result.failed_schemas)) return;
     deployFailed_.store(false);
     deployDegraded_.store(true);
+#endif
 }
 std::vector<std::string> Engine::schemas() {
     owner();
@@ -853,49 +628,40 @@ std::vector<std::string> Engine::schemaEntries() {
 std::vector<std::string> Engine::prewarmAssets() {
     owner();
     std::vector<std::string> result;
-    if (gate(generation_) != Ready) return result;
-    char schema[1024]{};
-    if (!api_->get_current_schema(session_, schema, sizeof(schema))) return result;
-    RimeConfig config{};
-    if (!api_->schema_open(schema, &config)) return result;
-    ScopeExit cleanup([&] { api_->config_close(&config); });
-    auto add = [&](const char* key, const char* directory, const char* extension) {
-        auto name = safe(api_->config_get_cstring(&config, key));
-        if (name.empty() || name == "." || name == ".." ||
-            name.find_first_not_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-") != std::string::npos)
-            return;
-        result.push_back(directory + name + extension);
-    };
-    add("translator/dictionary", "build/", ".table.bin");
-    add("grammar/language", "", ".gram");
+#ifdef RIME_SCHEMA_PREWARM
+    if (!started_ || api_->is_maintenance_mode() || deployFailed_.load() ||
+        !RIME_API_AVAILABLE(api_, prewarm_schema) ||
+        !RIME_API_AVAILABLE(api_, free_string_list)) return result;
+    RimeStringList paths{};
+    if (!api_->prewarm_schema(nullptr, &paths)) return result;
+    ScopeExit cleanup([&] { api_->free_string_list(&paths); });
+    for (size_t i = 0; i < paths.size; ++i) result.push_back(safe(paths.list[i]));
+#endif
     return result;
 }
 
-std::vector<std::string> Engine::sequenceKeys() {
+void Engine::releasePrewarm() {
     owner();
-    std::vector<std::string> result;
-    if (gate(generation_) != Ready) return result;
-    char schema[1024]{};
-    if (!api_->get_current_schema(session_, schema, sizeof(schema))) return result;
-    RimeConfig config{};
-    if (!api_->schema_open(schema, &config)) return result;
-    ScopeExit cleanup([&] { api_->config_close(&config); });
-    bool enabled = false;
-    const auto processors = api_->config_list_size(&config, "engine/processors");
-    for (size_t i = 0; i < processors && !enabled; ++i) {
-        const auto name = safe(api_->config_get_cstring(&config, ("engine/processors/@" + std::to_string(i)).c_str()));
-        enabled = name.find("super_sequence") != std::string::npos;
-    }
-    if (!enabled) return result;
-    // Same defaults as super_sequence.lua when the schema leaves a key unset.
-    static constexpr const char* keys[][2] = {
-        {"up", "Control+j"}, {"down", "Control+k"}, {"reset", "Control+l"}, {"pin", "Control+p"},
-    };
-    for (const auto& key : keys) {
-        auto value = safe(api_->config_get_cstring(&config, (std::string("super_sequence/") + key[0]).c_str()));
-        result.push_back(value.empty() ? key[1] : value);
-    }
-    return result;
+#ifdef RIME_SCHEMA_PREWARM
+    if (started_ && RIME_API_AVAILABLE(api_, release_prewarm)) api_->release_prewarm();
+#endif
+}
+
+bool Engine::schemaSwitchSelectionAvailable() {
+    owner();
+#ifdef RIME_SCHEMA_SWITCH_SELECTION
+    return started_ && RIME_API_AVAILABLE(api_, select_switch);
+#else
+    return false;
+#endif
+}
+bool Engine::candidateEditAvailable() {
+    owner();
+#ifdef RIME_CANDIDATE_EDIT_ACTIONS
+    return gate(generation_) == Ready && RIME_API_AVAILABLE(api_, edit_candidate);
+#else
+    return false;
+#endif
 }
 
 std::vector<std::string> Engine::options() {
@@ -935,31 +701,29 @@ std::vector<std::string> Engine::options() {
     }
     return result;
 }
-// Catalogs are read from the deployed schema; the core owns all persistent choices.
+// The core returns display-ready options and the effective selection together.
 std::vector<std::string> Engine::typeGroupState(const std::string& schema, const std::string& group) {
     owner();
-#ifdef RIME_EVO_TYPE_GROUPS
+#ifdef RIME_EVO_TYPE_OPTIONS
     if (!started_ || api_->is_maintenance_mode() || deployFailed_.load() ||
-        (group != "input_types" && group != "aux_types") ||
-        !RIME_API_AVAILABLE(api_, get_type_option) || !RIME_API_AVAILABLE(api_, select_type_option))
+        !RIME_API_AVAILABLE(api_, get_type_options) || !RIME_API_AVAILABLE(api_, free_type_options) ||
+        !RIME_API_AVAILABLE(api_, select_type_option))
         return {};
     const auto deployed = schemas();
     if (std::find(deployed.begin(), deployed.end(), schema) == deployed.end()) return {};
-    if (!RIME_API_AVAILABLE(api_, schema_open) || !RIME_API_AVAILABLE(api_, config_close) ||
-        !RIME_API_AVAILABLE(api_, config_begin_map) || !RIME_API_AVAILABLE(api_, config_begin_list) ||
-        !RIME_API_AVAILABLE(api_, config_next) || !RIME_API_AVAILABLE(api_, config_end) ||
-        !RIME_API_AVAILABLE(api_, config_list_size) || !RIME_API_AVAILABLE(api_, config_get_cstring)) return {};
-    RimeConfig config{};
-    if (!api_->schema_open(schema.c_str(), &config)) return {};
-    ScopeExit cleanup([&] { api_->config_close(&config); });
-    InputTypesConfig types;
-    if (!types.load(api_, &config, group) || types.options.empty()) return {};
-    char selected[1024]{};
-    if (!api_->get_type_option(session_, schema.c_str(), group.c_str(), selected, sizeof(selected))) return {};
-    std::vector<std::string> result{selected};
-    for (const auto& item : types.options) {
-        result.push_back(item.option);
-        result.push_back(item.label);
+    RimeTypeOption* options = nullptr;
+    size_t count = 0;
+    if (!api_->get_type_options(session_, schema.c_str(), group.c_str(), &options, &count))
+        return {};
+    ScopeExit cleanup([&] { api_->free_type_options(options, count); });
+    if (count == 0) return {};
+    std::vector<std::string> result(1);
+    result.reserve(1 + 2 * count);
+    for (size_t i = 0; i < count; ++i) {
+        const auto& item = options[i];
+        if (item.selected) result.front() = item.option;
+        result.emplace_back(item.option);
+        result.emplace_back(item.label);
     }
     return result;
 #else
@@ -990,7 +754,17 @@ bool Engine::selectTypeOption(const std::string& schema, const std::string& grou
 }
 
 void Engine::setOption(const std::string& option, bool value) {
+#ifdef RIME_SCHEMA_SWITCH_SELECTION
+    if (RIME_API_AVAILABLE(api_, select_switch)) {
+        // The core owns schema-scoped preference and radio-group selection.
+        // Undeclared options (including _no_learning) remain temporary.
+        if (!api_->select_switch(session_, option.c_str(), value))
+            api_->set_option(session_, option.c_str(), value);
+        return;
+    }
+#endif
     api_->set_option(session_, option.c_str(), value);
+    // Legacy/external engines still use their traditional save_options contract.
     if (saveableOption(option)) rememberOption(option, value);
 }
 bool Engine::saveableOption(const std::string& option) {
@@ -1082,6 +856,13 @@ std::string Engine::currentSchema() {
         char schema[1024]{};
         if (api_->get_current_schema(session_, schema, sizeof(schema))) return safe(schema);
     }
+#ifdef RIME_SCHEMA_PREWARM
+    if (started_ && !api_->is_maintenance_mode() && RIME_API_AVAILABLE(api_, get_initial_schema)) {
+        char schema[1024]{};
+        return api_->get_initial_schema(schema, sizeof(schema)) ? safe(schema) : std::string();
+    }
+#endif
+    // Legacy engine fallback for settings only; never used to downgrade deployment.
     // Settings can be opened before any editor created a session. librime then restores
     // var/previously_selected_schema from user.yaml; only when that is absent does it activate
     // the first schema of schema_list.
@@ -1141,6 +922,7 @@ bool Engine::sync() {
         // process-wide setup and avoid a forced schema rebuild on every sync.
         stop();
         initialize(false);
+        acceptPartialDeployment();
     } catch (...) {
         // Only a failure to restart the runtime can invalidate deployment here.
         deployFailed_.store(true);

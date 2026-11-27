@@ -1,8 +1,8 @@
 {
   "repository": "amzxyz/librime-evo",
-  "commit": "a68c1fe4be30f34239f6103df9306088416ed5ca",
+  "commit": "f735972439730bc68d18d93c0fecbd1dbfa409fd",
   "lua_repository": "amzxyz/librime-evo-lua",
-  "lua_commit": "102189bd0827cc865fe5384528c3aa2d6f22b43a",
+  "lua_commit": "14a11aeb0a0d51c72208aab3fcad181a7c5b211d",
   "octagram_repository": "amzxyz/librime-evo-octagram",
   "octagram_commit": "f9652e7ed0e699d55588418ae492edddeaf28360"
 }

@@ -61,9 +61,10 @@ public:
     std::vector<std::string> typeGroupState(const std::string& schema, const std::string& group);
     bool selectTypeOption(const std::string& schema, const std::string& group, const std::string& option);
     std::vector<std::string> prewarmAssets();
-    // Manual candidate ordering keys of the current schema (Wanxiang super_sequence):
-    // up, down, reset, pin. Empty when the schema does not load such a processor.
-    std::vector<std::string> sequenceKeys();
+    void releasePrewarm();
+    // Whether the loaded API exposes native candidate editing.
+    bool candidateEditAvailable();
+    bool schemaSwitchSelectionAvailable();
     std::string schemaSelection();
     // Schema activated for a new session; falls back to the first enabled schema when no
     // input session exists yet (for example, while the settings page is open).
@@ -87,19 +88,15 @@ private:
     void owner() const;
     Gate gate(int64_t generation) const;
     Snapshot snapshot(int64_t generation, bool handled = true, int64_t inputStatistics = -1);
-    bool highlightLanded(size_t index, bool pageLocal);
     void invalidateStatusCache();
     void readStatus(Snapshot& snapshot);
     int64_t captureInputStatistics(bool requested) const;
     void clearSession();
     void initialize(bool fullCheck);
-    void acceptUsableDeployment();
-    bool deploymentUsable();
+    void acceptPartialDeployment();
     bool fixSchemaListOrder();
-    // librime writes var/option/<name> only when its own switcher menu toggles
-    // an option listed in switcher/save_options. This frontend sets options
-    // directly, so mirror that rule; otherwise every new native session (another
-    // app's editor) reverts the user's switch to the schema default.
+    // Explicit switch selection uses the core's native policy when available.
+    // The helpers below are only for older/external librime engines.
     void setOption(const std::string& option, bool value);
     bool saveableOption(const std::string& option);
     void rememberOption(const std::string& option, bool value);

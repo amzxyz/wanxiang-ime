@@ -134,6 +134,16 @@ class CandidateTouchCancellationTest {
         assertEquals(1, touch.clicks)
     }
 
+    @Test fun aLongPressOpensCandidateActionsAtTheThresholdBeforeRelease() = candidates { touch ->
+        touch.send(MotionEvent.ACTION_DOWN)
+        touch.idle(331)
+        assertEquals(1, touch.longClicks)
+        assertEquals(0, touch.clicks)
+        touch.send(MotionEvent.ACTION_UP)
+        assertEquals(1, touch.longClicks)
+        assertEquals(0, touch.clicks)
+    }
+
     @Test fun armedHoldStillAllowsSwipingOutsideToChooseACharacter() = candidates { touch ->
         touch.send(MotionEvent.ACTION_DOWN)
         touch.idle(331)
@@ -142,6 +152,6 @@ class CandidateTouchCancellationTest {
         assertEquals(1, touch.holds)
         assertEquals(1, touch.swipes)
         assertEquals(0, touch.clicks)
-        assertEquals(0, touch.longClicks)
+        assertEquals(1, touch.longClicks)
     }
 }

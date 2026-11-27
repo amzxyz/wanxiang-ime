@@ -137,6 +137,7 @@ interface FcitxAPI {
      * Returns false when no session is active or the engine rejects the option.
      */
     suspend fun setRimeOption(name: String, enabled: Boolean): Boolean = false
+    suspend fun supportsSchemaSwitchSelection(): Boolean = false
 
     suspend fun getCandidates(offset: Int, limit: Int): Array<CandidateWord>
 

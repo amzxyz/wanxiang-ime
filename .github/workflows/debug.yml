@@ -28,7 +28,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           repository: amzxyz/librime-evo-lua
-          ref: 102189bd0827cc865fe5384528c3aa2d6f22b43a
+          ref: 14a11aeb0a0d51c72208aab3fcad181a7c5b211d
           path: .ci/evo/plugins/lua
           submodules: recursive
           persist-credentials: false
@@ -110,7 +110,7 @@ jobs:
           test "${#apks[@]}" -eq 1
           test -f "${apks[0]}"
           package=$("$ANDROID_HOME/cmdline-tools/latest/bin/apkanalyzer" manifest application-id "${apks[0]}")
-          test "$package" = com.amzxyz.wanxiang.ime.debug
+          test "$package" = wanxiang.pinyin.ime.debug
           cp "${apks[0]}" dist/wanxiang-debug.apk
           python3 tools/verify-direct-rime-apk.py dist/wanxiang-debug.apk
           python3 tools/bundle-wanxiang-scheme.py --verify-apk dist/wanxiang-debug.apk --expected-commit '${{ steps.scheme.outputs.commit }}'

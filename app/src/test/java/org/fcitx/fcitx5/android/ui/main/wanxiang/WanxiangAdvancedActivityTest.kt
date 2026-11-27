@@ -410,6 +410,7 @@ internal object WanxiangSettingsFixture {
     private fun hex(value: String) = value.toByteArray().joinToString("") { "%02x".format(it) }
     val api: FcitxAPI = Proxy.newProxyInstance(FcitxAPI::class.java.classLoader, arrayOf(FcitxAPI::class.java)) { _, method, arguments ->
         when (method.name) {
+            "supportsSchemaSwitchSelection" -> false
             "getAddonSubConfig" -> {
                 val path = arguments!![1] as String
                 if (path == "profile-manager") RawConfig(arrayOf(RawConfig("Current", "rime"), RawConfig("Profiles", "rime"),

@@ -64,14 +64,7 @@ struct Fake {
     std::string schema = "test", schemaName = "Test";
     // Ordered regardless of schema_list order: user.yaml restores the previously selected one.
     std::vector<std::pair<std::string, std::string>> schemas{{"test", "Test"}};
-    std::string dictionary = "test";
-    // EVO prism fixture: input_types group, translator prism/prisms and the algebra map.
-    bool inputTypesPresent = false;
     std::vector<std::pair<std::string, std::string>> inputOptions;
-    bool prismSet = false, prismsRefSet = false, prismsListSet = false;
-    std::string prismName, prismsRef;
-    std::vector<std::pair<std::string, std::string>> prismsList;
-    std::vector<std::string> algebraKeys;
     std::string rawInput;
     size_t rawCaret = 0;
     bool syncLaunch = true, syncPending = false, syncThrows = false, userDbHeld = false, failStartup = false;
@@ -79,53 +72,18 @@ struct Fake {
     std::vector<std::string> syncMessages = {"start", "success"};
     RimeNotificationHandler callback = nullptr;
     void* context = nullptr;
-    // Manual candidate ordering (super_sequence) fixture.
-    int sym = 0, highlighted = -1;
-    size_t highlightedGlobal = 999;
-    bool highlightFails = false;
-    std::vector<std::string> processors;
+    // Native candidate edit fixture.
+    size_t editIndex = 999;
+    bool editPage = false;
+    int editCalls = 0;
+    std::string editAction;
     std::map<std::string, std::string> schemaValues;
+    std::string initialSchema;
+    bool hasDeploymentResult = false, otherTaskFailed = false;
+    std::vector<std::string> deployed, failed;
+    int warmCalls = 0, freedWarm = 0, releasedWarm = 0;
+    std::vector<std::string> warmPaths;
 } f;
-std::string algebraPath() { return "build/dictionaries/" + f.dictionary + "/algebra"; }
-bool fakeHasMap(const std::string& path) {
-    if (path == "translator") return f.prismSet || f.prismsRefSet || f.prismsListSet;
-    if (path == algebraPath()) return !f.algebraKeys.empty();
-    const std::string optionPrefix = "input_types/@";
-    if (path.compare(0, optionPrefix.size(), optionPrefix) == 0) {
-        const auto index = std::strtoul(path.c_str() + optionPrefix.size(), nullptr, 10);
-        return index < f.inputOptions.size();
-    }
-    const std::string prismPrefix = "translator/prisms/@";
-    if (path.compare(0, prismPrefix.size(), prismPrefix) == 0) {
-        const auto index = std::strtoul(path.c_str() + prismPrefix.size(), nullptr, 10);
-        return index < f.prismsList.size();
-    }
-    return false;
-}
-std::vector<std::string> fakeMapKeys(const std::string& path) {
-    if (path == "translator") {
-        std::vector<std::string> keys;
-        if (f.prismSet) keys.emplace_back("prism");
-        if (f.prismsRefSet || f.prismsListSet) keys.emplace_back("prisms");
-        return keys;
-    }
-    if (path == algebraPath()) return f.algebraKeys;
-    const std::string optionPrefix = "input_types/@";
-    if (path.compare(0, optionPrefix.size(), optionPrefix) == 0) {
-        const auto index = std::strtoul(path.c_str() + optionPrefix.size(), nullptr, 10);
-        std::vector<std::string> keys{"option"};
-        if (index < f.inputOptions.size() && !f.inputOptions[index].second.empty())
-            keys.emplace_back("name");
-        return keys;
-    }
-    const std::string prismPrefix = "translator/prisms/@";
-    if (path.compare(0, prismPrefix.size(), prismPrefix) == 0) return {"name", "option"};
-    return {};
-}
-bool fakeHasList(const std::string& path) {
-    return (path == "input_types" && f.inputTypesPresent) ||
-           (path == "translator/prisms" && f.prismsListSet);
-}
 void notifyOptionIfRequested(int& count) {
     if (count <= 0) return;
     --count;
@@ -220,47 +178,6 @@ RimeApi api() {
     };
     a.config_close = [](RimeConfig*) -> Bool { return true; };
     a.schema_open = [](const char*, RimeConfig* config) -> Bool { config->ptr = &f; return true; };
-    a.config_get_string = [](RimeConfig*, const char* key, char* value, size_t size) -> Bool {
-        const std::string name(key);
-        if (name == "translator/dictionary") {
-            std::snprintf(value, size, "%s", f.dictionary.c_str()); return true;
-        }
-        if (name == "translator/prism" && f.prismSet) {
-            std::snprintf(value, size, "%s", f.prismName.c_str()); return true;
-        }
-        if (name == "translator/prisms" && f.prismsRefSet) {
-            std::snprintf(value, size, "%s", f.prismsRef.c_str()); return true;
-        }
-        const std::string prismPrefix = "translator/prisms/@";
-        if (name.compare(0, prismPrefix.size(), prismPrefix) == 0) {
-            const size_t slash = name.find('/', prismPrefix.size());
-            if (slash == std::string::npos) return false;
-            const auto index = std::strtoul(name.substr(prismPrefix.size(), slash - prismPrefix.size()).c_str(), nullptr, 10);
-            if (index >= f.prismsList.size()) return false;
-            const std::string field = name.substr(slash + 1);
-            if (field == "name") {
-                std::snprintf(value, size, "%s", f.prismsList[index].first.c_str()); return true;
-            }
-            if (field == "option") {
-                std::snprintf(value, size, "%s", f.prismsList[index].second.c_str()); return true;
-            }
-        }
-        const std::string optionPrefix = "input_types/@";
-        if (name.compare(0, optionPrefix.size(), optionPrefix) == 0) {
-            const size_t slash = name.find('/', optionPrefix.size());
-            if (slash == std::string::npos) return false;
-            const auto index = std::strtoul(name.substr(optionPrefix.size(), slash - optionPrefix.size()).c_str(), nullptr, 10);
-            if (index >= f.inputOptions.size()) return false;
-            const std::string field = name.substr(slash + 1);
-            if (field == "option") {
-                std::snprintf(value, size, "%s", f.inputOptions[index].first.c_str()); return true;
-            }
-            if (field == "name" && !f.inputOptions[index].second.empty()) {
-                std::snprintf(value, size, "%s", f.inputOptions[index].second.c_str()); return true;
-            }
-        }
-        return false;
-    };
     a.config_get_bool = [](RimeConfig*, const char* key, Bool* value) -> Bool {
         if (std::strcmp(key, "switcher/fix_schema_list_order")) return false;
         *value = f.fixSchemaListOrder; return true;
@@ -268,28 +185,7 @@ RimeApi api() {
     a.config_list_size = [](RimeConfig*, const char* key) -> size_t {
         const std::string name(key);
         if (name == "switcher/save_options") return f.saveOptions.size();
-        if (name == "input_types") return f.inputOptions.size();
-        if (name == "translator/prisms") return f.prismsList.size();
         return 0;
-    };
-    a.config_begin_map = [](RimeConfigIterator* iterator, RimeConfig*, const char* key) -> Bool {
-        if (!fakeHasMap(key)) return false;
-        iterator->map = new std::vector<std::string>(fakeMapKeys(key));
-        iterator->index = 0; iterator->key = nullptr; return true;
-    };
-    a.config_begin_list = [](RimeConfigIterator* iterator, RimeConfig*, const char* key) -> Bool {
-        if (!fakeHasList(key)) return false;
-        iterator->map = new std::vector<std::string>();
-        iterator->index = 0; iterator->key = nullptr; return true;
-    };
-    a.config_next = [](RimeConfigIterator* iterator) -> Bool {
-        auto* keys = static_cast<std::vector<std::string>*>(iterator->map);
-        if (!keys || iterator->index >= static_cast<int>(keys->size())) return false;
-        iterator->key = (*keys)[iterator->index].c_str(); ++iterator->index; return true;
-    };
-    a.config_end = [](RimeConfigIterator* iterator) {
-        delete static_cast<std::vector<std::string>*>(iterator->map);
-        iterator->map = nullptr; iterator->index = 0; iterator->key = nullptr;
     };
     a.config_get_cstring = [](RimeConfig*, const char* key) -> const char* {
         const std::string prefix = "switcher/save_options/@";
@@ -311,6 +207,42 @@ RimeApi api() {
         list->list = items.data(); list->size = f.hasSchema ? items.size() : 0; return true;
     };
     a.free_schema_list = [](RimeSchemaList*) {};
+#ifdef RIME_SCHEMA_PREWARM
+    a.get_initial_schema = [](char* schema, size_t size) -> Bool {
+        if (f.initialSchema.empty() && (!f.hasSchema || f.schemas.empty())) return false;
+        const auto& id = f.initialSchema.empty() ? f.schemas.front().first : f.initialSchema;
+        std::snprintf(schema, size, "%s", id.c_str());
+        return true;
+    };
+    a.get_deployment_result = [](RimeDeploymentResult* result) -> Bool {
+        if (!f.hasDeploymentResult) return false;
+        static std::vector<char*> good, bad, all;
+        good.clear(); bad.clear(); all.clear();
+        for (auto& id : f.deployed) good.push_back(id.data());
+        for (auto& id : f.failed) bad.push_back(id.data());
+        all = good; all.insert(all.end(), bad.begin(), bad.end());
+        result->schema_ids = {all.size(), all.data()};
+        result->successful_schemas = {good.size(), good.data()};
+        result->failed_schemas = {bad.size(), bad.data()};
+        result->success = bad.empty();
+        return true;
+    };
+    a.free_deployment_result = [](RimeDeploymentResult*) {};
+#ifdef RIME_DEPLOYMENT_FAILURE_SCOPE
+    a.deployment_has_other_failure = []() -> Bool { return f.otherTaskFailed; };
+#endif
+    a.prewarm_schema = [](const char* schema, RimeStringList* result) -> Bool {
+        CHECK(schema == nullptr);
+        ++f.warmCalls;
+        static std::vector<char*> paths;
+        paths.clear();
+        for (auto& path : f.warmPaths) paths.push_back(path.data());
+        *result = {paths.size(), paths.data()};
+        return true;
+    };
+    a.free_string_list = [](RimeStringList*) { ++f.freedWarm; };
+    a.release_prewarm = [] { ++f.releasedWarm; };
+#endif
 #ifdef RIME_EVO_TYPE_GROUPS
     a.get_type_option = [](RimeSessionId, const char* schema, const char* group, char* option, size_t size) -> Bool {
         if (std::strcmp(schema, "test") || std::strcmp(group, "input_types")) return false;
@@ -326,6 +258,19 @@ RimeApi api() {
         f.schemaValues["type_choice"] = option;
         return true;
     };
+#endif
+#ifdef RIME_EVO_TYPE_OPTIONS
+    a.get_type_options = [](RimeSessionId, const char* schema, const char* group, RimeTypeOption** items, size_t* count) -> Bool {
+        if (std::strcmp(schema, "test") || std::strcmp(group, "input_types") || f.inputOptions.empty()) return false;
+        static std::vector<RimeTypeOption> values;
+        values.clear();
+        const auto selected = f.schemaValues.find("type_choice");
+        const auto& choice = selected == f.schemaValues.end() ? f.inputOptions.front().first : selected->second;
+        for (auto& item : f.inputOptions)
+            values.push_back({item.first.data(), item.first.data(), item.first == choice});
+        *items = values.data(); *count = values.size(); return true;
+    };
+    a.free_type_options = [](RimeTypeOption*, size_t) {};
 #endif
 #ifdef RIME_EVO_CODE_CHOICES
     a.get_code_choices = [](RimeSessionId, RimeCodeChoice** choices, size_t* count) -> Bool {
@@ -429,13 +374,13 @@ void testMaintenanceAndAbi() {
     a.data_size = offsetof(RimeApi, change_page) - sizeof(a.data_size);
 #endif
     Engine engine(&a); engine.start("shared", "user", "1.2.3-test");
-    CHECK(f.appName == "rime.wanxiang" && f.distribution == "wanxiang-ime" && f.version == "1.2.3-test");
+    CHECK(f.appName == "rime.wanxiang.pinyin.ime" && f.distribution == "wanxiang.pinyin.ime" && f.version == "1.2.3-test");
     auto result = engine.begin(1, "editor"); CHECK(result.tabs.empty() && f.freedTabs == 0);
     f.failDeploy = true; CHECK(!engine.deploy());
     CHECK(engine.begin(2, "editor").gate == DeployFailed);
     CHECK(engine.key(2, 'a', 0, false).handled && f.keys == 0);
     f.failDeploy = false; CHECK(engine.deploy());
-    CHECK(f.appName == "rime.wanxiang" && f.distribution == "wanxiang-ime" && f.version == "1.2.3-test");
+    CHECK(f.appName == "rime.wanxiang.pinyin.ime" && f.distribution == "wanxiang.pinyin.ime" && f.version == "1.2.3-test");
     CHECK(engine.begin(3, "editor").gate == Ready);
     CHECK(f.setups == 1 && f.initialized == 3 && f.finalized == 2);
     f.failLaunch = true; CHECK(!engine.deploy());
@@ -465,67 +410,34 @@ void testFrontendExtensions() {
 }
 void testCandidateSequence() {
     f = {}; auto a = api();
-    a.get_current_schema = [](RimeSessionId, char* id, size_t size) -> Bool {
-        std::snprintf(id, size, "%s", f.schema.c_str()); return true;
+#ifdef RIME_CANDIDATE_EDIT_ACTIONS
+    a.edit_candidate = [](RimeSessionId, size_t index, Bool page, const char* action) -> Bool {
+        ++f.editCalls;
+        f.editIndex = index; f.editPage = page; f.editAction = action;
+        return f.editAction != "bogus";
     };
-    a.schema_open = [](const char* id, RimeConfig* config) -> Bool { config->ptr = &f; return f.schema == id; };
-    a.config_list_size = [](RimeConfig*, const char* key) -> size_t {
-        return std::strcmp(key, "engine/processors") ? 0 : f.processors.size();
-    };
-    a.config_get_cstring = [](RimeConfig*, const char* key) -> const char* {
-        const std::string prefix = "engine/processors/@", name(key);
-        if (!name.compare(0, prefix.size(), prefix)) {
-            const auto index = std::strtoul(name.c_str() + prefix.size(), nullptr, 10);
-            return index < f.processors.size() ? f.processors[index].c_str() : nullptr;
-        }
-        const auto found = f.schemaValues.find(name);
-        return found == f.schemaValues.end() ? nullptr : found->second.c_str();
-    };
-    a.process_key = [](RimeSessionId, int sym, int mask) -> Bool { ++f.keys; f.sym = sym; f.mask = mask; return true; };
-    // Mirrors RimeGetContext: the highlighted slot is page-local (selected % page_size).
-    a.get_context = [](RimeSessionId, RimeContext* c) -> Bool {
-        static RimeCandidate candidates[10] = {};
-        for (auto& candidate : candidates) candidate.text = const_cast<char*>("candidate");
-        c->menu.candidates = candidates; c->menu.num_candidates = 10;
-        c->menu.page_size = 5; c->menu.highlighted_candidate_index = f.highlighted;
-        return true;
-    };
-    a.highlight_candidate_on_current_page = [](RimeSessionId, size_t i) -> Bool {
-        if (f.highlightFails) return false;
-        f.highlighted = static_cast<int>(i); return true;
-    };
-    a.highlight_candidate = [](RimeSessionId, size_t i) -> Bool {
-        if (f.highlightFails) return false;
-        f.highlightedGlobal = i; f.highlighted = static_cast<int>(i % 5); return true;
-    };
+#endif
     Engine engine(&a); engine.start("shared", "user");
     auto value = engine.begin(1, "editor");
-    f.processors = {"ascii_composer", "speller"};
-    CHECK(engine.sequenceKeys().empty());
-    f.processors = {"ascii_composer", "lua_processor@*wanxiang.super_sequence*P", "speller"};
-    f.schemaValues["super_sequence/pin"] = "Control+bracketleft";
-    CHECK(engine.sequenceKeys() == std::vector<std::string>({"Control+j", "Control+k", "Control+l", "Control+bracketleft"}));
-    // Page-local target: highlight first, then the schema key with the frontend mask conversion.
-    value = engine.action(1, value.revision, 14, 2, "112 4");
-    CHECK(f.highlighted == 2 && f.keys == 1 && f.sym == 112 && f.mask == 4 && value.handled);
-    value = engine.action(1, value.revision, 15, 7, "106 68");
-    CHECK(f.highlightedGlobal == 7 && f.keys == 2 && f.sym == 106 && f.mask == (4 | 64 | (1 << 26)));
-    // Stale, malformed or unhighlightable targets never send the key.
-    CHECK(engine.action(1, value.revision - 1, 14, 0, "112 4").gate == Stale && f.keys == 2);
-    value = engine.action(1, value.revision, 14, 0, "bogus"); CHECK(f.keys == 2 && f.highlighted == 2);
-    value = engine.action(1, value.revision, 14, -1, "112 4"); CHECK(f.keys == 2);
-    f.highlightFails = true;
-    value = engine.action(1, value.revision, 14, 1, "112 4"); CHECK(f.keys == 2);
-    // librime answers false when the target is already highlighted; the key still applies.
-    f.highlighted = 1;
-    value = engine.action(1, value.revision, 14, 1, "112 4"); CHECK(f.keys == 3);
-    f.highlightFails = false;
-    // Without the highlight entry point the selection must already be the target.
-    f.highlighted = 2;
-    a.highlight_candidate = nullptr;
-    value = engine.action(1, value.revision, 15, 1, "112 4"); CHECK(f.keys == 3 && f.highlightedGlobal == 7);
-    engine.begin(2, "second");
-    CHECK(engine.action(1, value.revision, 14, 0, "112 4").gate == Stale && f.keys == 3);
+#ifdef RIME_CANDIDATE_EDIT_ACTIONS
+    CHECK(engine.candidateEditAvailable());
+    value = engine.action(1, value.revision, 14, 2, "manual_up");
+    CHECK(value.handled && f.editCalls == 1 && f.editIndex == 2 && f.editPage && f.editAction == "manual_up");
+    value = engine.action(1, value.revision, 15, 7, "manual_down");
+    CHECK(value.handled && f.editCalls == 2 && f.editIndex == 7 && !f.editPage && f.editAction == "manual_down");
+    CHECK(engine.action(1, value.revision - 1, 14, 0, "auto_delete").gate == Stale && f.editCalls == 2);
+    value = engine.action(1, value.revision, 14, -1, "manual_delete");
+    CHECK(!value.handled && f.editCalls == 2);
+    value = engine.action(1, value.revision, 14, 0, "bogus");
+    CHECK(!value.handled && f.editCalls == 3);
+    CHECK(f.keys == 0);
+    a.edit_candidate = nullptr;
+#endif
+    CHECK(!engine.candidateEditAvailable());
+    value = engine.action(1, value.revision, 15, 2, "auto_delete");
+    CHECK(value.handled && f.deletedGlobal == 2);
+    value = engine.action(1, value.revision, 15, 2, "manual_up");
+    CHECK(!value.handled && f.keys == 0);
     engine.stop();
 }
 void testReadOnlyRefresh() {
@@ -837,6 +749,29 @@ void testCandidateIteratorFailureDoesNotReclosePartialApiState() {
         engine.stop();
     }
 }
+void testNativeSchemaSwitchSelection() {
+#ifdef RIME_SCHEMA_SWITCH_SELECTION
+    f = {}; auto a = api();
+    // A capture-free mock mirrors the native preference contract.
+    a.select_switch = [](RimeSessionId, const char* name, Bool value) -> Bool {
+        if (std::strcmp(name, "ascii_mode") && std::strcmp(name, "s2t")) return false;
+        if (!std::strcmp(name, "ascii_mode")) f.ascii = value;
+        f.savedOptions[std::string("native/") + name] = value;
+        if (f.callback) f.callback(f.context, 7, "option", name);
+        return true;
+    };
+    Engine engine(&a); engine.start("shared", "user");
+    CHECK(engine.schemaSwitchSelectionAvailable());
+    auto value = engine.begin(1, "editor");
+    value = engine.action(1, value.revision, 8, 1, "s2t");
+    CHECK(f.savedOptions["native/s2t"] && f.userConfigOpens == 0);
+    value = engine.action(1, value.revision, 6, 0, "");
+    CHECK(value.ascii && f.savedOptions["native/ascii_mode"] && f.userConfigOpens == 0);
+    value = engine.action(1, value.revision, 8, 1, "_no_learning");
+    CHECK(f.noLearning && f.userConfigOpens == 0 && f.savedOptions.size() == 2);
+    engine.stop();
+#endif
+}
 void testFrontendWritesOnlySaveableOptions() {
     f = {}; auto a = api(); Engine engine(&a); engine.start("shared", "user");
     auto value = engine.begin(1, "editor.one");
@@ -947,173 +882,63 @@ void testGeneratedConfigInvalidation() {
     engine.stop(); CHECK(engine.deploy()); engine.stop();
 }
 void testUsableDeploymentWarning() {
-    namespace fs = std::filesystem;
-    const TemporaryDirectory temporary;
-    const auto root = temporary.path();
-    const fs::path user = root / "user", shared = root / "shared", build = user / "build";
-    fs::create_directories(shared); fs::create_directories(build);
-    // Compiled-only output survives the forced-check invalidation because no source
-    // file shadows it; it stands in for the workspace a partial deployment produced.
-    // Both the workspace manifest and the active schema's compiled YAML must exist.
-    std::ofstream(build / "default.yaml") << "keep data";
-    std::ofstream(build / "test.schema.yaml") << "keep data";
-    std::ofstream(build / "test.table.bin") << "keep data";
-    std::ofstream(build / "test.prism.bin") << "keep data";
+#if defined(RIME_SCHEMA_PREWARM) && defined(RIME_DEPLOYMENT_FAILURE_SCOPE)
     f = {}; auto a = api(); Engine engine(&a);
-    f.failDeploy = true;
-    engine.start(shared.string(), user.string(), "development", true);
+    f.failDeploy = true; f.hasDeploymentResult = true;
+    f.initialSchema = "test"; f.deployed = {"test"}; f.failed = {"other"};
+    engine.start("shared", "user", "development", true);
     CHECK(engine.deploymentDegraded());
     CHECK(engine.begin(1, "editor").gate == Ready);
-    // A forced deployment of the same usable workspace is accepted as degraded.
-    CHECK(engine.deploy());
-    CHECK(engine.deploymentDegraded());
+    CHECK(engine.deploy() && engine.deploymentDegraded());
     engine.stop();
-    // Without a produced workspace a failed task still fails closed.
-    f = {}; auto b = api(); Engine rejected(&b); f.failDeploy = true;
-    bool rejectedStart = false;
-    try { rejected.start(shared.string(), (root / "empty").string(), "development", true); }
-    catch (const std::runtime_error& error) {
-        rejectedStart = std::strcmp(error.what(), "部署失败，请检查方案文件后重新部署") == 0;
-    }
-    CHECK(rejectedStart);
-    // The workspace manifest alone does not prove the active schema compiled.
-    f = {}; auto c = api(); Engine partial(&c); f.failDeploy = true;
-    const fs::path partialUser = root / "partial", partialBuild = partialUser / "build";
-    fs::create_directories(partialBuild);
-    std::ofstream(partialBuild / "default.yaml") << "keep data";
-    bool partialRejected = false;
-    try { partial.start(shared.string(), partialUser.string(), "development", true); }
-    catch (const std::runtime_error& error) {
-        partialRejected = std::strcmp(error.what(), "部署失败，请检查方案文件后重新部署") == 0;
-    }
-    CHECK(partialRejected);
-    // A compiled schema YAML is written before dictionary units finish; the main table is
-    // what the first keystroke needs, so its absence still fails closed.
-    f = {}; auto d = api(); Engine noTable(&d); f.failDeploy = true;
-    const fs::path noTableUser = root / "no-table", noTableBuild = noTableUser / "build";
-    fs::create_directories(noTableBuild);
-    std::ofstream(noTableBuild / "default.yaml") << "keep data";
-    std::ofstream(noTableBuild / "test.schema.yaml") << "keep data";
-    bool noTableRejected = false;
-    try { noTable.start(shared.string(), noTableUser.string(), "development", true); }
-    catch (const std::runtime_error& error) {
-        noTableRejected = std::strcmp(error.what(), "部署失败，请检查方案文件后重新部署") == 0;
-    }
-    CHECK(noTableRejected);
-    // The table is written before the prism. A partial dictionary unit leaves a table behind,
-    // but Dictionary::Load needs the prism as well, so that case still fails closed.
-    f = {}; auto e = api(); Engine noPrism(&e); f.failDeploy = true;
-    const fs::path noPrismUser = root / "no-prism", noPrismBuild = noPrismUser / "build";
-    fs::create_directories(noPrismBuild);
-    std::ofstream(noPrismBuild / "default.yaml") << "keep data";
-    std::ofstream(noPrismBuild / "test.schema.yaml") << "keep data";
-    std::ofstream(noPrismBuild / "test.table.bin") << "keep data";
-    bool noPrismRejected = false;
-    try { noPrism.start(shared.string(), noPrismUser.string(), "development", true); }
-    catch (const std::runtime_error& error) {
-        noPrismRejected = std::strcmp(error.what(), "部署失败，请检查方案文件后重新部署") == 0;
-    }
-    CHECK(noPrismRejected);
-    // EVO resolves the dictionary prism through translator/prisms: input_types and
-    // the first declared option's name identifies the prism resource.
-    f = {}; auto g = api(); Engine typed(&g); f.failDeploy = true;
-    f.prismsRefSet = true; f.prismsRef = "input_types";
-    f.inputTypesPresent = true; f.inputOptions = {{"zrm", "zrm"}};
-    
-    const fs::path typedUser = root / "typed", typedBuild = typedUser / "build";
-    fs::create_directories(typedBuild);
-    std::ofstream(typedBuild / "default.yaml") << "keep data";
-    std::ofstream(typedBuild / "test.schema.yaml") << "keep data";
-    std::ofstream(typedBuild / "test.table.bin") << "keep data";
-    std::ofstream(typedBuild / "test.zrm.prism.bin") << "keep data";
-    typed.start(shared.string(), typedUser.string(), "development", true);
-    CHECK(typed.deploymentDegraded() && typed.begin(1, "editor").gate == Ready);
-    typed.stop();
-    // InitialOption uses the first declared type.
-    f = {}; auto enabled = api(); Engine enabledEngine(&enabled); f.failDeploy = true;
-    f.prismsRefSet = true; f.prismsRef = "input_types";
-    f.inputTypesPresent = true; f.inputOptions = {{"zrm", "zrm"}};
-
-    const fs::path enabledUser = root / "enabled", enabledBuild = enabledUser / "build";
-    fs::create_directories(enabledBuild);
-    std::ofstream(enabledBuild / "default.yaml") << "keep data";
-    std::ofstream(enabledBuild / "test.schema.yaml") << "keep data";
-    std::ofstream(enabledBuild / "test.table.bin") << "keep data";
-    std::ofstream(enabledBuild / "test.zrm.prism.bin") << "keep data";
-    enabledEngine.start(shared.string(), enabledUser.string(), "development", true);
-    CHECK(enabledEngine.deploymentDegraded() && enabledEngine.begin(1, "editor").gate == Ready);
-    enabledEngine.stop();
-    // The previously selected schema decides, not merely the first list entry.
-    f = {}; auto h = api(); Engine selected(&h); f.failDeploy = true; f.schemas = {{"first", "First"}, {"second", "Second"}};
-    const fs::path selectedUser = root / "selected", selectedBuild = selectedUser / "build";
-    fs::create_directories(selectedBuild);
-    std::ofstream(selectedBuild / "default.yaml") << "keep data";
-    std::ofstream(selectedBuild / "second.schema.yaml") << "keep data";
-    std::ofstream(selectedBuild / "test.table.bin") << "keep data";
-    std::ofstream(selectedBuild / "test.prism.bin") << "keep data";
-    std::ofstream(selectedUser / "user.yaml") << "var:\n  previously_selected_schema: second\n";
-    selected.start(shared.string(), selectedUser.string(), "development", true);
-    CHECK(selected.deploymentDegraded() && selected.begin(1, "editor").gate == Ready);
-    selected.stop();
+    auto rejected = [](bool known, const std::string& initial,
+                       const std::vector<std::string>& good,
+                       const std::vector<std::string>& bad, bool otherTaskFailed = false) {
+        f = {}; auto a = api(); Engine engine(&a);
+        f.failDeploy = true; f.hasDeploymentResult = known;
+        f.initialSchema = initial; f.deployed = good; f.failed = bad; f.otherTaskFailed = otherTaskFailed;
+        try { engine.start("shared", "user", "development", true); }
+        catch (const std::runtime_error&) { return true; }
+        engine.stop(); return false;
+    };
+    CHECK(rejected(false, "test", {"test"}, {"other"}));
+    CHECK(rejected(true, "test", {"other"}, {"test"}));
+    CHECK(rejected(true, "test", {"test"}, {})); // global failure
+    CHECK(rejected(true, "test", {"test"}, {"other"}, true)); // mixed failure
+    CHECK(rejected(true, "missing", {"test"}, {"other"}));
+#endif
+    // Old/short APIs never infer success from compiled filenames.
+    f = {}; auto legacy = api(); Engine legacyEngine(&legacy);
+#ifdef RIME_SCHEMA_PREWARM
+    legacy.get_deployment_result = nullptr;
+#endif
+    f.failDeploy = true;
+    bool legacyRejected = false;
+    try { legacyEngine.start("shared", "user", "development", true); }
+    catch (const std::runtime_error&) { legacyRejected = true; }
+    CHECK(legacyRejected);
 }
-void testEvoPrismResolution() {
-    namespace fs = std::filesystem;
-    const TemporaryDirectory temporary;
-    const auto root = temporary.path(), shared = root / "shared";
-    fs::create_directories(shared);
-    auto workspace = [&](const char* name, const std::vector<std::string>& extra) {
-        const auto user = root / name, build = user / "build";
-        fs::create_directories(build);
-        std::ofstream(build / "default.yaml") << "keep data";
-        std::ofstream(build / "test.schema.yaml") << "keep data";
-        std::ofstream(build / "test.table.bin") << "keep data";
-        for (const auto& file : extra) std::ofstream(build / file) << "keep data";
-        return user;
-    };
-    auto accepted = [&](const fs::path& user) {
-        f.failDeploy = true;
-        auto a = api(); Engine engine(&a);
-        engine.start(shared.string(), user.string(), "development", true);
-        const bool ok = engine.deploymentDegraded() && engine.begin(1, "editor").gate == Ready;
-        engine.stop();
-        return ok;
-    };
-    auto rejected = [&](const fs::path& user) {
-        f.failDeploy = true;
-        auto a = api(); Engine engine(&a);
-        try { engine.start(shared.string(), user.string(), "development", true); }
-        catch (const std::runtime_error& error) {
-            return std::strcmp(error.what(), "部署失败，请检查方案文件后重新部署") == 0;
-        }
-        return false;
-    };
-    // An explicit translator/prism names the resource, so a stale default prism is not enough.
-    f = {}; f.prismSet = true; f.prismName = "named";
-    CHECK(accepted(workspace("named-prism", {"named.prism.bin"})));
-    f = {}; f.prismSet = true; f.prismName = "named";
-    CHECK(rejected(workspace("named-prism-stale-default", {"test.prism.bin"})));
-    // An option name alias overrides the option id when a prisms list is used.
-    f = {}; f.prismsListSet = true; f.prismsList = {{"named", "zrm"}};
-    CHECK(accepted(workspace("prisms-list", {"named.prism.bin"})));
-    // input_types contributes the primary selection only through translator/prisms: input_types.
-    f = {}; f.prismsRefSet = true; f.prismsRef = "input_types";
-    f.inputTypesPresent = true; f.inputOptions = {{"zrm", "zrm_prism"}};
-    CHECK(accepted(workspace("input-types-alias", {"zrm_prism.prism.bin"})));
-    // Without an explicit prism the dictionary name and the algebra map's first key are used.
-    f = {}; f.algebraKeys = {"zrm"};
-    CHECK(accepted(workspace("algebra-default", {"test.zrm.prism.bin"})));
-    // prism and prisms are mutually exclusive in the compiled schema.
-    f = {}; f.prismSet = true; f.prismName = "named"; f.prismsRefSet = true; f.prismsRef = "input_types";
-    f.inputTypesPresent = true; f.inputOptions = {{"zrm", "zrm"}};
-    CHECK(rejected(workspace("prism-conflict", {"named.prism.bin", "zrm.prism.bin"})));
-    // The first list entry is the default prism.
-    f = {}; f.prismsRefSet = true; f.prismsRef = "input_types";
-    f.inputTypesPresent = true; f.inputOptions = {{"zrm", "zrm"}, {"flypy", "flypy"}};
-    CHECK(accepted(workspace("first-type", {"zrm.prism.bin"})));
+
+void testNativePrewarm() {
+    f = {}; auto a = api(); Engine engine(&a);
+    CHECK(engine.prewarmAssets().empty());
+    engine.start("shared", "user");
+#ifdef RIME_SCHEMA_PREWARM
+    f.initialSchema = "native-choice";
+    f.warmPaths = {"/user/build/dict.table.bin", "/shared/model.dlm"};
+    CHECK(engine.currentSchema() == "native-choice");
+    CHECK(engine.prewarmAssets() == f.warmPaths);
+    CHECK(f.warmCalls == 1 && f.freedWarm == 1 && f.created == 0);
+    engine.releasePrewarm();
+    CHECK(f.releasedWarm == 1);
+    a.prewarm_schema = nullptr;
+#endif
+    CHECK(engine.prewarmAssets().empty());
+    engine.stop();
 }
 void testRuntimeTypeGroups() {
-#ifdef RIME_EVO_TYPE_GROUPS
-    f = {}; f.inputTypesPresent = true;
+#ifdef RIME_EVO_TYPE_OPTIONS
+    f = {};
     f.inputOptions = {{"zrm", ""}, {"pinyin", ""}};
     auto a = api(); Engine engine(&a); engine.start("shared", "user");
     CHECK((engine.typeGroupState("test", "input_types") ==
@@ -1133,7 +958,11 @@ void testCurrentSchemaPreference() {
     const fs::path user = root / "user";
     fs::create_directories(user);
     f = {}; f.schemas = {{"first", "First"}, {"second", "Second"}};
-    auto a = api(); Engine engine(&a); engine.start("shared", user.string());
+    auto a = api();
+#ifdef RIME_SCHEMA_PREWARM
+    a.get_initial_schema = nullptr;
+#endif
+    Engine engine(&a); engine.start("shared", user.string());
     CHECK(engine.currentSchema() == "first");
     std::ofstream(user / "user.yaml") << "var:\n  previously_selected_schema: second\n";
     CHECK(engine.currentSchema() == "second");
@@ -1155,7 +984,7 @@ int main(int argc, char** argv) {
             return 0;
         }
         if (argc != 1) { std::cerr << "usage: engine-test [--statistics]\n"; return 2; }
-        testInputContract(); testEngineLogLevel(); testMaintenanceAndAbi(); testFrontendExtensions(); testCandidateSequence(); testReadOnlyRefresh(); testOptionalInputStatistics(); testInputStatisticsUnicodeAndPresentationReuse(); testSyncCompletion(); testPresentationReuse(); testUnicode(); testOptionInvalidation(); testStatusCache(); testCandidateIteratorFailureDoesNotReclosePartialApiState(); testFrontendWritesOnlySaveableOptions(); testAsciiToggleSharesSavedOptionRule(); testSessionReuseAndEditorIsolation(); testGeneratedConfigInvalidation(); testUsableDeploymentWarning(); testEvoPrismResolution(); testRuntimeTypeGroups(); testCurrentSchemaPreference(); std::cout << "engine contract: passed\n";
+        testInputContract(); testEngineLogLevel(); testMaintenanceAndAbi(); testFrontendExtensions(); testCandidateSequence(); testReadOnlyRefresh(); testOptionalInputStatistics(); testInputStatisticsUnicodeAndPresentationReuse(); testSyncCompletion(); testPresentationReuse(); testUnicode(); testOptionInvalidation(); testStatusCache(); testCandidateIteratorFailureDoesNotReclosePartialApiState(); testNativeSchemaSwitchSelection(); testFrontendWritesOnlySaveableOptions(); testAsciiToggleSharesSavedOptionRule(); testSessionReuseAndEditorIsolation(); testGeneratedConfigInvalidation(); testUsableDeploymentWarning(); testNativePrewarm(); testRuntimeTypeGroups(); testCurrentSchemaPreference(); std::cout << "engine contract: passed\n";
     }
     catch (const std::exception& e) { std::cerr << e.what() << '\n'; return 1; }
 }
