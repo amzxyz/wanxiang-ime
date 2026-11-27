@@ -5,9 +5,15 @@
 
 package org.fcitx.fcitx5.android.input
 
+import android.graphics.Color
+import android.graphics.drawable.ColorDrawable
+import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
+import android.view.ViewGroup
 import android.view.WindowInsets
+import android.widget.PopupWindow
+import androidx.core.graphics.ColorUtils
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
@@ -128,10 +134,10 @@ abstract class BaseInputView(
     /**
      * 给候选词条目绑定「按住后滑动」手势。
      *
-     * 按住（判定阈值同长按）后：
-     * - 向上滑 → 弹出单字窗，滑到哪个字就高亮哪个，抬手提交该字；弹窗外抬手取消；
-     * - 向下滑 → 呼出候选操作菜单（忘记词汇等）。
-     * 按住不动直接抬手 → 回落到原有的长按菜单，行为与改动前一致。
+     * 达到长按阈值时立即请求候选操作菜单，不需要先抬手。
+     * - 阈值后继续向上滑 → 关闭菜单并弹出单字窗，滑到哪个字就高亮哪个，抬手提交该字；
+     * - 向下滑 → 保持候选操作菜单（忘记词汇等）。
+     * 菜单期间候选列表显示轻遮罩并拦截额外触摸，避免菜单外的误触提交候选。
      *
      * 之所以用按住后滑动而不是直接滑动：直接滑动要在按下时就夺走父容器的触摸拦截，
      * 展开候选列表就没法上下滚动翻页了。按住后才接管，未按住时的滑动完全留给父容器。
@@ -145,7 +151,7 @@ abstract class BaseInputView(
         global: Boolean = false,
         resolveIndex: () -> Int
     ) {
-        candidateAnchorOwners[view] = Any()
+        registerCandidateActionAnchor(view)
         var gestureCancelled = false
         var popup: CandidateCharacterPopup? = null
         // 本次按住是否已经选定方向（上滑弹字窗 / 下滑弹菜单）；选定后不再改向。
@@ -194,6 +200,7 @@ abstract class BaseInputView(
                             // the character picker; subsequent moves reuse the popup below.
                             val characters = text.candidateCharacters()
                             if (characters.isEmpty()) return@OnGestureListener false
+                            invalidateCandidateActionMenu()
                             directionLocked = true
                             popup = CandidateCharacterPopup(view, characters, theme).also {
                                 candidateCharacterPopup = it
@@ -207,7 +214,7 @@ abstract class BaseInputView(
                         // 向下滑：呼出候选操作菜单（忘记词汇等）
                         event.totalY > 0 -> {
                             directionLocked = true
-                            showCandidateActionMenu(resolveIndex(), text, view, global)
+                            if (!event.longPressTriggered) showCandidateActionMenu(resolveIndex(), text, view, global)
                             true
                         }
 
@@ -229,15 +236,24 @@ abstract class BaseInputView(
                         return@OnGestureListener true
                     }
                     // 下滑分支：菜单已弹出，消费掉抬手，避免再触发一次长按回落。
-                    directionLocked || event.consumed
+                    directionLocked || event.consumed || event.longPressTriggered
                 }
             }
         }
     }
 
-    fun unbindCandidateGesture(view: CustomGestureView) {
+    fun registerCandidateActionAnchor(view: View) {
+        if (candidateActionAnchor === view) invalidateCandidateActionMenu()
+        candidateAnchorOwners[view] = Any()
+    }
+
+    fun unregisterCandidateActionAnchor(view: View) {
         candidateAnchorOwners.remove(view)
         if (candidateActionAnchor === view) invalidateCandidateActionMenu()
+    }
+
+    fun unbindCandidateGesture(view: CustomGestureView) {
+        unregisterCandidateActionAnchor(view)
         dismissCandidateCharacterPopup()
         view.setOnTouchListener(null)
         view.onGestureListener = null
@@ -251,6 +267,7 @@ abstract class BaseInputView(
     }
 
     private var candidateActionMenu: ThemedPopupMenu? = null
+    private var candidateActionShield: PopupWindow? = null
     private var candidateActionJob: Job? = null
     private var candidateActionAnchor: View? = null
     private var displayedCandidateContext: CandidateActionContext? = null
@@ -265,6 +282,40 @@ abstract class BaseInputView(
         candidateActionMenu = null
         candidateActionAnchor = null
         menu?.dismiss()
+        dismissCandidateActionShield()
+    }
+
+    private fun dismissCandidateActionShield() {
+        candidateActionShield?.dismiss()
+        candidateActionShield = null
+    }
+
+    /** A non-focusable scrim blocks candidate taps without taking focus from the editor. */
+    private fun showCandidateActionShield(anchor: View) {
+        val container = anchor.parent as? ViewGroup ?: return
+        if (!container.isAttachedToWindow || container.width <= 0 || container.height <= 0) return
+        val shieldView = View(context).apply {
+            setBackgroundColor(ColorUtils.setAlphaComponent(Color.BLACK, 40))
+            isClickable = true
+            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+            setOnClickListener { invalidateCandidateActionMenu() }
+        }
+        val shield = PopupWindow(shieldView, container.width, container.height, false).apply {
+            isFocusable = false
+            isTouchable = true
+            isOutsideTouchable = false
+            inputMethodMode = PopupWindow.INPUT_METHOD_NOT_NEEDED
+            setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+        }
+        val location = IntArray(2)
+        container.getLocationInWindow(location)
+        candidateActionShield = shield
+        try {
+            shield.showAtLocation(container, Gravity.TOP or Gravity.LEFT, location[0], location[1])
+        } catch (_: RuntimeException) {
+            if (candidateActionShield === shield) candidateActionShield = null
+            shield.dismiss()
+        }
     }
 
     private fun candidateContextIsCurrent(expected: CandidateActionContext): Boolean = try {
@@ -288,21 +339,29 @@ abstract class BaseInputView(
                 candidateAnchorOwners[view] === anchorOwner && candidateContextIsCurrent(context)
         }
         candidateActionAnchor = view
+        showCandidateActionShield(view)
         candidateActionJob = service.lifecycleScope.launch {
             val actions = try {
                 candidateMenuRequests.loadIfCurrent(request) { fcitx.runOnReady { getCandidateActions(idx) } }
-            } catch (_: FcitxDisconnectedException) { null } ?: return@launch
-            if (actions.isEmpty()) return@launch
+            } catch (_: FcitxDisconnectedException) { null }
+            if (actions.isNullOrEmpty()) {
+                if (request.isCurrent()) {
+                    candidateActionAnchor = null
+                    dismissCandidateActionShield()
+                }
+                return@launch
+            }
             InputFeedbacks.hapticFeedback(view, longPress = true)
             lateinit var popupMenu: ThemedPopupMenu
             popupMenu = ThemedPopupMenu(this@BaseInputView.context, theme, preserveEditorFocus = true) {
                 if (candidateActionMenu === popupMenu) {
                     candidateActionMenu = null
                     candidateActionAnchor = null
+                    dismissCandidateActionShield()
                 }
             }
-            candidateActionMenu = popupMenu.also { menu ->
-                menu.show(
+            candidateActionMenu = popupMenu
+            popupMenu.show(
                     anchor = view,
                     items = buildList {
                         add(
@@ -323,7 +382,6 @@ abstract class BaseInputView(
                         }
                     }
                 )
-            }
         }
     }
 

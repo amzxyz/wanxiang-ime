@@ -21,7 +21,7 @@ import java.time.Duration
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [23, 28], application = FcitxApplication::class, shadows = [EditorApplicationShadow::class])
 class CustomGestureViewHoldTest {
-    @Test fun aShortTapClicksWhileTheMeasured331msHoldOpensCandidateActions() {
+    @Test fun aShortTapClicksWhileA331msHoldOpensCandidateActionsBeforeRelease() {
         val delay = AppPrefs.getInstance().keyboard.longPressDelay
         val previous = delay.getValue()
         delay.setValue(300)
@@ -47,6 +47,7 @@ class CustomGestureViewHoldTest {
                     }
                     touch(MotionEvent.ACTION_DOWN)
                     shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(holdMs))
+                    assertEquals("hold=$holdMs before release", if (holdMs < 300) 0 else 1, longClicks)
                     touch(MotionEvent.ACTION_UP)
                     assertEquals("hold=$holdMs", if (holdMs < 300) 1 else 0, clicks)
                     assertEquals("hold=$holdMs", if (holdMs < 300) 0 else 1, longClicks)

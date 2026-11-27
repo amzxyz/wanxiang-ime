@@ -21,7 +21,7 @@ parser.add_argument("tests", type=Path, help="Full frontend androidTest APK")
 parser.add_argument("--wanxiang", type=Path, help="ZIP containing the scheme and its LTS model")
 parser.add_argument("--output", type=Path, default=Path("build/input-perf-comparison"))
 parser.add_argument("--adb", default="adb")
-parser.add_argument("--package", choices=["com.amzxyz.wanxiang.ime", "io.github.sandyyur.rime.direct"], default="com.amzxyz.wanxiang.ime", help="Use the historical application ID to replay older APKs")
+parser.add_argument("--package", choices=["com.amzxyz.wanxiang.pinyin.ime", "com.amzxyz.wanxiang.ime", "io.github.sandyyur.rime.direct"], default="com.amzxyz.wanxiang.pinyin.ime", help="Select the APK application ID; legacy IDs remain available for archived APKs")
 args = parser.parse_args()
 adb = args.adb
 artifacts = args.output

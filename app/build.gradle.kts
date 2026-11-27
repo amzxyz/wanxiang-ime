@@ -18,7 +18,7 @@ android {
     namespace = packageBase
 
     defaultConfig {
-        applicationId = "com.amzxyz.wanxiang.ime"
+        applicationId = "com.amzxyz.wanxiang.pinyin.ime"
         buildConfigField("boolean", "INPUT_DIAGNOSTICS", inputDiagnostics.toString())
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         manifestPlaceholders["appLabel"] = "@string/app_name_release"

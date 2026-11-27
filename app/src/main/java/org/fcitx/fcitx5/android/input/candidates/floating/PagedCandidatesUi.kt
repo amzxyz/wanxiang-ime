@@ -33,7 +33,9 @@ class PagedCandidatesUi(
     private val onCandidateAction: (Int, String, View) -> Unit,
     private val onPrevPage: () -> Unit,
     private val onNextPage: () -> Unit,
-    private val highlightRadius: Float
+    private val highlightRadius: Float,
+    private val onCandidateBound: (View) -> Unit = {},
+    private val onCandidateRecycled: (View) -> Unit = {}
 ) : Ui {
 
     private var data = FcitxEvent.PagedCandidateEvent.Data.Empty
@@ -90,6 +92,7 @@ class PagedCandidatesUi(
                 is UiHolder.Candidate -> {
                     val candidate = data.candidates[position]
                     holder.ui.update(candidate, active = position == data.cursorIndex)
+                    onCandidateBound(holder.ui.root)
                     holder.ui.root.setOnClickListener {
                         val index = holder.bindingAdapterPosition
                         if (data.candidates.getOrNull(index) != candidate) return@setOnClickListener
@@ -119,6 +122,8 @@ class PagedCandidatesUi(
         override fun onViewRecycled(holder: UiHolder) {
             if (holder is UiHolder.Candidate) {
                 holder.ui.root.setOnClickListener(null)
+                holder.ui.root.setOnLongClickListener(null)
+                onCandidateRecycled(holder.ui.root)
             }
             super.onViewRecycled(holder)
         }

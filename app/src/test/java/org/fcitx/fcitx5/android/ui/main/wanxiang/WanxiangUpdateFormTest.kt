@@ -45,7 +45,7 @@ class WanxiangUpdateFormTest {
                     mode = if (dark) SettingsUiPreferences.MODE_DARK else SettingsUiPreferences.MODE_LIGHT,
                     palette = SettingsUiPreferences.PALETTE_COMPAT, followKeyboardTheme = false))
                 val form = WanxiangUpdateForm(context, WanxiangSelection(components = listOf(WanxiangPackage.Kind.SCHEME, WanxiangPackage.Kind.DICTIONARY)))
-                form.target.text = "rime\n/storage/emulated/0/Android/data/com.amzxyz.wanxiang.ime/files/data/rime"
+                form.target.text = "rime\n/storage/emulated/0/Android/data/com.amzxyz.wanxiang.pinyin.ime/files/data/rime"
                 activity.setContentView(form)
                 form.layoutDirection = direction
                 form.setBusy(false, canUpdate = true)

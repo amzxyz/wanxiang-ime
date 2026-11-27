@@ -20,7 +20,7 @@ runner = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(runner)
 PROTOCOL = 'fixed_cadence_100ms_input_manager_async_cached_targets_v2'
 SERIAL = 'emulator-5574'
-PACKAGE = 'com.amzxyz.wanxiang.ime.debug'
+PACKAGE = 'com.amzxyz.wanxiang.pinyin.ime.debug'
 COMPONENT = PACKAGE + '/org.fcitx.fcitx5.android.input.FcitxInputMethodService'
 
 

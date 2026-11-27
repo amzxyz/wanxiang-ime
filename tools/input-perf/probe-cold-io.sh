@@ -5,8 +5,8 @@ mkdir -p "$output"
 ./gradlew -PbuildABI=x86_64 :app:assembleDebug :app:assembleDebugAndroidTest
 adb install -r app/build/outputs/apk/debug/*.apk
 adb push "$RUNNER_TEMP/cold-fixture.zip" /data/local/tmp/direct-cold-fixture.zip
-adb shell run-as com.amzxyz.wanxiang.ime.debug mkdir -p files
-adb shell run-as com.amzxyz.wanxiang.ime.debug cp /data/local/tmp/direct-cold-fixture.zip files/cold-fixture.zip
+adb shell run-as com.amzxyz.wanxiang.pinyin.ime.debug mkdir -p files
+adb shell run-as com.amzxyz.wanxiang.pinyin.ime.debug cp /data/local/tmp/direct-cold-fixture.zip files/cold-fixture.zip
 adb logcat -c
 set +e
 ./gradlew -PbuildABI=x86_64 \
@@ -18,7 +18,7 @@ set +e
 result=$?
 set -e
 adb logcat -d -v threadtime > "$output/logcat.txt"
-adb shell run-as com.amzxyz.wanxiang.ime.debug cat files/direct-rime-cold-probe.json > "$output/result.json" || true
+adb shell run-as com.amzxyz.wanxiang.pinyin.ime.debug cat files/direct-rime-cold-probe.json > "$output/result.json" || true
 cp "$RUNNER_TEMP/cold-fixture.manifest.json" "$output/fixture.manifest.json"
 python3 - "$output" <<'PY'
 import json, re, sys

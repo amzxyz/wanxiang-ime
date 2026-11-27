@@ -8,8 +8,8 @@
 
 ## 开发与发版
 
-- dev：Debug CI 使用 librime-evo dev，与 Release 共用仓库配置的稳定签名；包名 `com.amzxyz.wanxiang.ime.debug`。PR 和其他分支构建不接入正式密钥，产物标记为 `ci-test-key`，不用于日常覆盖更新。
-- wanxiang：正式分支，Release 使用 `native/evo-release.lock.json` 锁定的 EVO、Lua 与 octagram 提交；包名 `com.amzxyz.wanxiang.ime`。
+- dev：Debug CI 使用 librime-evo dev，与 Release 共用仓库配置的稳定签名；包名 `com.amzxyz.wanxiang.pinyin.ime.debug`。PR 和其他分支构建不接入正式密钥，产物标记为 `ci-test-key`，不用于日常覆盖更新。
+- wanxiang：正式分支，Release 使用 `native/evo-release.lock.json` 锁定的 EVO、Lua 与 octagram 提交；包名 `com.amzxyz.wanxiang.pinyin.ime`。
 - 发版前在 `build-logic/convention/src/main/kotlin/Versions.kt` 修改 `baseVersionName`（X.Y.Z）并递增 `baseVersionCode`。Debug、Release 与原生构建均使用此版本来源；提交哈希独立记录。
 - 在正式分支提交上推送与源码一致的 `vX.Y.Z` 标签。CI 拒绝不匹配的标签及相对历史正式标签未递增的版本号/版本码；四种 ABI 签名构建、单测及 APK 校验通过后发布。手动运行正式工作流只生成产物。
 - Debug 和 Release 每次 CI 开始时都从 `native/wanxiang-scheme.json` 指定的 EVO 专用方案分支解析最新提交。Release 的四种 ABI 与单元测试使用同一个提交快照；APK 校验提交号和 ZIP SHA-256，产物附带方案来源清单。不将大词库提交到前端仓库。覆盖安装不会替换已经释放的用户方案，查看新内置方案请使用「恢复内置万象方案」。
