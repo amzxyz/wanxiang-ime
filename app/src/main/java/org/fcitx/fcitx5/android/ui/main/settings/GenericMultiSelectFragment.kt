@@ -31,7 +31,7 @@ import timber.log.Timber
 class GenericMultiSelectFragment : Fragment() {
     private data class InputType(val option: String, val label: String)
     private data class InputTypes(
-        val types: List<InputType>, val selected: String?, val path: String,
+        val group: String, val types: List<InputType>, val selected: String?, val path: String,
     ) {
         fun summary(): String? = types.firstOrNull { it.option == selected }?.label
     }
@@ -40,7 +40,7 @@ class GenericMultiSelectFragment : Fragment() {
         val selected: Boolean,
         val id: String,
         val label: String,
-        val inputTypes: InputTypes? = null,
+        val inputTypes: List<InputTypes> = emptyList(),
         val current: Boolean = false,
     )
 
@@ -104,14 +104,15 @@ class GenericMultiSelectFragment : Fragment() {
                 },
                 initActionButton = { item ->
                     val types = item.inputTypes
-                    if (types == null) {
+                    if (types.isEmpty()) {
                         visibility = View.GONE
                     } else {
                         visibility = View.VISIBLE
-                        text = types.summary() ?: getString(R.string.rime_input_types)
+                        text = types.mapNotNull { it.summary() }.joinToString(" · ")
+                            .ifEmpty { getString(R.string.rime_input_types) }
                         isEnabled = true
-                        contentDescription = getString(R.string.rime_input_types)
-                        setOnClickListener { showInputTypeDialog(item) }
+                        contentDescription = types.joinToString(" · ") { groupLabel(it.group) }
+                        setOnClickListener { showTypeGroups(item) }
                     }
                 }
             ) {
@@ -132,15 +133,20 @@ class GenericMultiSelectFragment : Fragment() {
         return withSettingsPage(root)
     }
 
-    private suspend fun org.fcitx.fcitx5.android.core.FcitxAPI.readInputTypes(schema: String): InputTypes? {
-        val raw = getAddonSubConfig(ADDON_RIME, "input-types/$schema")
-        val types = raw.findByName("Types")?.subItems.orEmpty().map { InputType(it.name, it.value) }
-        if (types.isEmpty()) return null
-        return InputTypes(
-            types,
-            raw.findByName("Selected")?.value?.takeIf(String::isNotBlank),
-            raw.findByName("Path")?.value.orEmpty(),
-        )
+    private fun groupLabel(group: String): String =
+        getString(if (group == "aux_types") R.string.rime_aux_types else R.string.rime_input_types)
+
+    private suspend fun org.fcitx.fcitx5.android.core.FcitxAPI.readInputTypes(schema: String): List<InputTypes> {
+        val raw = getAddonSubConfig(ADDON_RIME, "type-groups/$schema")
+        return raw.subItems.orEmpty().mapNotNull { group ->
+            val types = group.findByName("Types")?.subItems.orEmpty().map { InputType(it.name, it.value) }
+            if (types.isEmpty()) return@mapNotNull null
+            InputTypes(
+                group.name, types,
+                group.findByName("Selected")?.value?.takeIf(String::isNotBlank),
+                group.findByName("Path")?.value.orEmpty(),
+            )
+        }
     }
 
     private suspend fun org.fcitx.fcitx5.android.core.FcitxAPI.annotateSchemes(
@@ -151,8 +157,8 @@ class GenericMultiSelectFragment : Fragment() {
         } catch (c: CancellationException) {
             throw c
         } catch (e: Exception) {
-            Timber.w(e, "Failed to read input types for scheme %s", item.id)
-            null
+            Timber.w(e, "Failed to read type groups for scheme %s", item.id)
+            emptyList()
         }
         item.copy(inputTypes = types, current = item.id == current)
     }
@@ -167,12 +173,27 @@ class GenericMultiSelectFragment : Fragment() {
         null
     }
 
-    private fun showInputTypeDialog(item: MultiItem) {
-        val types = item.inputTypes ?: return
+    private fun showTypeGroups(item: MultiItem) {
+        if (item.inputTypes.size == 1) {
+            showInputTypeDialog(item, item.inputTypes.first())
+            return
+        }
+        MaterialAlertDialogBuilder(requireContext())
+            .setTitle(item.label)
+            .setItems(item.inputTypes.map { group ->
+                listOfNotNull(groupLabel(group.group), group.summary()).joinToString(" · ")
+            }.toTypedArray()) { _, which ->
+                showInputTypeDialog(item, item.inputTypes[which])
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    private fun showInputTypeDialog(item: MultiItem, types: InputTypes) {
         val labels = types.types.map { it.label }.toTypedArray()
         val checked = types.types.indexOfFirst { it.option == types.selected }
         MaterialAlertDialogBuilder(requireContext())
-            .setTitle(getString(R.string.rime_input_types_for_scheme, item.label))
+            .setTitle(groupLabel(types.group))
             .setSingleChoiceItems(labels, checked) { dialog, which ->
                 val option = types.types[which].option
                 dialog.dismiss()
@@ -189,14 +210,15 @@ class GenericMultiSelectFragment : Fragment() {
         lifecycleScope.withLoadingDialog(ctx, R.string.rime_input_types_switching) {
             try {
                 val updated = viewModel.fcitx.runOnReady {
-                    setAddonSubConfig(ADDON_RIME, "input-type", RawConfig(arrayOf(
+                    setAddonSubConfig(ADDON_RIME, "type-option", RawConfig(arrayOf(
                         RawConfig("Path", types.path),
                         RawConfig("Schema", item.id),
+                        RawConfig("Group", types.group),
                         RawConfig("Option", option),
                     )))
                     readInputTypes(item.id)
                 }
-                if (isAdded && updated != null) {
+                if (isAdded && updated.isNotEmpty()) {
                     val list = ui
                     val index = list?.entries?.indexOfFirst { it.id == item.id } ?: -1
                     if (list != null && index >= 0) {

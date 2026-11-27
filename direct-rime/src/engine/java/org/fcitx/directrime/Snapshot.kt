@@ -120,6 +120,8 @@ internal object Native {
     external fun schemas(): Array<String>
     external fun schemaEntries(): Array<String>
     external fun options(): Array<String>
+    external fun typeGroupState(schema: String, group: String): Array<String>
+    external fun selectTypeOption(schema: String, group: String, option: String): Boolean
     external fun inputTypeState(schema: String): Array<String>
     external fun selectInputType(schema: String, option: String): Boolean
     external fun prewarmAssets(): Array<String>

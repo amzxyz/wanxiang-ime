@@ -58,6 +58,8 @@ public:
     std::vector<std::string> schemaEntries();
     std::vector<std::string> options();
     // Runtime-only schema input type selection, independent of deployment configuration.
+    std::vector<std::string> typeGroupState(const std::string& schema, const std::string& group);
+    bool selectTypeOption(const std::string& schema, const std::string& group, const std::string& option);
     std::vector<std::string> inputTypeState(const std::string& schema);
     bool selectInputType(const std::string& schema, const std::string& option);
     std::vector<std::string> prewarmAssets();

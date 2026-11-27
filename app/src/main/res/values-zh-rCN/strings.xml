@@ -1232,6 +1232,7 @@
     <string name="js_voice_secret_unavailable">本机无法解密，请重新填写密钥</string>
     <string name="rime_engine_variants_title">中州韵引擎变体</string>
     <string name="rime_input_types">输入类型</string>
+    <string name="rime_aux_types">辅助码类型</string>
     <string name="rime_input_types_evo_only">仅在使用 librime-evo 引擎时可用</string>
     <string name="rime_input_types_unsupported">当前方案未声明输入类型</string>
     <string name="rime_input_types_loading">正在读取输入类型…</string>

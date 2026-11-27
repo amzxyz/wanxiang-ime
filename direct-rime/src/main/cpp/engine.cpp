@@ -128,7 +128,7 @@ bool containsKey(const std::vector<std::string>& keys, const std::string& key) {
 // subset in declaration order, and reset must name an enabled option.
 struct InputTypesConfig {
     struct Selection {
-        std::string option, name;
+        std::string option, name, label;
     };
     std::vector<Selection> options, enabled;
     std::string reset;
@@ -136,13 +136,13 @@ struct InputTypesConfig {
         if (!reset.empty()) return reset;
         return enabled.empty() ? std::string() : enabled.front().option;
     }
-    bool load(RimeApi* api, RimeConfig* config) {
+    bool load(RimeApi* api, RimeConfig* config, const std::string& groupName = "input_types") {
         options.clear();
         enabled.clear();
         reset.clear();
         std::vector<std::string> group;
-        if (!readConfigMapKeys(api, config, "input_types", group)) return true;
-        const std::string optionsPath = "input_types/options";
+        if (!readConfigMapKeys(api, config, groupName, group)) return true;
+        const std::string optionsPath = groupName + "/options";
         if (!configListExists(api, config, optionsPath)) return false;
         const size_t count = api->config_list_size(config, optionsPath.c_str());
         for (size_t i = 0; i < count; ++i) {
@@ -153,24 +153,27 @@ struct InputTypesConfig {
             if (!readConfigString(api, config, (entryPath + "/option").c_str(), selection.option) ||
                 selection.option.empty())
                 return false;
-            if (containsKey(entry, "name")) {
+            if (groupName == "input_types" && containsKey(entry, "name")) {
                 if (!readConfigString(api, config, (entryPath + "/name").c_str(), selection.name) ||
                     selection.name.empty())
                     return false;
             } else {
                 selection.name = selection.option;
             }
+            if (!readConfigString(api, config, (entryPath + "/label").c_str(), selection.label) || selection.label.empty())
+                selection.label = selection.option;
             for (const auto& existing : options)
                 if (existing.option == selection.option) return false;
             options.push_back(selection);
         }
         if (containsKey(group, "enabled")) {
-            if (!configListExists(api, config, "input_types/enabled")) return false;
-            const size_t selected = api->config_list_size(config, "input_types/enabled");
+            const auto enabledPath = groupName + "/enabled";
+            if (!configListExists(api, config, enabledPath)) return false;
+            const size_t selected = api->config_list_size(config, enabledPath.c_str());
             for (size_t i = 0; i < selected; ++i) {
                 std::string option;
                 if (!readConfigString(api, config,
-                                      ("input_types/enabled/@" + std::to_string(i)).c_str(), option))
+                                      (enabledPath + "/@" + std::to_string(i)).c_str(), option))
                     return false;
                 const auto found = std::find_if(options.begin(), options.end(), [&](const Selection& item) {
                     return item.option == option;
@@ -185,11 +188,11 @@ struct InputTypesConfig {
         } else {
             enabled = options;
         }
-        if (containsKey(group, "reset")) {
-            if (!readConfigString(api, config, "input_types/reset", reset) || reset.empty() ||
+        if (groupName == "input_types" && containsKey(group, "reset")) {
+            if (!readConfigString(api, config, "input_types/reset", reset) ||
                 std::none_of(enabled.begin(), enabled.end(),
                              [&](const Selection& item) { return item.option == reset; }))
-                return false;
+                reset.clear();
         }
         return true;
     }
@@ -969,6 +972,64 @@ std::vector<std::string> Engine::options() {
     }
     return result;
 }
+// Catalogs are read from the deployed schema; the core owns all persistent choices.
+std::vector<std::string> Engine::typeGroupState(const std::string& schema, const std::string& group) {
+    owner();
+#ifdef RIME_EVO_TYPE_GROUPS
+    if (!started_ || api_->is_maintenance_mode() || deployFailed_.load() ||
+        (group != "input_types" && group != "aux_types") ||
+        !RIME_API_AVAILABLE(api_, get_type_option) || !RIME_API_AVAILABLE(api_, select_type_option))
+        return {};
+    const auto deployed = schemas();
+    if (std::find(deployed.begin(), deployed.end(), schema) == deployed.end()) return {};
+    if (!RIME_API_AVAILABLE(api_, schema_open) || !RIME_API_AVAILABLE(api_, config_close) ||
+        !RIME_API_AVAILABLE(api_, config_begin_map) || !RIME_API_AVAILABLE(api_, config_begin_list) ||
+        !RIME_API_AVAILABLE(api_, config_next) || !RIME_API_AVAILABLE(api_, config_end) ||
+        !RIME_API_AVAILABLE(api_, config_list_size) || !RIME_API_AVAILABLE(api_, config_get_cstring)) return {};
+    RimeConfig config{};
+    if (!api_->schema_open(schema.c_str(), &config)) return {};
+    ScopeExit cleanup([&] { api_->config_close(&config); });
+    InputTypesConfig types;
+    if (!types.load(api_, &config, group) || types.enabled.empty()) return {};
+    char selected[1024]{};
+    if (!api_->get_type_option(session_, schema.c_str(), group.c_str(), selected, sizeof(selected))) return {};
+    std::vector<std::string> result{selected};
+    for (const auto& item : types.options) {
+        if (std::any_of(types.enabled.begin(), types.enabled.end(), [&](const auto& enabled) {
+            return enabled.option == item.option;
+        })) {
+            result.push_back(item.option);
+            result.push_back(item.label);
+        }
+    }
+    return result;
+#else
+    (void)schema;
+    (void)group;
+    return {};
+#endif
+}
+
+bool Engine::selectTypeOption(const std::string& schema, const std::string& group, const std::string& option) {
+    owner();
+#ifdef RIME_EVO_TYPE_GROUPS
+    if (!started_ || api_->is_maintenance_mode() || deployFailed_.load() ||
+        (group != "input_types" && group != "aux_types") ||
+        !RIME_API_AVAILABLE(api_, select_type_option)) return false;
+    const auto deployed = schemas();
+    if (std::find(deployed.begin(), deployed.end(), schema) == deployed.end()) return false;
+    if (!api_->select_type_option(session_, schema.c_str(), group.c_str(), option.c_str())) return false;
+    invalidateStatusCache();
+    ++optionsRevision_;
+    return true;
+#else
+    (void)schema;
+    (void)group;
+    (void)option;
+    return false;
+#endif
+}
+
 std::vector<std::string> Engine::inputTypeState(const std::string& schema) {
     owner();
     if (!started_ || api_->is_maintenance_mode() || deployFailed_.load()) return {};

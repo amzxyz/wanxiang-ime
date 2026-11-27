@@ -1193,6 +1193,7 @@
     <string name="js_voice_secret_unavailable">本機無法解密，請重新填寫金鑰</string>
     <string name="rime_engine_variants_title">中州韻引擎變體</string>
     <string name="rime_input_types">輸入類型</string>
+    <string name="rime_aux_types">輔助碼類型</string>
     <string name="rime_input_types_evo_only">僅在使用 librime-evo 引擎時可用</string>
     <string name="rime_input_types_unsupported">目前方案未宣告輸入類型</string>
     <string name="rime_input_types_loading">正在讀取輸入類型…</string>

@@ -801,18 +801,21 @@ class DirectRimeBackend(context: Context) : InputEngine {
                 RawConfig(arrayOf(RawConfig("Snapshot", snapshot)))
             }
         }
-        if (path.startsWith("input-types/")) {
+        if (path.startsWith("type-groups/")) {
             return onOwner {
-                val schema = path.removePrefix("input-types/")
-                val types = org.fcitx.fcitx5.android.core.engine.RimeInputTypesRepository.read(config.user, schema)
-                    ?: return@onOwner RawConfig()
-                val runtime = if (started && !directBootMode) Native.inputTypeState(schema).toList() else emptyList()
-                val selectable = types.selectableTypes(runtime.drop(1))
-                RawConfig(arrayOf(
-                    RawConfig("Path", config.user.canonicalPath),
-                    RawConfig("Selected", runtime.firstOrNull().orEmpty()),
-                    RawConfig("Types", selectable.map { RawConfig(it.option, it.label) }.toTypedArray())
-                ))
+                val schema = path.removePrefix("type-groups/")
+                if (!started || directBootMode) return@onOwner RawConfig()
+                val groups = listOf("input_types", "aux_types").mapNotNull { group ->
+                    val runtime = Native.typeGroupState(schema, group).toList()
+                    if (runtime.size < 3 || runtime.size % 2 == 0) return@mapNotNull null
+                    RawConfig(group, arrayOf(
+                        RawConfig("Path", config.user.canonicalPath),
+                        RawConfig("Selected", runtime.first()),
+                        RawConfig("Types", runtime.drop(1).chunked(2)
+                            .map { RawConfig(it[0], it[1]) }.toTypedArray())
+                    ))
+                }
+                RawConfig(groups.toTypedArray())
             }
         }
         return onOwner { when(path) {
@@ -831,17 +834,13 @@ class DirectRimeBackend(context: Context) : InputEngine {
     override suspend fun setAddonSubConfig(addon: String, path: String, config: RawConfig) {
         when(path) {
             "engine-variant-switch" -> switchEngineVariant()
-            "input-type" -> onOwner {
+            "type-option" -> onOwner {
                 require(!directBootMode && started && !maintenance) { "输入引擎不可用" }
                 require(this.config.user.canonicalPath == config.findByName("Path")!!.value) { "输入方案工作目录已改变" }
                 val schema = config.findByName("Schema")!!.value
+                val group = config.findByName("Group")!!.value
                 val option = config.findByName("Option")!!.value
-                val user = this.config.user
-                val runtime = Native.inputTypeState(schema)
-                require(runtime.drop(1).contains(option)) { "该输入类型未部署" }
-                org.fcitx.fcitx5.android.core.engine.RimeInputTypesRepository.select(user, schema, option) {
-                    Native.selectInputType(schema, option)
-                }
+                require(Native.selectTypeOption(schema, group, option)) { "该类型未部署或引擎拒绝切换" }
                 refreshPresentation()
             }
             "wanxiang-settings-repair" -> withContext(NonCancellable) { maintain {

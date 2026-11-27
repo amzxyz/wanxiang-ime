@@ -1236,6 +1236,7 @@
     <string name="js_voice_secret_unavailable">Cannot decrypt on this device; enter the key again</string>
     <string name="rime_engine_variants_title">Rime engine variants</string>
     <string name="rime_input_types">Input type</string>
+    <string name="rime_aux_types">Auxiliary code type</string>
     <string name="rime_input_types_evo_only">Available only with the librime-evo engine</string>
     <string name="rime_input_types_unsupported">The current scheme does not declare input types</string>
     <string name="rime_input_types_loading">Reading input types…</string>
