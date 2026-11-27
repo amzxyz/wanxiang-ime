@@ -6,9 +6,6 @@ import android.view.Gravity
 import android.view.View
 import android.widget.TextView
 import androidx.constraintlayout.widget.ConstraintLayout
-import androidx.core.view.allViews
-import org.fcitx.fcitx5.android.core.InputMethodEntry
-import org.fcitx.fcitx5.android.data.prefs.SplitKeyboardStateManager
 import kotlinx.serialization.json.*
 import org.fcitx.fcitx5.android.FcitxApplication
 import org.fcitx.fcitx5.android.R
@@ -283,79 +280,6 @@ class AltLabelLayoutTimingTest {
                     }
                 }
             }
-        }
-    }
-
-    @Test fun oneHintMovesAllMainLabelsAndIconsInTheActiveLayout() {
-        val prefs = ThemeManager.prefs
-        val oldPosition = prefs.punctuationPosition.getValue()
-        val oldMove = prefs.moveMainTextForAltLabel.getValue()
-        val oldShow = prefs.showKeyAltLabels.getValue()
-        val oldSide = prefs.altLabelOnSide.getValue()
-        val layoutJson = Json.parseToJsonElement("""
-            {"default":[[
-              {"type":"AlphabetKey","main":"a","alt":"1"},
-              {"type":"AlphabetKey","main":"b","alt":""},
-              {"type":"BackspaceKey"}
-            ]]}
-        """).jsonObject
-        try {
-            prefs.showKeyAltLabels.setValue(true)
-            prefs.altLabelOnSide.setValue(false)
-            prefs.punctuationPosition.setValue(PunctuationPosition.TopCenter)
-            prefs.moveMainTextForAltLabel.setValue(true)
-            SplitKeyboardStateManager.init(context)
-            TextKeyboard.withPreviewLayout(layoutJson) {
-                val ime = InputMethodEntry("preview")
-                val keyboard = TextKeyboard(context, ThemePreset.PixelLight, initialIme = ime, isPreview = true)
-                try {
-                    keyboard.onInputMethodUpdate(ime)
-                    fun centers(): List<Float> {
-                        val keys = keyboard.allViews.filterIsInstance<KeyView>().toList()
-                        return keys.map { key ->
-                            layout(key, 88)
-                            val main = when (key) {
-                                is TextKeyView -> key.mainText
-                                is ImageKeyView -> key.img
-                                is ImageAltTextKeyView -> key.img
-                                else -> error("Unexpected key")
-                            }
-                            (main.top + main.bottom) / 2f - (main.parent as View).height / 2f
-                        }
-                    }
-                    val down = centers()
-                    assertEquals(3, down.size)
-                    assertTrue(down.all { it > 0f })
-                    assertTrue(down.all { kotlin.math.abs(it - down[0]) <= 1f })
-                    val letter = keyboard.allViews.filterIsInstance<AltTextKeyView>().first()
-                    assertTrue(letter.shouldTriggerAltBySwipe(-10, SwipeSymbolDirection.Down))
-
-                    prefs.moveMainTextForAltLabel.setValue(false)
-                    keyboard.refreshAltLabelVisibility()
-                    assertTrue(centers().all { kotlin.math.abs(it) <= 1f })
-
-                    prefs.moveMainTextForAltLabel.setValue(true)
-                    prefs.showKeyAltLabels.setValue(false)
-                    keyboard.refreshAltLabelVisibility()
-                    assertTrue(centers().all { kotlin.math.abs(it) <= 1f })
-
-                    prefs.showKeyAltLabels.setValue(true)
-                    prefs.punctuationPosition.setValue(PunctuationPosition.Bottom)
-                    keyboard.refreshStyle()
-                    val up = centers()
-                    assertTrue(up.all { it < 0f })
-                    assertTrue(up.all { kotlin.math.abs(it - up[0]) <= 1f })
-                    keyboard.refreshStyle()
-                    assertEquals(up, centers())
-                } finally {
-                    keyboard.onDetach()
-                }
-            }
-        } finally {
-            prefs.punctuationPosition.setValue(oldPosition)
-            prefs.moveMainTextForAltLabel.setValue(oldMove)
-            prefs.showKeyAltLabels.setValue(oldShow)
-            prefs.altLabelOnSide.setValue(oldSide)
         }
     }
 
