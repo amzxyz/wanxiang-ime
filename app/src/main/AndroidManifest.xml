@@ -38,12 +38,6 @@
             <action android:name="${applicationId}.plugin.VOICE_INPUT" />
         </intent>
         <intent>
-            <action android:name="com.amzxyz.wanxiang.ime.plugin.VOICE_INPUT" />
-        </intent>
-        <intent>
-            <action android:name="com.amzxyz.wanxiang.ime.debug.plugin.VOICE_INPUT" />
-        </intent>
-        <intent>
             <action android:name="android.view.InputMethod" />
         </intent>
         <intent>
