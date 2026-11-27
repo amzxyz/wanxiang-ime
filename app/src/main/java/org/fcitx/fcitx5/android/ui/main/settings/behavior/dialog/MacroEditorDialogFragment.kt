@@ -55,7 +55,8 @@ class MacroEditorDialogFragment : DialogFragment() {
     data class MacroStepData(
         var type: String = "tap",
         var keys: MutableList<KeyData> = mutableListOf(),
-        var text: String = ""
+        var text: String = "",
+        var directText: String? = null
     )
 
     @kotlinx.serialization.Serializable
@@ -190,7 +191,11 @@ class MacroEditorDialogFragment : DialogFragment() {
                     is MacroStep.Tap -> mapOf("type" to "tap", "keys" to step.keys.map { it.toMap() })
                     is MacroStep.Down -> mapOf("type" to "down", "keys" to step.keys.map { it.toMap() })
                     is MacroStep.Up -> mapOf("type" to "up", "keys" to step.keys.map { it.toMap() })
-                    is MacroStep.Text -> mapOf("type" to "text", "text" to step.text)
+                    is MacroStep.Text -> buildMap {
+                        put("type", "text")
+                        put("text", step.text)
+                        step.directText?.let { put("directText", it) }
+                    }
                     is MacroStep.Edit -> mapOf("type" to "edit", "action" to step.action)
                     is MacroStep.AppAction -> mapOf("type" to "app", "id" to step.id)
                     is MacroStep.Shortcut -> mapOf(
@@ -216,7 +221,7 @@ class MacroEditorDialogFragment : DialogFragment() {
                     "tap" -> MacroStep.Tap((m["keys"] as? List<Map<*,*>>).toKeyRefs())
                     "down" -> MacroStep.Down((m["keys"] as? List<Map<*,*>>).toKeyRefs())
                     "up" -> MacroStep.Up((m["keys"] as? List<Map<*,*>>).toKeyRefs())
-                    "text" -> MacroStep.Text(m["text"] as? String ?: "")
+                    "text" -> MacroStep.Text(m["text"] as? String ?: "", m["directText"] as? String)
                     "edit" -> MacroStep.Edit(m["action"] as? String ?: "paste")
                     "app" -> MacroStep.AppAction(m["id"] as? String ?: "theme")
                     "shortcut" -> {
@@ -940,14 +945,15 @@ class MacroEditorDialogFragment : DialogFragment() {
             )
         }
 
-        return MacroStepData(type = type, keys = keys, text = text)
+        return MacroStepData(type = type, keys = keys, text = text,
+            directText = if (type == "text") stepMap["directText"] as? String else null)
     }
 
     private fun macroStepToData(step: MacroStep): MacroStepData = when (step) {
         is MacroStep.Tap -> MacroStepData("tap", keys = step.keys.map { keyRefToData(it) }.toMutableList())
         is MacroStep.Down -> MacroStepData("down", keys = step.keys.map { keyRefToData(it) }.toMutableList())
         is MacroStep.Up -> MacroStepData("up", keys = step.keys.map { keyRefToData(it) }.toMutableList())
-        is MacroStep.Text -> MacroStepData("text", text = step.text)
+        is MacroStep.Text -> MacroStepData("text", text = step.text, directText = step.directText)
         is MacroStep.Edit -> MacroStepData("edit", keys = mutableListOf(KeyData("fcitx", step.action)))
         is MacroStep.AppAction -> MacroStepData("app", keys = mutableListOf(KeyData("fcitx", step.id)))
         is MacroStep.Shortcut -> {
@@ -1127,6 +1133,7 @@ class MacroEditorDialogFragment : DialogFragment() {
                 }
                 if (step.type == "text") {
                     put("text", step.text)
+                    step.directText?.let { put("directText", it) }
                 }
                 if (step.type == "layer") {
                     put("type", "layer")
@@ -1169,6 +1176,7 @@ class MacroEditorDialogFragment : DialogFragment() {
             }
             if (step.type == "text") {
                 put("text", step.text)
+                step.directText?.let { put("directText", it) }
             }
             if (step.type == "layer") {
                 put("type", "layer")
@@ -1299,7 +1307,7 @@ class MacroEditorDialogFragment : DialogFragment() {
 
             // Text input (text type) - placed inside keysFlowContainer
             textEditContainer = LinearLayout(requireContext()).apply {
-                orientation = LinearLayout.HORIZONTAL
+                orientation = LinearLayout.VERTICAL
                 gravity = Gravity.CENTER_VERTICAL
                 visibility = View.GONE  // hidden initially, controlled by updateVisibility
                 setPadding(0, requireContext().dp(4), 0, requireContext().dp(4))
@@ -1332,6 +1340,22 @@ class MacroEditorDialogFragment : DialogFragment() {
                 })
             }
             textEditContainer.addView(textEdit)
+            val directTextEdit = TextInputEditText(requireContext()).apply {
+                hint = getString(R.string.macro_editor_direct_text_hint)
+                setText(step.directText.orEmpty())
+                layoutParams = LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT)
+                setPadding(requireContext().dp(8), requireContext().dp(8),
+                    requireContext().dp(8), requireContext().dp(8))
+                addTextChangedListener(object : android.text.TextWatcher {
+                    override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+                    override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+                    override fun afterTextChanged(s: android.text.Editable?) {
+                        step.directText = s?.toString()?.takeIf { it.isNotEmpty() }
+                        updateSaveButtonState()
+                    }
+                })
+            }
+            textEditContainer.addView(directTextEdit)
             keysFlowContainer.addView(textEditContainer)
 
             // Add contentRow to container (outermost layer)
@@ -1381,7 +1405,8 @@ class MacroEditorDialogFragment : DialogFragment() {
                                         ((newType == "edit" || newType == "app") &&
                                             oldType != newType && step.keys.isNotEmpty()) ||
                                         (oldUsesText && !newUsesText && step.text.isNotEmpty()) ||
-                                        (!oldUsesText && newUsesText && step.text.isNotEmpty())
+                                        (!oldUsesText && newUsesText && step.text.isNotEmpty()) ||
+                                        (oldType == "text" && newType != "text" && step.directText != null)
 
                     if (willClearData) {
                         // Show confirmation dialog before clearing data
@@ -1399,6 +1424,8 @@ class MacroEditorDialogFragment : DialogFragment() {
                                 }
                                 if (oldType == "text" && newType != "text") {
                                     step.text = ""
+                                    step.directText = null
+                                    directTextEdit.setText("")
                                 }
                                 if (!oldUsesText && newUsesText) {
                                     step.keys.clear()
@@ -1431,6 +1458,10 @@ class MacroEditorDialogFragment : DialogFragment() {
                     } else {
                         // No data will be cleared, proceed with type change
                         step.type = newType
+                        if (newType != "text") {
+                            step.directText = null
+                            directTextEdit.setText("")
+                        }
                         if (newType == "layer") {
                             ensureLayerMode(step)
                         }

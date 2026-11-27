@@ -173,6 +173,7 @@ class PopupComponent :
                 // Allow overriding via popupPresetJson, with EmojiModifier skin-tone fallback.
                 val preset = popupPresetJson?.get(keyboard.label)
                     ?: PopupPreset[keyboard.label]
+                    ?: keyboard.fallbackLabel?.let { popupPresetJson?.get(it) ?: PopupPreset[it] }
                     ?: EmojiModifier.produceSkinTones(keyboard.label, EmojiModifier.SkinTone.Default)
                     ?: return
                 keys = preset

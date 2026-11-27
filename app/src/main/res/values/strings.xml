@@ -838,6 +838,7 @@
     <string name="macro_editor_delete">Delete</string>
     <string name="macro_editor_key_duplicate">Key %1$s already exists</string>
     <string name="macro_editor_step_text_empty">Text must not be empty</string>
+    <string name="macro_editor_direct_text_hint">Direct-input text (optional)</string>
     <string name="macro_editor_step_keys_empty">Step %1$d requires at least one key</string>
     <string name="macro_editor_step_shortcut_modifiers_empty">Step %1$d requires at least one modifier key (Ctrl/Alt/Shift/Meta)</string>
     <string name="macro_editor_step_shortcut_multiple_keys">Step %1$d can only have one target key</string>

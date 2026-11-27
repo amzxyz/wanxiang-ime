@@ -2549,6 +2549,7 @@ abstract class BaseKeyboard(
     }
 
     private fun applyAppearance(view: KeyView, appearance: KeyDef.Appearance) {
+        view.renderedAppearance = appearance
         when (view) {
             is AltTextKeyView -> if (appearance is KeyDef.Appearance.AltText) {
                 view.mainText.text = appearance.displayText
@@ -2589,6 +2590,7 @@ abstract class BaseKeyboard(
         behaviors: Set<KeyDef.Behavior>,
         popup: Array<KeyDef.Popup>?
     ) {
+        view.boundBehaviors = behaviors
         view.setOnClickListener(null)
         view.setOnLongClickListener(null)
         view.repeatEnabled = false

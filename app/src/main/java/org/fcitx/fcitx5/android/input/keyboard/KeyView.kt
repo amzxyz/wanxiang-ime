@@ -77,6 +77,12 @@ abstract class KeyView(
      */
     open val themedIconSlot: String? get() = null
 
+    /** Layout-owned labels of the last applied state, not the transformed visible text. */
+    internal var renderedAppearance: KeyDef.Appearance = def
+
+    /** The actions currently bound to this view, including composition overrides. */
+    internal var boundBehaviors: Set<KeyDef.Behavior> = emptySet()
+
     val bordered: Boolean
     val borderStroke: Boolean
     val rippled: Boolean
@@ -599,12 +605,32 @@ open class TextKeyView(
      * 改成方法后，[setTextScale] 每次都能取到最新配置。
      * `getFontSize` 自带结果缓存，重复调用开销可忽略。
      */
-    private fun resolveBaseMainTextSizeSp(): Float = when (textAppearance.viewId) {
-        R.id.button_space -> textAppearance.textSize
-        R.id.button_layout_switch -> textAppearance.textSize
-        else -> org.fcitx.fcitx5.android.input.font.FontProviders.getFontSize(
-            "key_main_font", textAppearance.textSize
-        )
+    private var mainTextScale = 1f
+
+    private fun resolveBaseMainTextSizeSp(defaultSize: Float = textAppearance.textSize): Float =
+        when (textAppearance.viewId) {
+            R.id.button_space, R.id.button_layout_switch -> textAppearance.textSize
+            else -> org.fcitx.fcitx5.android.input.font.FontProviders.getFontSize(
+                "key_main_font", defaultSize
+            )
+        }
+
+    /** Optical compensation only for ordinary uppercase letter keycaps, not custom labels. */
+    internal fun refreshMainTextSize(): Boolean {
+        val appearance = renderedAppearance as? KeyDef.Appearance.AltText
+        val letter = mainText.text.singleOrNull()
+        val uppercaseLetter = appearance != null && !appearance.staticDisplay &&
+            !appearance.keepDisplayTextCase && tag != R.id.button_space &&
+            letter != null && letter in 'A'..'Z' &&
+            boundBehaviors.any { it is KeyDef.Behavior.Press && it.action.isSingleVirtualLetterTap() }
+        // Only adjust the fallback size (23sp -> about 21sp). Explicit font sizes win.
+        val defaultSize = textAppearance.textSize * if (uppercaseLetter) 0.92f else 1f
+        val size = resolveBaseMainTextSizeSp(defaultSize) * mainTextScale
+        val px = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, size, resources.displayMetrics)
+        if (mainText.textSize == px) return false
+        mainText.setTextSize(TypedValue.COMPLEX_UNIT_SP, size)
+        mainText.requestLayout()
+        return true
     }
 
     val mainText = view(::AutoScaleTextView) {
@@ -650,8 +676,8 @@ open class TextKeyView(
     override fun setTextScale(scale: Float) {
         // 每次都重读配置字号（而不是用构造期快照乘 scale）：复用旧行、只走
         // reapplyTextScale() 的刷新路径也能自愈，见 resolveBaseMainTextSizeSp 的说明。
-        val baseSize = resolveBaseMainTextSizeSp()
-        mainText.setTextSize(TypedValue.COMPLEX_UNIT_SP, baseSize * scale)
+        mainTextScale = scale
+        refreshMainTextSize()
         mainText.requestLayout()
     }
 

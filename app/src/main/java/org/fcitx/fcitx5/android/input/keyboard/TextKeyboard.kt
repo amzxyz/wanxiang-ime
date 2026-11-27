@@ -1355,7 +1355,7 @@ class TextKeyboard private constructor(
     private fun refreshLegacySwipeDirections() {
         cachedKeyDefLayouts.clear()
         reloadLayout()
-        ensureSpecialKeyViewsInitialized()
+        onStyleRefreshFinished()
     }
 
     @Keep
@@ -1364,8 +1364,8 @@ class TextKeyboard private constructor(
         cachedKeyDefLayouts.clear()
         // Reload layout to show/hide LanguageKey
         reloadLayout()
-        // The rows were rebuilt; the cached view lookups no longer refer to this tree.
-        ensureSpecialKeyViewsInitialized()
+        // The rows were rebuilt; replay labels, caps and language icons.
+        onStyleRefreshFinished()
     }
 
     @Keep
@@ -1431,6 +1431,11 @@ class TextKeyboard private constructor(
     private fun isDisplayCapsOn(): Boolean {
         return capsState != CapsState.None || isSimulatedCapsLockOn()
     }
+
+    // Keycap presentation is independent of the actual key code and Shift/Caps state.
+    // An unset mode (including layout previews) uses the Chinese keyboard appearance.
+    private fun isDirectInputMode(): Boolean =
+        isDirectKeyboardInput(layoutState.ime, !isPreview && passwordDefaultLayout, isPreview)
 
     private fun transformAlphabet(c: String): String {
         return when (capsState) {
@@ -1727,6 +1732,7 @@ class TextKeyboard private constructor(
         var consumeCapsOnce = false
         val simulatedCapsOn = isSimulatedCapsLockOn()
         val pendingUppercaseDown = mutableMapOf<String, Int>()
+        val direct = isDirectInputMode()
 
         fun isLetter(code: String): Boolean = code.length == 1 && code[0].isLetter()
 
@@ -1815,7 +1821,9 @@ class TextKeyboard private constructor(
                         is KeyRef.Android -> step.key
                     }
                 )
-                is MacroStep.Text,
+                // Only an explicitly declared alternative may change literal macro output.
+                is MacroStep.Text -> if (step.directText == null) step
+                    else MacroStep.Text(step.textFor(direct))
                 is MacroStep.Edit,
                 is MacroStep.AppAction,
                 is MacroStep.LayerSwitch -> step
@@ -1850,8 +1858,7 @@ class TextKeyboard private constructor(
     override fun onAttach() {
         ensureSpecialKeyViewsInitialized()
         capsState = if (getService()?.isVirtualShiftLockOn() == true) CapsState.Lock else CapsState.None
-        updateCapsButtonIcon()
-        updateAlphabetKeys()
+        refreshCapsPresentation()
         applyLanguageKeyAsciiMode(force = true)
     }
 
@@ -1991,16 +1998,14 @@ class TextKeyboard private constructor(
 
     override fun onStyleRefreshFinished() {
         ensureSpecialKeyViewsInitialized()
-        updateCapsButtonIcon()
-        updateAlphabetKeys()
-        refreshSymbolKeyLabels()
+        refreshCapsPresentation()
         refreshSpaceLabelFromState()
         applyLanguageKeyAsciiMode(force = true)
     }
 
     override fun onThemeUpdate(newTheme: Theme) {
         ensureSpecialKeyViewsInitialized()
-        updateCapsButtonIcon()
+        refreshCapsPresentation()
         // Note: returnDrawable is managed by KeyboardWindow
     }
 
@@ -2008,8 +2013,7 @@ class TextKeyboard private constructor(
         super.onCompositionStateChanged(composing)
         ensureSpecialKeyViewsInitialized()
         // Compose-state switches may recreate key views; re-apply caps presentation immediately.
-        updateCapsButtonIcon()
-        updateAlphabetKeys()
+        refreshCapsPresentation()
         // 合成态重绑会把空格键面重置成外观自带的文字：没有自定义标签的键要按方案名补回来，
         // 否则进出合成态时方案名会变成一个空格。
         refreshSpaceLabelFromState()
@@ -2018,29 +2022,43 @@ class TextKeyboard private constructor(
     override fun onDeferredComposeRecreationsFlushed() {
         super.onDeferredComposeRecreationsFlushed()
         // If a held space key delayed its view replacement, the composition callback refreshed
-        // the old instance. Re-apply the scheme label after the new instance enters the tree.
+        // the old instance. Re-apply the scheme label and keycap case after replacement.
+        ensureSpecialKeyViewsInitialized()
+        refreshCapsPresentation()
         refreshSpaceLabelFromState()
     }
 
-    private fun transformPopupPreview(c: String): String {
-        if (c.length != 1) return c
-        if (c[0].isLetter()) return transformAlphabet(c)
-        return c
+    private fun transformPopupPreview(viewId: Int, c: String): String {
+        val key = textKeys.firstOrNull { it.id == viewId }
+        val appearance = key?.renderedAppearance as? KeyDef.Appearance.Text
+        if (key != null && appearance != null && !appearance.staticDisplay) {
+            val label = key.mainText.text.toString()
+            if (c.equals(appearance.displayText, ignoreCase = true) ||
+                (appearance is KeyDef.Appearance.AltText && c.equals(appearance.character, ignoreCase = true))) {
+                return label
+            }
+            if (key is AltTextKeyView && appearance is KeyDef.Appearance.AltText) {
+                if (c == appearance.altText && c.isNotEmpty()) return key.altText.text.toString()
+                if (c == appearance.altText1 && c.isNotEmpty()) return key.altText1.text.toString()
+            }
+        }
+        return if (c.length == 1 && c[0].isLetter()) transformAlphabet(c) else c
     }
 
     override fun onPopupAction(action: PopupAction) {
         val newAction = when (action) {
-            is PopupAction.PreviewAction -> action.copy(content = transformPopupPreview(action.content))
-            is PopupAction.PreviewUpdateAction -> action.copy(content = transformPopupPreview(action.content))
+            is PopupAction.PreviewAction -> action.copy(content = transformPopupPreview(action.viewId, action.content))
+            is PopupAction.PreviewUpdateAction -> action.copy(content = transformPopupPreview(action.viewId, action.content))
             is PopupAction.ShowKeyboardAction -> {
                 when (action.keyboard) {
                     is KeyDef.Popup.Keyboard.Preset -> {
                         val label = action.keyboard.label
-                        if (label.length == 1 && label[0].isLetter())
-                            action.copy(
-                                keyboard = action.keyboard.copy(label = transformAlphabet(label))
-                            )
-                        else action
+                        val resolved = if (label.length == 1 && label[0].isLetter()) {
+                            transformAlphabet(label)
+                        } else label
+                        if (resolved != label) action.copy(
+                            keyboard = action.keyboard.copy(label = resolved)
+                        ) else action
                     }
                     is KeyDef.Popup.Keyboard.Explicit -> action
                 }
@@ -2075,6 +2093,11 @@ class TextKeyboard private constructor(
     private fun refreshCapsPresentation() {
         updateCapsButtonIcon()
         updateAlphabetKeys()
+        refreshSymbolKeyLabels()
+        // Re-resolve size from the final label, including cached rows reused on mode switches.
+        textKeys.forEach { key ->
+            if (key.refreshMainTextSize() && key is AltTextKeyView) key.refreshAltTextLayout()
+        }
     }
 
     private fun clearLocalCapsState() {
@@ -2125,8 +2148,10 @@ class TextKeyboard private constructor(
 
     private fun updateAlphabetKeys() {
         val displayUppercase = isDisplayCapsOn()
+        val direct = isDirectInputMode()
+        val defaultUppercase = keepLettersUppercase || !direct
         textKeys.forEach {
-            val keyDef = it.def
+            val keyDef = it.renderedAppearance
             // 纯外观键（空白占位键）：文字是用户指定的装饰内容，不参与任何状态改写。
             // 放在最前面短路，键面上写 "G" 就恒定是 "G"，不跟着 Shift/Caps 变。
             if (keyDef.staticDisplay) return@forEach
@@ -2135,11 +2160,27 @@ class TextKeyboard private constructor(
             // 看文本形态，标签内容可以是任何东西。
             if (it.tag == R.id.button_space) return@forEach
             if (keyDef is KeyDef.Appearance.AltText) {
-                val renderedText = it.mainText.text.toString()
-                val sourceFromDef = renderedText.isEmpty() || renderedText == keyDef.displayText
-                    || renderedText.equals(keyDef.character, ignoreCase = true)
-                val displayText = if (sourceFromDef) keyDef.displayText else renderedText
+                val displayText = keyDef.displayText
                 val character = keyDef.character
+                // Direct text macros are literal, even if their output is a single letter.
+                // A normal letter tap still follows actual Shift/Caps; custom displayText wins.
+                if (direct && !keyDef.keepDisplayTextCase &&
+                    displayText.length == 1 && displayText[0].isAsciiLetter()) {
+                    val press = it.boundBehaviors.firstNotNullOfOrNull { behavior ->
+                        (behavior as? KeyDef.Behavior.Press)?.action
+                    }
+                    val literal = press.literalMacroText(direct = true)
+                    if (literal != null && literal.length == 1) {
+                        it.mainText.text = literal
+                        return@forEach
+                    }
+                    val output = press.directKeyText()
+                    if (output != null && output.length == 1 && output[0].isAsciiLetter()) {
+                        it.mainText.text = if (displayUppercase || keepLettersUppercase) output.uppercase()
+                            else output.lowercase()
+                        return@forEach
+                    }
+                }
                 val displayIsSingleLetter = displayText.length == 1
                     && (displayText[0] in 'A'..'Z' || displayText[0] in 'a'..'z')
                 // 用户显式设置的 displayText（MacroKey）按原样显示：这里绝不能把它改写成小写，
@@ -2156,50 +2197,66 @@ class TextKeyboard private constructor(
                     }
                     return@forEach
                 }
-                val characterIsSingleLetter = sourceFromDef && character.length == 1
+                val characterIsSingleLetter = character.length == 1
                     && (character[0] in 'A'..'Z' || character[0] in 'a'..'z')
 
                 it.mainText.text = when {
-                    keepLettersUppercase && displayIsSingleLetter -> displayText.uppercase()
+                    displayIsSingleLetter -> if (defaultUppercase || displayUppercase) {
+                        displayText.uppercase()
+                    } else displayText.lowercase()
                     keepLettersUppercase -> displayText
-                    !displayUppercase && displayIsSingleLetter -> displayText.lowercase()
                     !displayUppercase -> displayText
-                    displayIsSingleLetter -> displayText.uppercase()
                     characterIsSingleLetter -> character.uppercase()
                     else -> displayText
                 }
             } else if (keyDef is KeyDef.Appearance.Text) {
-                val renderedText = it.mainText.text.toString()
-                val str = if (renderedText.isEmpty() || renderedText == keyDef.displayText) {
-                    keyDef.displayText
-                } else {
-                    renderedText
-                }
+                val str = keyDef.displayText
                 if (str.length == 1 && (str[0] in 'A'..'Z' || str[0] in 'a'..'z')) {
-                     it.mainText.text = if (keepLettersUppercase) {
+                    it.mainText.text = if (defaultUppercase || displayUppercase) {
                         str.uppercase()
-                    } else {
-                        if (displayUppercase) str.uppercase() else str.lowercase()
-                    }
+                    } else str.lowercase()
                 }
             }
         }
     }
 
-    /** Rebind layout-owned symbol labels after style refresh, without changing sent keys. */
+    /** Render ordinary punctuation from its bound action in direct mode, never from a
+     * character substitution table. Chinese mode restores the layout-owned labels. */
     private fun refreshSymbolKeyLabels() {
-        textKeys.forEach {
-            if (it.def.staticDisplay) return@forEach
-            if (it is AltTextKeyView) {
-                it.def as KeyDef.Appearance.AltText
-                it.altText.text = it.def.altText
-                it.altText1.text = it.def.altText1 ?: ""
-            } else {
-                it.def as KeyDef.Appearance.Text
-                it.mainText.text = it.def.displayText.let { str ->
-                    val first = str.firstOrNull() ?: return@forEach
-                    if (first.run { isLetter() || isWhitespace() }) return@forEach
-                    str
+        val direct = isDirectInputMode()
+        fun android.widget.TextView.updateLabel(label: String) {
+            if (text.toString() != label) text = label
+        }
+        allViews.filterIsInstance<KeyView>().forEach { key ->
+            val appearance = key.renderedAppearance
+            if (appearance.staticDisplay || key.tag == R.id.button_space) return@forEach
+            val behaviors = key.boundBehaviors
+            val press = behaviors.firstNotNullOfOrNull { (it as? KeyDef.Behavior.Press)?.action }
+            val swipe = behaviors.firstNotNullOfOrNull { it as? KeyDef.Behavior.Swipe }
+            if (key is TextKeyView && appearance is KeyDef.Appearance.Text &&
+                (appearance !is KeyDef.Appearance.AltText || !appearance.keepDisplayTextCase)) {
+                val original = appearance.displayText
+                if (original.isSinglePunctuationLabel()) {
+                    val label = directActionLabel(original, press, direct)
+                    if (key.mainText.text.toString() != label) key.mainText.text = label
+                }
+            }
+            fun swipeLabel(original: String, second: Boolean, directional: Boolean): String {
+                val action = if (directional) {
+                    if (second) swipe?.downMacro else swipe?.upMacro ?: swipe?.legacyMacro
+                } else {
+                    swipe?.action ?: swipe?.downAction ?: swipe?.legacyMacro
+                }
+                return directActionLabel(original, action, direct)
+            }
+            when {
+                key is AltTextKeyView && appearance is KeyDef.Appearance.AltText -> {
+                    key.altText.updateLabel(swipeLabel(appearance.altText, false, appearance.directionalSwipeLabels))
+                    key.altText1.updateLabel(swipeLabel(appearance.altText1.orEmpty(), true, appearance.directionalSwipeLabels))
+                }
+                key is ImageAltTextKeyView && appearance is KeyDef.Appearance.ImageAltText -> {
+                    key.altText.updateLabel(swipeLabel(appearance.altText, false, appearance.directionalSwipeLabels))
+                    key.altText1.updateLabel(swipeLabel(appearance.altText1.orEmpty(), true, appearance.directionalSwipeLabels))
                 }
             }
         }

@@ -94,7 +94,7 @@ class SymbolKey(
     },
     popup ?: arrayOf(
         Popup.Preview(symbol),
-        Popup.Keyboard.Preset(symbol)
+        Popup.Keyboard.Preset(symbol, fallbackLabel = DEFAULT_PERIOD_KEY)
     )
 )
 
@@ -806,7 +806,10 @@ class MacroKey(
     // 只给 AlphabetKey 挂图标的话，同一套主题在这些布局上就只有功能键有图标。
     iconSlot = letterIconSlotOf(displayText?.takeIf { it.isNotEmpty() } ?: label, tap)
 ) {
-    private companion object {
+    internal companion object {
+        internal fun keyDisplayText(code: String): String =
+            FCITX_SYMBOL_LABELS[code.lowercase()] ?: code
+
         private val FCITX_SYMBOL_LABELS = mapOf(
             "grave" to "`",
             "asciitilde" to "~",
@@ -947,7 +950,7 @@ class MacroKey(
                 // Generate popup based on the single key
                 when (singleTapKey) {
                     is KeyRef.Fcitx -> {
-                        val display = FCITX_SYMBOL_LABELS[singleTapKey.code.lowercase()] ?: singleTapKey.code
+                        val display = keyDisplayText(singleTapKey.code)
                         // Keep AlphabetKey-like alt preview for letters.
                         if (display.length == 1 && display[0].isLetter()) {
                             val upper = display.uppercase()

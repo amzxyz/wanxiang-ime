@@ -106,14 +106,35 @@ class SpaceKeyLabelTest {
     fun singleLetterLabelIsNotRewrittenByCaps() = keyboard(
         """{"type":"SpaceKey","label":"a"}"""
     ) { keyboard ->
+        val cache = org.fcitx.fcitx5.android.core.DirectRimeInputMethodEntryCache()
+        val chinese = cache.get(false, "wanxiang", schemeName, "Rime")
+        val english = cache.get(true, "wanxiang", schemeName, "Rime")
+
+        // 中文键面默认大写；空格键的显式标签不跟随输入状态或 Shift。
+        keyboard.onInputMethodUpdate(chinese)
         assertEquals("a", keyboard.spaceText())
+        assertEquals("A", keyboard.alphabetText())
         keyboard.caps()
         assertEquals("a", keyboard.spaceText())
-        // 字母键照常跟着 Caps 变大写，说明只是空格键被排除在外。
+        assertEquals("A", keyboard.alphabetText())
+        keyboard.caps()
+        assertEquals("a", keyboard.spaceText())
+        assertEquals("A", keyboard.alphabetText())
+
+        // 英文直录的普通字母随 Shift 变化，但空格键始终使用自定义标签。
+        keyboard.onInputMethodUpdate(english)
+        assertEquals("a", keyboard.spaceText())
+        assertEquals("a", keyboard.alphabetText())
+        keyboard.caps()
+        assertEquals("a", keyboard.spaceText())
         assertEquals("A", keyboard.alphabetText())
         keyboard.caps()
         assertEquals("a", keyboard.spaceText())
         assertEquals("a", keyboard.alphabetText())
+
+        keyboard.onInputMethodUpdate(chinese)
+        assertEquals("a", keyboard.spaceText())
+        assertEquals("A", keyboard.alphabetText())
     }
 
     @Test

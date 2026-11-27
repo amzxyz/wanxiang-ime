@@ -771,6 +771,7 @@
     <string name="macro_editor_delete">刪除</string>
     <string name="macro_editor_key_duplicate">按鍵 %1$s 已存在</string>
     <string name="macro_editor_step_text_empty">文字不能為空</string>
+    <string name="macro_editor_direct_text_hint">直錄模式文字（可選）</string>
     <string name="macro_editor_step_keys_empty">步驟 %1$d 至少需要一個按鍵</string>
     <string name="macro_editor_step_shortcut_modifiers_empty">步驟 %1$d 需要至少一個修飾鍵（Ctrl/Alt/Shift/Meta）</string>
     <string name="macro_editor_step_shortcut_multiple_keys">步驟 %1$d 只能有一個目標按鍵</string>

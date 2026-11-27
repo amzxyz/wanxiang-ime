@@ -128,7 +128,7 @@ class MacroEditorDialogLayoutTest {
             val selector = root.descendants.filterIsInstance<org.fcitx.fcitx5.android.ui.common.MaterialSpinner>().single()
             selector.setSelection(7)
             shadowOf(Looper.getMainLooper()).idle()
-            val editor = root.descendants.filterIsInstance<EditText>().single()
+            val editor = root.descendants.filterIsInstance<EditText>().first()
             assertTrue(editor.isShown)
             assertTrue(editor.requestFocus())
             assertEquals(0, fragment.dialog!!.window!!.attributes.flags and WindowManager.LayoutParams.FLAG_ALT_FOCUSABLE_IM)
@@ -148,7 +148,7 @@ class MacroEditorDialogLayoutTest {
         val step = list.getChildAt(0) as ViewGroup
         val selector = step.descendants.filterIsInstance<org.fcitx.fcitx5.android.ui.common.MaterialSpinner>().single()
         val delete = step.descendants.filterIsInstance<MaterialButton>().single { it.contentDescription == root.context.getString(R.string.macro_editor_delete) }
-        val editor = step.descendants.filterIsInstance<EditText>().single()
+        val editor = step.descendants.filterIsInstance<EditText>().first()
         val selectorBounds = bounds(step, selector)
         val deleteBounds = bounds(step, delete)
         assertFalse(Rect.intersects(selectorBounds, deleteBounds))

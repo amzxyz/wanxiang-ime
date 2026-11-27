@@ -34,7 +34,13 @@ sealed class MacroStep {
     data class Tap(val keys: List<KeyRef>) : MacroStep()
 
     @Serializable @SerialName("text")
-    data class Text(val text: String) : MacroStep()
+    data class Text(
+        val text: String,
+        // Explicit alternative for direct input; absent means the literal text in every mode.
+        val directText: String? = null
+    ) : MacroStep() {
+        fun textFor(direct: Boolean): String = if (direct) directText ?: text else text
+    }
 
     @Serializable @SerialName("edit")
     data class Edit(val action: String) : MacroStep()

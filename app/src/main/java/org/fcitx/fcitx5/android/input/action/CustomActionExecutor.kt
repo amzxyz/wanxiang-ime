@@ -14,6 +14,8 @@ import org.fcitx.fcitx5.android.input.FcitxInputMethodService
 import org.fcitx.fcitx5.android.input.action.ButtonAction
 import org.fcitx.fcitx5.android.input.keyboard.KeyRef
 import org.fcitx.fcitx5.android.input.keyboard.MacroStep
+import org.fcitx.fcitx5.android.input.keyboard.TextKeyboard
+import org.fcitx.fcitx5.android.input.keyboard.isDirectKeyboardInput
 import org.fcitx.fcitx5.android.ui.main.settings.SettingsRoute
 import org.fcitx.fcitx5.android.ui.main.settings.behavior.SplitKeyboardCalibrationActivity
 import org.fcitx.fcitx5.android.ui.main.settings.behavior.webeditor.ImeWebEditorBridgeServer
@@ -116,8 +118,9 @@ fun executeMacroSteps(steps: List<MacroStep>, service: FcitxInputMethodService, 
                 }
             }
             is MacroStep.Text -> {
-                if (step.text.isNotEmpty()) hasOsLConsumingStep = true
-                service.commitText(step.text)
+                val text = step.textFor(isDirectKeyboardInput(TextKeyboard.ime, TextKeyboard.isPasswordDefaultLayout()))
+                if (text.isNotEmpty()) hasOsLConsumingStep = true
+                service.commitText(text)
             }
             is MacroStep.Edit -> {
                 if (step.action.isNotBlank()) hasOsLConsumingStep = true

@@ -61,6 +61,22 @@ class MacroBaselineTest {
             steps(it).single().text = "original"
             assertFalse(dirty(it))
         }
+    @Test fun explicitDirectTextSurvivesBothEditorFormatsAndParticipatesInDirtyState() {
+        val step = MacroStep.Text("、", "\\")
+        assertEquals(listOf(step), MacroEditorDialogFragment.fromStepsExtra(
+            MacroEditorDialogFragment.toStepsExtra(listOf(step)).map { it as Map<*, *> }.let { ArrayList(it) }))
+        for (intent in listOf(json(listOf(step)), maps(listOf(step)))) {
+            page(intent) {
+                assertEquals("\\", steps(it).single().directText)
+                assertFalse(dirty(it))
+                steps(it).single().directText = "?"
+                assertTrue(dirty(it))
+                steps(it).single().directText = "\\"
+                assertFalse(dirty(it))
+            }
+        }
+    }
+
     @Test fun theBaselineDoesNotShareMutableKeysWithTheEditor() =
         page(json(listOf(MacroStep.Tap(listOf(KeyRef.Fcitx("A")))))) {
             steps(it).single().keys.single().code = "B"

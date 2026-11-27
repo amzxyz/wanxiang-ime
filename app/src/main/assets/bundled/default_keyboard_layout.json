@@ -4,7 +4,7 @@
       [
         {
           "type": "MacroKey",
-          "label": "q",
+          "label": "Q",
           "altLabel": "1",
           "weight": 0.1,
           "tap": {
@@ -34,7 +34,7 @@
         },
         {
           "type": "MacroKey",
-          "label": "w",
+          "label": "W",
           "altLabel": "2",
           "weight": 0.1,
           "tap": {
@@ -64,7 +64,7 @@
         },
         {
           "type": "MacroKey",
-          "label": "e",
+          "label": "E",
           "altLabel": "3",
           "weight": 0.1,
           "tap": {
@@ -94,7 +94,7 @@
         },
         {
           "type": "MacroKey",
-          "label": "r",
+          "label": "R",
           "altLabel": "4",
           "weight": 0.1,
           "tap": {
@@ -124,7 +124,7 @@
         },
         {
           "type": "MacroKey",
-          "label": "t",
+          "label": "T",
           "altLabel": "5",
           "weight": 0.1,
           "tap": {
@@ -154,7 +154,7 @@
         },
         {
           "type": "MacroKey",
-          "label": "y",
+          "label": "Y",
           "altLabel": "6",
           "weight": 0.1,
           "tap": {
@@ -184,7 +184,7 @@
         },
         {
           "type": "MacroKey",
-          "label": "u",
+          "label": "U",
           "altLabel": "7",
           "weight": 0.1,
           "tap": {
@@ -214,7 +214,7 @@
         },
         {
           "type": "MacroKey",
-          "label": "i",
+          "label": "I",
           "altLabel": "8",
           "weight": 0.1,
           "tap": {
@@ -244,7 +244,7 @@
         },
         {
           "type": "MacroKey",
-          "label": "o",
+          "label": "O",
           "altLabel": "9",
           "weight": 0.1,
           "tap": {
@@ -274,7 +274,7 @@
         },
         {
           "type": "MacroKey",
-          "label": "p",
+          "label": "P",
           "altLabel": "0",
           "weight": 0.1,
           "tap": {
@@ -310,7 +310,7 @@
         },
         {
           "type": "MacroKey",
-          "label": "a",
+          "label": "A",
           "altLabel": "@",
           "weight": 0.1,
           "tap": {
@@ -340,7 +340,7 @@
         },
         {
           "type": "MacroKey",
-          "label": "s",
+          "label": "S",
           "altLabel": "/",
           "weight": 0.1,
           "tap": {
@@ -370,7 +370,7 @@
         },
         {
           "type": "MacroKey",
-          "label": "d",
+          "label": "D",
           "altLabel": "`",
           "weight": 0.1,
           "tap": {
@@ -400,7 +400,7 @@
         },
         {
           "type": "MacroKey",
-          "label": "f",
+          "label": "F",
           "altLabel": "-",
           "weight": 0.1,
           "tap": {
@@ -430,7 +430,7 @@
         },
         {
           "type": "MacroKey",
-          "label": "g",
+          "label": "G",
           "altLabel": "=",
           "weight": 0.1,
           "tap": {
@@ -460,7 +460,7 @@
         },
         {
           "type": "MacroKey",
-          "label": "h",
+          "label": "H",
           "altLabel": "'",
           "weight": 0.1,
           "tap": {
@@ -490,7 +490,7 @@
         },
         {
           "type": "MacroKey",
-          "label": "j",
+          "label": "J",
           "altLabel": "\"",
           "weight": 0.1,
           "tap": {
@@ -520,7 +520,7 @@
         },
         {
           "type": "MacroKey",
-          "label": "k",
+          "label": "K",
           "altLabel": "?",
           "weight": 0.1,
           "tap": {
@@ -550,7 +550,7 @@
         },
         {
           "type": "MacroKey",
-          "label": "l",
+          "label": "L",
           "altLabel": "\\",
           "weight": 0.1,
           "tap": {
@@ -593,7 +593,7 @@
         },
         {
           "type": "MacroKey",
-          "label": "z",
+          "label": "Z",
           "altLabel": "全",
           "weight": 0.1,
           "tap": {
@@ -619,7 +619,7 @@
         },
         {
           "type": "MacroKey",
-          "label": "x",
+          "label": "X",
           "altLabel": "切",
           "weight": 0.1,
           "tap": {
@@ -645,7 +645,7 @@
         },
         {
           "type": "MacroKey",
-          "label": "c",
+          "label": "C",
           "altLabel": "复",
           "weight": 0.1,
           "tap": {
@@ -671,7 +671,7 @@
         },
         {
           "type": "MacroKey",
-          "label": "v",
+          "label": "V",
           "altLabel": "贴",
           "weight": 0.1,
           "tap": {
@@ -697,7 +697,7 @@
         },
         {
           "type": "MacroKey",
-          "label": "b",
+          "label": "B",
           "altLabel": "撤",
           "weight": 0.1,
           "tap": {
@@ -723,7 +723,7 @@
         },
         {
           "type": "MacroKey",
-          "label": "n",
+          "label": "N",
           "altLabel": "重",
           "weight": 0.1,
           "tap": {
@@ -749,7 +749,7 @@
         },
         {
           "type": "MacroKey",
-          "label": "m",
+          "label": "M",
           "altLabel": "首",
           "weight": 0.1,
           "tap": {
@@ -827,7 +827,7 @@
             "macro": [
               {
                 "type": "text",
-                "text": "、"
+                "text": "、", "directText": "\\"
               }
             ]
           },

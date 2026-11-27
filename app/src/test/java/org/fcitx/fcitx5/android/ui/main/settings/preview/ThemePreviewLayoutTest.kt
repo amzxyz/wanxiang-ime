@@ -123,7 +123,7 @@ class ThemePreviewLayoutTest {
             val keyboard = keyboardOf(PreviewInputMethodEntry.createRealLayoutPreview(rimeIme()))
             try {
                 val keys = keyboard.allViews.filterIsInstance<TextKeyView>().toList()
-                assertEquals(listOf("a", "b"), keys.map { it.mainText.text.toString() })
+                assertEquals(listOf("A", "B"), keys.map { it.mainText.text.toString() })
                 assertEquals(-65536, keys.first().def.backgroundColor)
             } finally {
                 keyboard.onDetach()
@@ -136,7 +136,7 @@ class ThemePreviewLayoutTest {
             val keyboard = keyboardOf(PreviewInputMethodEntry.create())
             try {
                 val keys = keyboard.allViews.filterIsInstance<TextKeyView>().toList()
-                assertEquals("q", keys.first().mainText.text.toString())
+                assertEquals("Q", keys.first().mainText.text.toString())
                 assertNull(keys.first().def.backgroundColor)
             } finally {
                 keyboard.onDetach()

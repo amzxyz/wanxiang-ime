@@ -396,8 +396,11 @@ open class KeyDef(
         sealed class Keyboard : Popup() {
             // Retain transformPunctuation for old layout compatibility. Labels now remain
             // literal; the selected key is processed by Rime's own punctuator.
-            data class Preset(val label: String, val transformPunctuation: Boolean = true) :
-                Keyboard()
+            data class Preset(
+                val label: String,
+                val transformPunctuation: Boolean = true,
+                val fallbackLabel: String? = null
+            ) : Keyboard()
 
             class Explicit(val items: Array<String>) : Keyboard()
         }

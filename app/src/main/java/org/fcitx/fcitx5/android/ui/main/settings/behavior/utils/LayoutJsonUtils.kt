@@ -499,7 +499,10 @@ object LayoutJsonUtils {
             "down" -> MacroStep.Down(obj["keys"]?.jsonArray?.map { parseKeyRef(it.jsonObject) } ?: emptyList())
             "up" -> MacroStep.Up(obj["keys"]?.jsonArray?.map { parseKeyRef(it.jsonObject) } ?: emptyList())
             "tap" -> MacroStep.Tap(obj["keys"]?.jsonArray?.map { parseKeyRef(it.jsonObject) } ?: emptyList())
-            "text" -> MacroStep.Text(obj["text"]?.jsonPrimitive?.content ?: "")
+            "text" -> MacroStep.Text(
+                obj["text"]?.jsonPrimitive?.content ?: "",
+                obj["directText"]?.jsonPrimitive?.contentOrNull
+            )
             "edit" -> MacroStep.Edit(obj["action"]?.jsonPrimitive?.content ?: "copy")
             "app" -> MacroStep.AppAction(obj["id"]?.jsonPrimitive?.content ?: "theme")
             "layer" -> MacroStep.LayerSwitch(
@@ -1180,10 +1183,11 @@ object LayoutJsonUtils {
                 "type" to JsonPrimitive("tap"),
                 "keys" to JsonArray(step.keys.map { keyRefToJson(it) })
             ))
-            is MacroStep.Text -> JsonObject(mapOf(
-                "type" to JsonPrimitive("text"),
-                "text" to JsonPrimitive(step.text)
-            ))
+            is MacroStep.Text -> JsonObject(buildMap {
+                put("type", JsonPrimitive("text"))
+                put("text", JsonPrimitive(step.text))
+                step.directText?.let { put("directText", JsonPrimitive(it)) }
+            })
             is MacroStep.Edit -> JsonObject(mapOf(
                 "type" to JsonPrimitive("edit"),
                 "action" to JsonPrimitive(step.action)
