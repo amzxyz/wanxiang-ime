@@ -130,14 +130,11 @@ struct InputTypesConfig {
         std::string option, name, label;
     };
     std::vector<Selection> options;
-    std::string reset;
     std::string initialOption() const {
-        if (!reset.empty()) return reset;
         return options.empty() ? std::string() : options.front().option;
     }
     bool load(RimeApi* api, RimeConfig* config, const std::string& groupName = "input_types") {
         options.clear();
-        reset.clear();
         std::vector<std::string> group;
         if (!readConfigMapKeys(api, config, groupName, group)) return true;
         const std::string optionsPath = groupName + "/options";
@@ -163,12 +160,6 @@ struct InputTypesConfig {
             for (const auto& existing : options)
                 if (existing.option == selection.option) return false;
             options.push_back(selection);
-        }
-        if (groupName == "input_types" && containsKey(group, "reset")) {
-            if (!readConfigString(api, config, "input_types/reset", reset) ||
-                std::none_of(options.begin(), options.end(),
-                             [&](const Selection& item) { return item.option == reset; }))
-                reset.clear();
         }
         return true;
     }
@@ -821,9 +812,7 @@ bool Engine::deploymentUsable() {
         prism += "." + type;
         return 1;
     };
-    const int resetType = appendType("input_types/reset");
-    if (resetType < 0) return false;
-    if (resetType == 0 && appendType("input_types/options/@0/option") < 0) return false;
+    if (appendType("input_types/options/@0/option") < 0) return false;
     const auto compiledPrism = build / (prism + ".prism.bin");
     return std::filesystem::is_regular_file(compiledPrism, ec) &&
            std::filesystem::file_size(compiledPrism, ec) > 0;

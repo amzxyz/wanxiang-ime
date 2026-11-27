@@ -159,7 +159,6 @@ RimeApi api() {
     a.join_maintenance_thread = [] {};
     a.create_session = []() -> RimeSessionId {
         ++f.created; f.preedit.clear(); f.inputTypeOptions.clear();
-        if (f.resetPresent) f.inputTypeOptions[f.resetType] = true;
         return 7;
     };
     a.find_session = [](RimeSessionId) -> Bool { return f.exists; };
@@ -1026,12 +1025,11 @@ void testUsableDeploymentWarning() {
     }
     CHECK(noPrismRejected);
     // EVO resolves the dictionary prism through translator/prisms: input_types and
-    // input_types/reset pick the option whose name is the prism resource.
+    // the first declared option's name identifies the prism resource.
     f = {}; auto g = api(); Engine typed(&g); f.failDeploy = true;
     f.prismsRefSet = true; f.prismsRef = "input_types";
     f.inputTypesPresent = true; f.inputOptions = {{"zrm", "zrm"}};
     
-    f.resetPresent = true; f.resetType = "zrm";
     const fs::path typedUser = root / "typed", typedBuild = typedUser / "build";
     fs::create_directories(typedBuild);
     std::ofstream(typedBuild / "default.yaml") << "keep data";
@@ -1110,7 +1108,6 @@ void testEvoPrismResolution() {
     // input_types contributes the primary selection only through translator/prisms: input_types.
     f = {}; f.prismsRefSet = true; f.prismsRef = "input_types";
     f.inputTypesPresent = true; f.inputOptions = {{"zrm", "zrm_prism"}};
-    f.resetPresent = true; f.resetType = "zrm";
     CHECK(accepted(workspace("input-types-alias", {"zrm_prism.prism.bin"})));
     // Without an explicit prism the dictionary name and the algebra map's first key are used.
     f = {}; f.algebraKeys = {"zrm"};
@@ -1119,11 +1116,11 @@ void testEvoPrismResolution() {
     f = {}; f.prismSet = true; f.prismName = "named"; f.prismsRefSet = true; f.prismsRef = "input_types";
     f.inputTypesPresent = true; f.inputOptions = {{"zrm", "zrm"}};
     CHECK(rejected(workspace("prism-conflict", {"named.prism.bin", "zrm.prism.bin"})));
-    // An obsolete reset is ignored; the first declared option is the default.
+    // Even a valid legacy reset cannot override the first declared option.
     f = {}; f.prismsRefSet = true; f.prismsRef = "input_types";
     f.inputTypesPresent = true; f.inputOptions = {{"zrm", "zrm"}, {"flypy", "flypy"}};
-    f.resetPresent = true; f.resetType = "removed";
-    CHECK(accepted(workspace("old-reset", {"zrm.prism.bin", "flypy.prism.bin"})));
+    f.resetPresent = true; f.resetType = "flypy";
+    CHECK(accepted(workspace("old-reset", {"zrm.prism.bin"})));
 }
 void testRuntimeTypeGroups() {
 #ifdef RIME_EVO_TYPE_GROUPS
