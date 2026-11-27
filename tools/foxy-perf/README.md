@@ -1,6 +1,6 @@
 # Historical benchmark: Foxy and the earlier Rime frontend
 
-> Archived upstream experiment, not a benchmark of current Wanxiang IME/EVO. The workflow is archived under `.github/upstream-workflows/`. Historical product names, CLI options and APK identities below identify the actual test subjects and must not be relabelled as Wanxiang IME.
+> Archived upstream experiment, not a benchmark of current Wanxiang Pinyin/EVO. The workflow is archived under `.github/upstream-workflows/`. Historical product names, CLI options and APK identities below identify the actual test subjects and must not be relabelled as Wanxiang Pinyin.
 
 For the current signed Wanxiang Release, use `.github/workflows/release.yml` with the locked EVO SDK and repository signing configuration. The legacy performance helper alone is not a current release build entry point.
 

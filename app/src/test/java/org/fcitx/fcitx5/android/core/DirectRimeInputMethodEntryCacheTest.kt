@@ -9,8 +9,8 @@ import org.junit.Test
 class DirectRimeInputMethodEntryCacheTest {
     @Test fun stableChinesePresentationReusesTheEntry() {
         val cache = DirectRimeInputMethodEntryCache()
-        val first = cache.get(false, "wanxiang", "万象", "万象输入法")
-        val second = cache.get(false, "wanxiang", "万象", "万象输入法")
+        val first = cache.get(false, "wanxiang", "万象", "万象拼音")
+        val second = cache.get(false, "wanxiang", "万象", "万象拼音")
 
         assertSame(first, second)
         assertEquals("fcitx-rime:wanxiang", second.subMode.icon)
@@ -18,9 +18,9 @@ class DirectRimeInputMethodEntryCacheTest {
 
     @Test fun everyVisibleChineseOrResourceFieldInvalidatesTheEntry() {
         val cache = DirectRimeInputMethodEntryCache()
-        val original = cache.get(false, "one", "方案一", "万象输入法")
-        val renamedSchema = cache.get(false, "one", "方案甲", "万象输入法")
-        val changedSchema = cache.get(false, "two", "方案甲", "万象输入法")
+        val original = cache.get(false, "one", "方案一", "万象拼音")
+        val renamedSchema = cache.get(false, "one", "方案甲", "万象拼音")
+        val changedSchema = cache.get(false, "two", "方案甲", "万象拼音")
         val changedResource = cache.get(false, "two", "方案甲", "Rime")
 
         assertNotSame(original, renamedSchema)
@@ -31,8 +31,8 @@ class DirectRimeInputMethodEntryCacheTest {
 
     @Test fun asciiPresentationIgnoresHiddenSchemaButNotModeOrResources() {
         val cache = DirectRimeInputMethodEntryCache()
-        val ascii = cache.get(true, "one", "方案一", "万象输入法")
-        val hiddenSchemaChanged = cache.get(true, "two", "方案二", "万象输入法")
+        val ascii = cache.get(true, "one", "方案一", "万象拼音")
+        val hiddenSchemaChanged = cache.get(true, "two", "方案二", "万象拼音")
         val localized = cache.get(true, "two", "方案二", "Rime")
         val chinese = cache.get(false, "two", "方案二", "Rime")
 
@@ -45,10 +45,10 @@ class DirectRimeInputMethodEntryCacheTest {
 
     @Test fun changingEngineSlotsInvalidatesAnOtherwiseIdenticalEntry() {
         val cache = DirectRimeInputMethodEntryCache()
-        val firstSlot = cache.get(false, "wanxiang", "万象", "万象输入法")
+        val firstSlot = cache.get(false, "wanxiang", "万象", "万象拼音")
 
         cache.clear()
-        val secondSlot = cache.get(false, "wanxiang", "万象", "万象输入法")
+        val secondSlot = cache.get(false, "wanxiang", "万象", "万象拼音")
 
         assertNotSame(firstSlot, secondSlot)
         assertEquals(firstSlot, secondSlot)

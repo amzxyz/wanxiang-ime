@@ -1,10 +1,10 @@
-# 万象输入法 · Wanxiang IME
+# 万象拼音 · Wanxiang Pinyin
 
 基于 [librime-evo](https://github.com/amzxyz/librime-evo) 的开源 Android 输入法，支持全拼、双拼、形码、音形混合及其他 Rime 输入方案。
 
 ## 使用说明
 
-安装与设备架构匹配的 [正式 APK](https://github.com/amzxyz/wanxiang-ime/releases)，在系统设置中启用万象输入法并选择为当前输入法。首次安装自动部署内置 EVO 专用万象方案；可在「方案更新」的「还原内置方案」中恢复 APK 内置的万象拼音方案、配套词库、配置及资源（可覆盖当前工作目录或新建目录）。语言模型不随 APK 分发，需在「万象更新」中下载。切换或覆盖安装前建议备份用户数据。
+安装与设备架构匹配的 [正式 APK](https://github.com/amzxyz/wanxiang-ime/releases)，在系统设置中启用万象拼音并选择为当前输入法。首次安装自动部署内置 EVO 专用万象方案；可在「方案更新」的「还原内置方案」中恢复 APK 内置的万象拼音方案、配套词库、配置及资源（可覆盖当前工作目录或新建目录）。语言模型不随 APK 分发，需在「万象更新」中下载。切换或覆盖安装前建议备份用户数据。
 
 ## 开发与发版
 

@@ -1,4 +1,4 @@
-<b>Wanxiang IME</b>
+<b>Wanxiang Pinyin</b>
 <p>An open-source Android input method powered by librime-evo. Import compatible Rime schemes for Pinyin, double Pinyin, shape-based or mixed input.</p>
 <ul>
 <li>Custom keyboard layouts, themes and candidate display</li>

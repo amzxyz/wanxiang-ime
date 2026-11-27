@@ -218,7 +218,7 @@ class MaterialSettingsPagesTest {
                 row("In-app · 24dp", listOf(activity.getDrawable(R.drawable.ic_brand_goose)!!.mutate().apply {
                     setTint(activity.settingsColor(com.google.android.material.R.attr.colorOnSurfaceVariant))
                 }), 24)
-                dialog = MaterialAlertDialogBuilder(activity).setTitle("万象输入法 · 图标")
+                dialog = MaterialAlertDialogBuilder(activity).setTitle("万象拼音 · 图标")
                     .setView(sheet).show()
             }
             instrumentation.waitForIdleSync()

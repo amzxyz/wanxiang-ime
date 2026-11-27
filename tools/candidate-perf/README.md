@@ -1,6 +1,6 @@
 # 历史性能工具：首次候选点选对照
 
-> 本文记录上游历史实验，不代表当前万象输入法或 EVO 的性能结果。对应 workflow 已归档于 `.github/upstream-workflows/`，不是现行 CI；源码、包名、APK 及实验数据按历史提交保留，不能替换成当前值后声称复现。
+> 本文记录上游历史实验，不代表当前万象拼音或 EVO 的性能结果。对应 workflow 已归档于 `.github/upstream-workflows/`，不是现行 CI；源码、包名、APK 及实验数据按历史提交保留，不能替换成当前值后声称复现。
 
 `rime-candidate-perf.yml` 独立构建含 Fcitx 的默认分支历史版本
 `cecea4940bb5a5db67f91d6b20e00ee5c97877ea` 与本轮修改前直连版本

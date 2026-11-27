@@ -1,4 +1,4 @@
-Wanxiang IME 0.1.3
+Wanxiang Pinyin 0.1.3
 - Built-in librime-evo engine with compatible Rime scheme import.
 - Custom keyboard layouts, themes and candidate display.
 - Signed release builds and separate Debug application ID.

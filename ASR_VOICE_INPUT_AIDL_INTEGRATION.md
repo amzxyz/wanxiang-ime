@@ -1,6 +1,6 @@
-# 万象输入法 ASR 语音输入 AIDL 接入说明
+# 万象拼音 ASR 语音输入 AIDL 接入说明
 
-本文说明万象输入法的语音输入桥接协议（IME 录音、插件识别）。正式宿主应用 ID 为 `com.amzxyz.wanxiang.ime`，Debug 为 `com.amzxyz.wanxiang.ime.debug`；历史 AIDL 接口包名与兼容 Action 不等同于宿主应用 ID。
+本文说明万象拼音的语音输入桥接协议（IME 录音、插件识别）。正式宿主应用 ID 为 `com.amzxyz.wanxiang.ime`，Debug 为 `com.amzxyz.wanxiang.ime.debug`；历史 AIDL 接口包名与兼容 Action 不等同于宿主应用 ID。
 
 ## 1. 协议文件（必须保持包名）
 

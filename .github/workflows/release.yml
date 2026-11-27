@@ -268,7 +268,7 @@ jobs:
         uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ github.ref_name }}
-          name: 万象输入法 ${{ github.ref_name }}
+          name: 万象拼音 ${{ github.ref_name }}
           generate_release_notes: true
           prerelease: false
           fail_on_unmatched_files: true

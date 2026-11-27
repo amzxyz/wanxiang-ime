@@ -1,4 +1,4 @@
-# AGENTS.md — 万象输入法
+# AGENTS.md — 万象拼音
 
 供本仓库及 fork 的 AI 编程助手使用。路径相对仓库根；遵循当前授权与目录指令。事实以代码、构建和 CI 为先，历史报告不代表当前验证。
 
@@ -25,7 +25,7 @@ EVO 前端的引擎桥接位于 `app/src/main/java/org/fcitx/fcitx5/android/core
 
 改动先从真实 API／服务调用定位职责类与测试，沿用既有 owner、dispatcher 和 scope。职责类不得建立可独立更新的实时绑定、native 快照或输入门控副本；保留动态状态读取、generation／native revision／candidateVersion／tabsRevision 各自的校验、取消恢复及事件交付顺序。
 
-当前说明随代码存放在本分支的 README、`docs/` 和各模块 README 中。旧上游文档只用于追溯历史，不作为万象输入法的现行规范或构建入口；本仓库不依赖维护者私有脚本。
+当前说明随代码存放在本分支的 README、`docs/` 和各模块 README 中。旧上游文档只用于追溯历史，不作为万象拼音的现行规范或构建入口；本仓库不依赖维护者私有脚本。
 
 ## 开始修改前
 

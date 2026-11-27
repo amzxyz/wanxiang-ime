@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <string name="app_name_release">万象输入法</string>
-    <string name="app_name_debug">万象输入法 Debug</string>
+    <string name="app_name_release">万象拼音</string>
+    <string name="app_name_debug">万象拼音 Debug</string>
     <string name="save">保存</string>
     <string name="input_methods">输入法</string>
     <string name="rime_settings">中州韵引擎</string>
