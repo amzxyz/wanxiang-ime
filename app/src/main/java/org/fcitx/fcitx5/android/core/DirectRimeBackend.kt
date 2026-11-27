@@ -607,8 +607,10 @@ class DirectRimeBackend(context: Context) : InputEngine {
         }.toTypedArray()
     }
     override suspend fun getCandidateActions(idx: Int): Array<CandidateAction> {
-        val sequence = if (idx < 0) emptyList<CandidateAction>() else DirectRimeCandidateSequence.actions(onOwner { sequenceKeys() })
-        return (listOf(DirectRimeCandidateSequence.forgetAction) + sequence).toTypedArray()
+        if (idx < 0) return emptyArray()
+        return DirectRimeCandidateSequence.actions(onOwner {
+            started && !maintenance && snapshot?.ready == true && Native.candidateEditAvailable()
+        }).toTypedArray()
     }
     override suspend fun triggerCandidateAction(idx: Int, actionIdx: Int) { candidateAction(idx, actionIdx, false, null) }
     override suspend fun triggerGlobalCandidateAction(idx: Int, actionIdx: Int) { candidateAction(idx, actionIdx, true, null) }
@@ -619,29 +621,11 @@ class DirectRimeBackend(context: Context) : InputEngine {
     private suspend fun candidateAction(
         idx: Int, actionIdx: Int, global: Boolean, expected: CandidateActionContext?
     ): Boolean {
-        if (actionIdx == DirectRimeCandidateSequence.FORGET_ID) {
-            // The guarded entry point rejects a negative target before touching JNI; the legacy
-            // entry points still reach native, where delete_candidate(_on_current_page) validates it.
-            if (expected != null && idx < 0) return false
-            return performAction(if (global) 12 else 5, idx, expected)?.ready == true
-        }
         if (idx < 0) return false
-        if (DirectRimeCandidateSequence.operation(actionIdx) == null) return false
-        // The schema's key is read on the owner after admission, so a stale target never reaches JNI.
+        val operation = DirectRimeCandidateSequence.operation(actionIdx) ?: return false
         return performAction(if (global) 15 else 14, idx, expected, value = {
-            DirectRimeCandidateSequence.keyArgument(sequenceKeys(), actionIdx)
-        })?.ready == true
-    }
-
-    /** Owner thread only. Empty unless the bound Wanxiang schema loads a manual ordering processor. */
-    private fun sequenceKeys(): Array<String> {
-        val value = snapshot
-        if (!started || maintenance || value?.ready != true || value.generation != inputSession ||
-            !DirectRimeCandidateSequence.isWanxiangSchema(value.schema)) return emptyArray()
-        return try { Native.sequenceKeys() } catch (e: Exception) {
-            Timber.w(e, "Cannot read manual candidate ordering keys")
-            emptyArray()
-        }
+            operation.action
+        })?.let { it.ready && it.handled } == true
     }
 
     override suspend fun activateSchemaActionIfCurrent(id: Int, expectedInputSession: Long): Boolean = onOwner {

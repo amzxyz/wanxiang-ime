@@ -79,11 +79,11 @@ struct Fake {
     std::vector<std::string> syncMessages = {"start", "success"};
     RimeNotificationHandler callback = nullptr;
     void* context = nullptr;
-    // Manual candidate ordering (super_sequence) fixture.
-    int sym = 0, highlighted = -1;
-    size_t highlightedGlobal = 999;
-    bool highlightFails = false;
-    std::vector<std::string> processors;
+    // Native candidate edit fixture.
+    size_t editIndex = 999;
+    bool editPage = false;
+    int editCalls = 0;
+    std::string editAction;
     std::map<std::string, std::string> schemaValues;
 } f;
 std::string algebraPath() { return "build/dictionaries/" + f.dictionary + "/algebra"; }
@@ -327,6 +327,19 @@ RimeApi api() {
         return true;
     };
 #endif
+#ifdef RIME_EVO_TYPE_OPTIONS
+    a.get_type_options = [](RimeSessionId, const char* schema, const char* group, RimeTypeOption** items, size_t* count) -> Bool {
+        if (std::strcmp(schema, "test") || std::strcmp(group, "input_types") || f.inputOptions.empty()) return false;
+        static std::vector<RimeTypeOption> values;
+        values.clear();
+        const auto selected = f.schemaValues.find("type_choice");
+        const auto& choice = selected == f.schemaValues.end() ? f.inputOptions.front().first : selected->second;
+        for (auto& item : f.inputOptions)
+            values.push_back({item.first.data(), item.first.data(), item.first == choice});
+        *items = values.data(); *count = values.size(); return true;
+    };
+    a.free_type_options = [](RimeTypeOption*, size_t) {};
+#endif
 #ifdef RIME_EVO_CODE_CHOICES
     a.get_code_choices = [](RimeSessionId, RimeCodeChoice** choices, size_t* count) -> Bool {
         notifyOptionIfRequested(f.tabsNotifications);
@@ -465,67 +478,34 @@ void testFrontendExtensions() {
 }
 void testCandidateSequence() {
     f = {}; auto a = api();
-    a.get_current_schema = [](RimeSessionId, char* id, size_t size) -> Bool {
-        std::snprintf(id, size, "%s", f.schema.c_str()); return true;
+#ifdef RIME_CANDIDATE_EDIT_ACTIONS
+    a.edit_candidate = [](RimeSessionId, size_t index, Bool page, const char* action) -> Bool {
+        ++f.editCalls;
+        f.editIndex = index; f.editPage = page; f.editAction = action;
+        return f.editAction != "bogus";
     };
-    a.schema_open = [](const char* id, RimeConfig* config) -> Bool { config->ptr = &f; return f.schema == id; };
-    a.config_list_size = [](RimeConfig*, const char* key) -> size_t {
-        return std::strcmp(key, "engine/processors") ? 0 : f.processors.size();
-    };
-    a.config_get_cstring = [](RimeConfig*, const char* key) -> const char* {
-        const std::string prefix = "engine/processors/@", name(key);
-        if (!name.compare(0, prefix.size(), prefix)) {
-            const auto index = std::strtoul(name.c_str() + prefix.size(), nullptr, 10);
-            return index < f.processors.size() ? f.processors[index].c_str() : nullptr;
-        }
-        const auto found = f.schemaValues.find(name);
-        return found == f.schemaValues.end() ? nullptr : found->second.c_str();
-    };
-    a.process_key = [](RimeSessionId, int sym, int mask) -> Bool { ++f.keys; f.sym = sym; f.mask = mask; return true; };
-    // Mirrors RimeGetContext: the highlighted slot is page-local (selected % page_size).
-    a.get_context = [](RimeSessionId, RimeContext* c) -> Bool {
-        static RimeCandidate candidates[10] = {};
-        for (auto& candidate : candidates) candidate.text = const_cast<char*>("candidate");
-        c->menu.candidates = candidates; c->menu.num_candidates = 10;
-        c->menu.page_size = 5; c->menu.highlighted_candidate_index = f.highlighted;
-        return true;
-    };
-    a.highlight_candidate_on_current_page = [](RimeSessionId, size_t i) -> Bool {
-        if (f.highlightFails) return false;
-        f.highlighted = static_cast<int>(i); return true;
-    };
-    a.highlight_candidate = [](RimeSessionId, size_t i) -> Bool {
-        if (f.highlightFails) return false;
-        f.highlightedGlobal = i; f.highlighted = static_cast<int>(i % 5); return true;
-    };
+#endif
     Engine engine(&a); engine.start("shared", "user");
     auto value = engine.begin(1, "editor");
-    f.processors = {"ascii_composer", "speller"};
-    CHECK(engine.sequenceKeys().empty());
-    f.processors = {"ascii_composer", "lua_processor@*wanxiang.super_sequence*P", "speller"};
-    f.schemaValues["super_sequence/pin"] = "Control+bracketleft";
-    CHECK(engine.sequenceKeys() == std::vector<std::string>({"Control+j", "Control+k", "Control+l", "Control+bracketleft"}));
-    // Page-local target: highlight first, then the schema key with the frontend mask conversion.
-    value = engine.action(1, value.revision, 14, 2, "112 4");
-    CHECK(f.highlighted == 2 && f.keys == 1 && f.sym == 112 && f.mask == 4 && value.handled);
-    value = engine.action(1, value.revision, 15, 7, "106 68");
-    CHECK(f.highlightedGlobal == 7 && f.keys == 2 && f.sym == 106 && f.mask == (4 | 64 | (1 << 26)));
-    // Stale, malformed or unhighlightable targets never send the key.
-    CHECK(engine.action(1, value.revision - 1, 14, 0, "112 4").gate == Stale && f.keys == 2);
-    value = engine.action(1, value.revision, 14, 0, "bogus"); CHECK(f.keys == 2 && f.highlighted == 2);
-    value = engine.action(1, value.revision, 14, -1, "112 4"); CHECK(f.keys == 2);
-    f.highlightFails = true;
-    value = engine.action(1, value.revision, 14, 1, "112 4"); CHECK(f.keys == 2);
-    // librime answers false when the target is already highlighted; the key still applies.
-    f.highlighted = 1;
-    value = engine.action(1, value.revision, 14, 1, "112 4"); CHECK(f.keys == 3);
-    f.highlightFails = false;
-    // Without the highlight entry point the selection must already be the target.
-    f.highlighted = 2;
-    a.highlight_candidate = nullptr;
-    value = engine.action(1, value.revision, 15, 1, "112 4"); CHECK(f.keys == 3 && f.highlightedGlobal == 7);
-    engine.begin(2, "second");
-    CHECK(engine.action(1, value.revision, 14, 0, "112 4").gate == Stale && f.keys == 3);
+#ifdef RIME_CANDIDATE_EDIT_ACTIONS
+    CHECK(engine.candidateEditAvailable());
+    value = engine.action(1, value.revision, 14, 2, "manual_up");
+    CHECK(value.handled && f.editCalls == 1 && f.editIndex == 2 && f.editPage && f.editAction == "manual_up");
+    value = engine.action(1, value.revision, 15, 7, "manual_down");
+    CHECK(value.handled && f.editCalls == 2 && f.editIndex == 7 && !f.editPage && f.editAction == "manual_down");
+    CHECK(engine.action(1, value.revision - 1, 14, 0, "auto_delete").gate == Stale && f.editCalls == 2);
+    value = engine.action(1, value.revision, 14, -1, "manual_delete");
+    CHECK(!value.handled && f.editCalls == 2);
+    value = engine.action(1, value.revision, 14, 0, "bogus");
+    CHECK(!value.handled && f.editCalls == 3);
+    CHECK(f.keys == 0);
+    a.edit_candidate = nullptr;
+#endif
+    CHECK(!engine.candidateEditAvailable());
+    value = engine.action(1, value.revision, 15, 2, "auto_delete");
+    CHECK(value.handled && f.deletedGlobal == 2);
+    value = engine.action(1, value.revision, 15, 2, "manual_up");
+    CHECK(!value.handled && f.keys == 0);
     engine.stop();
 }
 void testReadOnlyRefresh() {
@@ -1112,7 +1092,7 @@ void testEvoPrismResolution() {
     CHECK(accepted(workspace("first-type", {"zrm.prism.bin"})));
 }
 void testRuntimeTypeGroups() {
-#ifdef RIME_EVO_TYPE_GROUPS
+#ifdef RIME_EVO_TYPE_OPTIONS
     f = {}; f.inputTypesPresent = true;
     f.inputOptions = {{"zrm", ""}, {"pinyin", ""}};
     auto a = api(); Engine engine(&a); engine.start("shared", "user");

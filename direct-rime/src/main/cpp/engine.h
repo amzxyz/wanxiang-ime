@@ -61,9 +61,8 @@ public:
     std::vector<std::string> typeGroupState(const std::string& schema, const std::string& group);
     bool selectTypeOption(const std::string& schema, const std::string& group, const std::string& option);
     std::vector<std::string> prewarmAssets();
-    // Manual candidate ordering keys of the current schema (Wanxiang super_sequence):
-    // up, down, reset, pin. Empty when the schema does not load such a processor.
-    std::vector<std::string> sequenceKeys();
+    // Whether the loaded API exposes native candidate editing.
+    bool candidateEditAvailable();
     std::string schemaSelection();
     // Schema activated for a new session; falls back to the first enabled schema when no
     // input session exists yet (for example, while the settings page is open).
@@ -87,7 +86,6 @@ private:
     void owner() const;
     Gate gate(int64_t generation) const;
     Snapshot snapshot(int64_t generation, bool handled = true, int64_t inputStatistics = -1);
-    bool highlightLanded(size_t index, bool pageLocal);
     void invalidateStatusCache();
     void readStatus(Snapshot& snapshot);
     int64_t captureInputStatistics(bool requested) const;

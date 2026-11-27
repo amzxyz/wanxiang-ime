@@ -123,8 +123,8 @@ internal object Native {
     external fun typeGroupState(schema: String, group: String): Array<String>
     external fun selectTypeOption(schema: String, group: String, option: String): Boolean
     external fun prewarmAssets(): Array<String>
-    /** Current schema's manual ordering keys (up, down, reset, pin); empty when unsupported. */
-    external fun sequenceKeys(): Array<String>
+    /** Whether the loaded API provides native candidate editing. */
+    external fun candidateEditAvailable(): Boolean
     external fun schemaSelection(): String
     /** Schema a new session would activate; empty when no schema is available. */
     external fun currentSchema(): String

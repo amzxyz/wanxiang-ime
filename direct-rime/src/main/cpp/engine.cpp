@@ -462,18 +462,6 @@ Snapshot Engine::key(int64_t generation, int sym, int mask, bool release, bool s
     { CoreTrace trace("rime.direct.process_key", timing_); handled = api_->process_key(session_, sym, states); }
     return snapshot(generation, handled, inputStatistics);
 }
-bool Engine::highlightLanded(size_t index, bool pageLocal) {
-    if (!RIME_API_AVAILABLE(api_, get_context) || !RIME_API_AVAILABLE(api_, free_context)) return false;
-    RimeContext context{}; RIME_STRUCT_INIT(RimeContext, context);
-    if (!api_->get_context(session_, &context)) return false;
-    ScopeExit cleanup([&] { api_->free_context(&context); });
-    if (context.menu.num_candidates <= 0 || context.menu.page_size <= 0) return false;
-    const auto pageSize = static_cast<size_t>(context.menu.page_size);
-    const auto highlighted = static_cast<size_t>(context.menu.highlighted_candidate_index);
-    // The page-local index equals the highlighted slot; a global index is only
-    // observable through its page offset.
-    return pageLocal ? highlighted == index : highlighted == index % pageSize;
-}
 Snapshot Engine::action(int64_t generation, int64_t revision, int action, int index, const std::string& value, bool statistics) {
     Trace trace(action == 1 || action == 11 ? "rime.direct.select_candidate" : "rime.direct.action");
     owner();
@@ -516,25 +504,19 @@ Snapshot Engine::action(int64_t generation, int64_t revision, int action, int in
     case 12: if (index >= 0 && RIME_API_AVAILABLE(api_, delete_candidate)) api_->delete_candidate(session_, index); break;
     case 13: break; // Read current output without moving the caret or recomposing.
     case 14: case 15: {
-        // Manual ordering (Wanxiang super_sequence) acts on the highlighted candidate:
-        // highlight the target of this snapshot, then deliver the schema's own key to it.
-        // value is "<keysym> <frontend mask>", resolved from sequenceKeys() by the frontend.
-        std::istringstream parsed(value);
-        int sym = 0, mask = 0;
-        if (index < 0 || !(parsed >> sym >> mask) || sym <= 0) break;
-        const auto target = static_cast<size_t>(index);
-        const bool pageLocal = action == 14;
-        if (pageLocal) {
-            if (RIME_API_AVAILABLE(api_, highlight_candidate_on_current_page))
-                api_->highlight_candidate_on_current_page(session_, target);
-        } else if (RIME_API_AVAILABLE(api_, highlight_candidate)) {
-            api_->highlight_candidate(session_, target);
+        handled = false;
+        if (index < 0) break;
+#ifdef RIME_CANDIDATE_EDIT_ACTIONS
+        if (RIME_API_AVAILABLE(api_, edit_candidate))
+            handled = api_->edit_candidate(session_, static_cast<size_t>(index), action == 14, value.c_str());
+        else
+#endif
+        if (value == "auto_delete") {
+            if (action == 14 && RIME_API_AVAILABLE(api_, delete_candidate_on_current_page))
+                handled = api_->delete_candidate_on_current_page(session_, index);
+            else if (action == 15 && RIME_API_AVAILABLE(api_, delete_candidate))
+                handled = api_->delete_candidate(session_, index);
         }
-        // Context::Highlight() reports false when the target is already selected,
-        // which is the normal case for a pinned or already-forwarded candidate, so
-        // observe the selection instead of trusting that Bool to decide delivery.
-        if (highlightLanded(target, pageLocal))
-            api_->process_key(session_, sym, rimeMask(mask, false));
         break;
     }
     default: throw std::invalid_argument("unknown direct Rime action");
@@ -871,31 +853,13 @@ std::vector<std::string> Engine::prewarmAssets() {
     return result;
 }
 
-std::vector<std::string> Engine::sequenceKeys() {
+bool Engine::candidateEditAvailable() {
     owner();
-    std::vector<std::string> result;
-    if (gate(generation_) != Ready) return result;
-    char schema[1024]{};
-    if (!api_->get_current_schema(session_, schema, sizeof(schema))) return result;
-    RimeConfig config{};
-    if (!api_->schema_open(schema, &config)) return result;
-    ScopeExit cleanup([&] { api_->config_close(&config); });
-    bool enabled = false;
-    const auto processors = api_->config_list_size(&config, "engine/processors");
-    for (size_t i = 0; i < processors && !enabled; ++i) {
-        const auto name = safe(api_->config_get_cstring(&config, ("engine/processors/@" + std::to_string(i)).c_str()));
-        enabled = name.find("super_sequence") != std::string::npos;
-    }
-    if (!enabled) return result;
-    // Same defaults as super_sequence.lua when the schema leaves a key unset.
-    static constexpr const char* keys[][2] = {
-        {"up", "Control+j"}, {"down", "Control+k"}, {"reset", "Control+l"}, {"pin", "Control+p"},
-    };
-    for (const auto& key : keys) {
-        auto value = safe(api_->config_get_cstring(&config, (std::string("super_sequence/") + key[0]).c_str()));
-        result.push_back(value.empty() ? key[1] : value);
-    }
-    return result;
+#ifdef RIME_CANDIDATE_EDIT_ACTIONS
+    return gate(generation_) == Ready && RIME_API_AVAILABLE(api_, edit_candidate);
+#else
+    return false;
+#endif
 }
 
 std::vector<std::string> Engine::options() {
