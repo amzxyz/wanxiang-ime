@@ -135,6 +135,21 @@ class KeyboardPreviewUi(override val ctx: Context, val theme: Theme) : Ui {
 
     private val iconThemeChangeListener = IconThemeManager.OnIconThemeChangeListener {
         rebuildToolbarPreview(currentTheme ?: theme)
+        refreshIconThemePreview()
+    }
+
+    /**
+     * The real KeyboardWindow refreshes every keyboard instance when an icon theme changes.
+     * The settings preview owns a separate TextKeyboard, so it must refresh that instance too;
+     * rebuilding only the toolbar leaves the preview's letter-key artwork from the old theme.
+     */
+    private fun refreshIconThemePreview() {
+        if (!this::fakeKeyboardWindow.isInitialized) return
+        fakeKeyboardWindow.refreshIconTheme()
+        fakeKeyboardWindow.requestLayout()
+        fakeKeyboardWindow.invalidate()
+        blurMaskView.markKeyRegionsDirty()
+        blurMaskView.invalidate()
     }
 
     private val bkg = imageView {
