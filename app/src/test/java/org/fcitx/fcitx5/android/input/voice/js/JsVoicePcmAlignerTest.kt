@@ -52,6 +52,15 @@ class JsVoicePcmAlignerTest {
     }
 
     @Test
+    fun emptyPacketsAreNotDispatchedOrAllowedToConsumePendingBytes() {
+        val aligner = JsVoicePcmAligner()
+        assertNull(aligner.take(ByteArray(0)))
+        assertNull(aligner.take(byteArrayOf(1, 2)))
+        assertNull(aligner.take(ByteArray(0)))
+        assertArrayEquals(byteArrayOf(1, 2), aligner.flush())
+    }
+
+    @Test
     fun flushKeepsAnOddTailEvenByAppendingOneSilentByte() {
         // 尾巴也是音频包：豆包对奇数长度一律回 55000000，所以最后一段补一个 0 采样字节。
         val aligner = JsVoicePcmAligner()
@@ -67,7 +76,10 @@ class JsVoicePcmAlignerTest {
         val random = Random(11)
         repeat(500) {
             val packet = ByteArray(random.nextInt(0, 6402)) { random.nextInt(0, 256).toByte() }
-            aligner.take(packet)?.let { assertEquals(0, it.size % 2) }
+            aligner.take(packet)?.let {
+                assertTrue(it.isNotEmpty())
+                assertEquals(0, it.size % 6)
+            }
         }
     }
 

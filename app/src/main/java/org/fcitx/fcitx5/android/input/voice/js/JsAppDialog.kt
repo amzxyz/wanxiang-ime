@@ -511,8 +511,13 @@ internal class JsAppDialog(
                     (column.getChildAt(0) as? TextView)?.also(column::removeView)
                 }
             } else null
-            // 插件按 Foxy 的「没有宿主标题栏」约定写了自己的标题文本；这里已经有同名标题栏，重复的一行只会挤掉内容。
-            if (legacyTitle == null && scriptColumn != null && scriptColumn.childCount > 0) {
+            // 只去掉无交互、无附加语义的同名纯文本标题，不误删同名按钮或状态控件。
+            val first = (declaredLayout?.get("children") as? JsonArray)?.firstOrNull() as? JsonObject
+            if (legacyTitle == null && scriptColumn != null && first != null &&
+                first.text("type") == "text" && first.text("id").isBlank() &&
+                first.text("icon").isBlank() && first.text("description").isBlank() &&
+                first.text("tone") != "error"
+            ) {
                 val duplicate = scriptColumn.getChildAt(0) as? TextView
                 if (duplicate != null && duplicate.text?.toString()?.trim() == tools?.title?.trim()) {
                     scriptColumn.removeView(duplicate)

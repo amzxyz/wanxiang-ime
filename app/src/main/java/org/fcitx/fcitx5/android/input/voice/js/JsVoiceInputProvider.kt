@@ -374,6 +374,7 @@ internal class JsVoicePcmAligner {
 
     /** 返回可以直接投递给插件的 PCM；不足一次对齐边界时返回 null 并缓存到下一片。 */
     fun take(pcm: ByteArray): ByteArray? {
+        if (pcm.isEmpty()) return null
         if (pending.isEmpty() && pcm.size % ALIGNMENT == 0) return pcm
         val joined = pending + pcm
         val usable = joined.size - joined.size % ALIGNMENT
@@ -384,7 +385,7 @@ internal class JsVoicePcmAligner {
     /**
      * stop 前取出尾巴。它是最后一段，base64 带 `=` 填充也没关系（不会被拼接），
      * 但仍要保持偶数长度：豆包对任何奇数长度音频包都回 55000000，尾巴也不例外，
-     * 所以奇数时补一个 0 采样字节（静音，不影响识别）。
+     * 所以奇数时补一个 0 字节，使最后一个不完整的采样达到 2 字节。
      */
     fun flush(): ByteArray? {
         val tail = pending

@@ -185,6 +185,24 @@ class JsAppDialogTest {
         } finally { dialog.dismiss() }
     }
 
+    @Test fun hostHeaderDoesNotRemoveASameNamedButton() {
+        val service = Robolectric.buildService(FcitxInputMethodService::class.java).get()
+        val tools = JsAppPanelTools("翻译",
+            listOf(JsAppPanelEntry(JsAppButtonBinding.Target("js:llm-assistant", "llm_assistant"), "AI 助手")),
+            { _ -> })
+        val events = mutableListOf<String>()
+        val dialog = JsAppDialog(service, { id, _ -> events += id },
+            { service.jsAppInputConnection = null }, tools = tools)
+        try {
+            dialog.render(Json.parseToJsonElement("""{"layout":{"type":"column","children":[
+                {"type":"button","id":"translate","label":"翻译"},
+                {"type":"input","id":"input","value":"原文"}]}}""").jsonObject)
+            descendants(dialog.findViewById(android.R.id.content))
+                .filterIsInstance<MaterialButton>().single { it.tag == "translate" }.performClick()
+            assertEquals(listOf("translate"), events)
+        } finally { dialog.dismiss() }
+    }
+
     private fun descendants(view: View): List<View> = listOf(view) + if (view is ViewGroup) {
         (0 until view.childCount).flatMap { descendants(view.getChildAt(it)) }
     } else emptyList()
