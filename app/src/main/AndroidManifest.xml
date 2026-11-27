@@ -34,8 +34,12 @@
     <queries tools:node="removeAll" />
 
     <queries>
+        <!-- Release and Debug use distinct host IDs; both plugin actions remain discoverable. -->
         <intent>
-            <action android:name="${applicationId}.plugin.VOICE_INPUT" />
+            <action android:name="wanxiang.pinyin.ime.plugin.VOICE_INPUT" />
+        </intent>
+        <intent>
+            <action android:name="wanxiang.pinyin.ime.debug.plugin.VOICE_INPUT" />
         </intent>
         <intent>
             <action android:name="android.view.InputMethod" />
