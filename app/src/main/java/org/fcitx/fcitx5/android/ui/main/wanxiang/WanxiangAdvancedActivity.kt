@@ -236,7 +236,7 @@ class WanxiangAdvancedActivity : SettingsUiActivity() {
                 }, LinearLayout.LayoutParams(-1, dp(1)).apply { marginStart = dp(16); marginEnd = dp(16) })
                 addRow(row, state)
             }
-            if (state.file == WanxiangAdvancedViewModel.COMMON && state.rows.isNotEmpty()) fields.addView(EditorUi.button(this,
+            if (state.file == WanxiangAdvancedViewModel.COMMON && state.rows.any { it.common == WanxiangCommonSettings.Key.REMEMBER_SWITCHES }) fields.addView(EditorUi.button(this,
                 R.string.wanxiang_advanced_import_switches, tonal = true) { model.importSwitches() }.apply { isEnabled = !state.stale })
         } else {
             fun disable(view: View) {

@@ -326,6 +326,9 @@ extern "C" JNIEXPORT void JNICALL JNI_METHOD(releasePrewarm)(JNIEnv* env, jobjec
 extern "C" JNIEXPORT jboolean JNICALL JNI_METHOD(candidateEditAvailable)(JNIEnv* env, jobject) {
     try { return instance().candidateEditAvailable(); } catch (const std::exception& e) { error(env, e); return false; }
 }
+extern "C" JNIEXPORT jboolean JNICALL JNI_METHOD(schemaSwitchSelectionAvailable)(JNIEnv* env, jobject) {
+    try { return instance().schemaSwitchSelectionAvailable(); } catch (const std::exception& e) { error(env, e); return false; }
+}
 extern "C" JNIEXPORT jstring JNICALL JNI_METHOD(schemaSelection)(JNIEnv* env, jobject) {
     try { return string(env, instance().schemaSelection()); } catch (const std::exception& e) { error(env, e); return nullptr; }
 }

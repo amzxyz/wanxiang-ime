@@ -37,6 +37,7 @@ internal class WanxiangAdvancedViewModel(application: Application) : AndroidView
     private var initialized = false
     private var selectedFile = COMMON
     private var selectedGroup = ""
+    private var schemaSwitchSelection = false
 
     fun initialize(restored: String?) {
         if (initialized) return
@@ -76,6 +77,7 @@ internal class WanxiangAdvancedViewModel(application: Application) : AndroidView
         session!!.add(Json.decodeFromString<WanxiangAdvancedFiles.Snapshot>(raw.findByName("Snapshot")!!.value))
     }
     private suspend fun loadSelection() {
+        schemaSwitchSelection = connection.runOnReady { supportsSchemaSwitchSelection() }
         if (selectedFile == COMMON) {
             require("default.yaml" in mutable.value.files)
             mutable.value.files.filter { it == "default.yaml" || it in MAIN_FILES || it in PRODUCERS }.forEach { load(it) }
@@ -131,6 +133,7 @@ internal class WanxiangAdvancedViewModel(application: Application) : AndroidView
         catch (error: Exception) { refresh(error = error.stackTraceToString()) }
     }
     fun importSwitches() {
+        if (schemaSwitchSelection) return
         val common = WanxiangCommonSettings(session!!)
         common.set(WanxiangCommonSettings.Key.REMEMBER_SWITCHES, common.importSwitches())
         refresh()
@@ -217,7 +220,9 @@ internal class WanxiangAdvancedViewModel(application: Application) : AndroidView
         val s = session ?: run { mutable.value = mutable.value.copy(busy = false, saving = false, error = error); return }
         val all = if (selectedFile == COMMON && s.mainFiles.isNotEmpty() && "default.yaml" in s.documents) {
             val common = WanxiangCommonSettings(s)
-            WanxiangCommonSettings.Key.entries.map { key ->
+            WanxiangCommonSettings.Key.entries.filterNot {
+                schemaSwitchSelection && it == WanxiangCommonSettings.Key.REMEMBER_SWITCHES
+            }.map { key ->
                 val value = common.get(key)
                 Row(key.name, key.name, s.yaml.dump(value), s.yaml.type(value), help = common.help(key), common = key)
             }

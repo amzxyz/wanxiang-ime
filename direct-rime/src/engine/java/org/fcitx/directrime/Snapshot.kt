@@ -128,6 +128,8 @@ internal object Native {
     external fun releasePrewarm()
     /** Whether the loaded API provides native candidate editing. */
     external fun candidateEditAvailable(): Boolean
+    /** Available even without an input session. */
+    external fun schemaSwitchSelectionAvailable(): Boolean
     external fun schemaSelection(): String
     /** Schema a new session would activate; empty when no schema is available. */
     external fun currentSchema(): String

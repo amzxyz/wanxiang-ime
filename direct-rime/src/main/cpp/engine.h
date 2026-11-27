@@ -64,6 +64,7 @@ public:
     void releasePrewarm();
     // Whether the loaded API exposes native candidate editing.
     bool candidateEditAvailable();
+    bool schemaSwitchSelectionAvailable();
     std::string schemaSelection();
     // Schema activated for a new session; falls back to the first enabled schema when no
     // input session exists yet (for example, while the settings page is open).
@@ -94,10 +95,8 @@ private:
     void initialize(bool fullCheck);
     void acceptPartialDeployment();
     bool fixSchemaListOrder();
-    // librime writes var/option/<name> only when its own switcher menu toggles
-    // an option listed in switcher/save_options. This frontend sets options
-    // directly, so mirror that rule; otherwise every new native session (another
-    // app's editor) reverts the user's switch to the schema default.
+    // Explicit switch selection uses the core's native policy when available.
+    // The helpers below are only for older/external librime engines.
     void setOption(const std::string& option, bool value);
     bool saveableOption(const std::string& option);
     void rememberOption(const std::string& option, bool value);

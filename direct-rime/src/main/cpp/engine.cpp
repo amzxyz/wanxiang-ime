@@ -647,6 +647,14 @@ void Engine::releasePrewarm() {
 #endif
 }
 
+bool Engine::schemaSwitchSelectionAvailable() {
+    owner();
+#ifdef RIME_SCHEMA_SWITCH_SELECTION
+    return started_ && RIME_API_AVAILABLE(api_, select_switch);
+#else
+    return false;
+#endif
+}
 bool Engine::candidateEditAvailable() {
     owner();
 #ifdef RIME_CANDIDATE_EDIT_ACTIONS

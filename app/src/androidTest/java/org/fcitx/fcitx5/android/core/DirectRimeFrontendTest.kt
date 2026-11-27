@@ -95,15 +95,13 @@ class DirectRimeFrontendTest {
             if (testName.methodName == "schemaSwitchPreferencesSurviveNewSessionsAndRestart") writeSavedOptionsFixture(directory)
             if (testName.methodName == "preeditCursorUsesRawCoordinates") writeCursorFixture(directory)
             if (testName.methodName == "symbolKeysAndPopupsUseRimePunctuation") writePunctuationFixture(directory)
-            if (testName.methodName in setOf("newSessionsKeepRimeSavedAscii", "modeMenuRemembersBothDirections",
-                    "modeMenuWithoutSaveOptionsStaysSessionLocal")) {
+            if (testName.methodName in setOf("newSessionsKeepRimeSavedAscii", "modeMenuRemembersBothDirections")) {
                 val schema = File(directory, "direct_smoke.schema.yaml")
                 val text = schema.readText().replace("\r\n", "\n")
                 val reset = "  - name: ascii_mode\n    reset: 0\n"
                 check(text.contains(reset))
                 schema.writeText(text.replace(reset, "  - name: ascii_mode\n"))
-                val options = if (testName.methodName == "modeMenuWithoutSaveOptionsStaysSessionLocal") "[]" else "[ascii_mode]"
-                File(directory, "default.yaml").appendText("\nswitcher:\n  save_options: $options\n")
+                // No save_options entry is needed with the new native switch API.
             }
             if (testName.methodName == "newApplicationDoesNotInheritInlineAscii") {
                 File(directory, "direct_smoke.schema.yaml").appendText("\nascii_composer:\n  inline_uppercase: true\n")
@@ -258,7 +256,6 @@ end
         schema.writeText(text.replace(speller, rules))
     }
     private fun writeSavedOptionsFixture(directory: File) {
-        File(directory, "default.yaml").appendText("\nswitcher:\n  save_options: [remembered, radio_a, radio_b, reset_preference]\n")
         val schema = File(directory, "direct_smoke.schema.yaml")
         schema.writeText(schema.readText().replace("\r\n", "\n").replace("engine:\n", """
   - name: remembered
@@ -269,6 +266,7 @@ end
     reset: 1
     states: [关闭, 开启]
   - name: local_only
+    reset: 0
     states: [关闭, 开启]
 engine:
 """.trimStart('\n')))
@@ -311,13 +309,14 @@ engine:
         newSession("frontend.options.disabled")
         expect(remembered = false, radio = "radio_a")
 
-        val default = File(context.getExternalFilesDir(null), "data/$profile/default.yaml")
-        default.writeText(default.readText().replace("[remembered, radio_a", "[local_only, radio_a"))
-        connection.runOnReady { activateAction(11) }
-        toggle("local_only")
+        connection.runOnReady { selectTestSchema("second") }
+        expect(remembered = false, radio = "radio_a")
         toggle("remembered")
-        newSession("frontend.options.new-whitelist")
-        expect(remembered = false, radio = "radio_a", local = true)
+        selectRadio("radio_b")
+        connection.runOnReady { selectTestSchema("direct_smoke") }
+        expect(remembered = false, radio = "radio_a")
+        connection.runOnReady { selectTestSchema("second") }
+        expect(remembered = true, radio = "radio_b")
     }
 
     private suspend fun FcitxAPI.expectRimeState(schema: String, ascii: Boolean) {
@@ -367,7 +366,7 @@ engine:
         org.junit.Assume.assumeTrue("Uses the disposable smoke fixture", fixtureArchive == null)
         connection.runOnReady {
             expectRimeState("direct_smoke", ascii = false)
-            // This fixture declares save_options without an ascii_mode reset.
+            // This fixture has no ascii_mode reset or save_options whitelist.
             activateAction(statusArea().first { it.name == "ascii_mode" }.id)
             expectRimeState("direct_smoke", ascii = true)
             startInputSession(invalidateInputSession(), "frontend.saved-ascii.other")
@@ -410,7 +409,7 @@ engine:
         }
     }
 
-    @Test fun modeMenuWithoutSaveOptionsStaysSessionLocal(): Unit = runBlocking {
+    @Test fun modeMenuWithResetStaysSessionLocal(): Unit = runBlocking {
         connection.runOnReady {
             val mode = statusArea().first { it.name == "rime" }.menu!!.first { it.name == "ascii_mode" }
             activateAction(mode.id)
@@ -419,7 +418,7 @@ engine:
             expectRimeState("direct_smoke", false)
             val file = File(context.getExternalFilesDir(null), "data/$profile/user.yaml")
             val config = if (file.exists()) file.readText() else ""
-            assertFalse("An unlisted option must not be saved", Regex("(?m)^\\s+ascii_mode:").containsMatchIn(config))
+            assertFalse("A reset option must not be saved", Regex("(?m)^\\s+ascii_mode:").containsMatchIn(config))
         }
     }
 

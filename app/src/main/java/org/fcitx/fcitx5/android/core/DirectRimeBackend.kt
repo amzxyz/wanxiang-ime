@@ -755,13 +755,22 @@ class DirectRimeBackend(context: Context) : InputEngine {
                 when (val command = DirectRimeStatusMenu.resolveOwnerCommand(id, schemas, optionRows)) {
                     DirectRimeStatusMenu.OwnerCommand.ToggleMode -> act(6)
                     is DirectRimeStatusMenu.OwnerCommand.SelectSchema -> act(3, value = command.schema)
-                    is DirectRimeStatusMenu.OwnerCommand.SetOptions -> command.changes.forEach { change ->
-                        act(8, if (change.enabled) 1 else 0, change.name)
+                    is DirectRimeStatusMenu.OwnerCommand.SetOptions -> {
+                        // New core selects a radio group in one operation.
+                        val changes = if (Native.schemaSwitchSelectionAvailable())
+                            command.changes.takeLast(1) else command.changes
+                        changes.forEach { change ->
+                            act(8, if (change.enabled) 1 else 0, change.name)
+                        }
                     }
                     null -> Unit
                 }
             }
         }
+    }
+
+    override suspend fun supportsSchemaSwitchSelection(): Boolean = onOwner {
+        started && !maintenance && Native.schemaSwitchSelectionAvailable()
     }
 
     override suspend fun setRimeOption(name: String, enabled: Boolean): Boolean = onOwner {

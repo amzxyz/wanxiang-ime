@@ -757,9 +757,11 @@ void testNativeSchemaSwitchSelection() {
         if (std::strcmp(name, "ascii_mode") && std::strcmp(name, "s2t")) return false;
         if (!std::strcmp(name, "ascii_mode")) f.ascii = value;
         f.savedOptions[std::string("native/") + name] = value;
+        if (f.callback) f.callback(f.context, 7, "option", name);
         return true;
     };
     Engine engine(&a); engine.start("shared", "user");
+    CHECK(engine.schemaSwitchSelectionAvailable());
     auto value = engine.begin(1, "editor");
     value = engine.action(1, value.revision, 8, 1, "s2t");
     CHECK(f.savedOptions["native/s2t"] && f.userConfigOpens == 0);
