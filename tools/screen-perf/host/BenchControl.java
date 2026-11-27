@@ -1,4 +1,4 @@
-package io.github.sandyyur.inputbench;
+package com.amzxyz.wanxiang.inputbench;
 import android.content.*;
 public final class BenchControl extends BroadcastReceiver {
     @Override public void onReceive(Context context, Intent intent) {

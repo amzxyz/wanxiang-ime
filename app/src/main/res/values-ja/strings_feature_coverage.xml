@@ -319,7 +319,7 @@
     <string name="text_keyboard_layout_move_row_up">行を上へ移動</string>
     <string name="text_keyboard_layout_move_row_down">行を下へ移動</string>
     <string name="text_keyboard_layout_customized_key">%1$s（カスタム属性）</string>
-    <string name="settings_ui_appearance">設定画面の外観</string>
+    <string name="settings_ui_appearance">設定画面</string>
     <string name="settings_ui_appearance_summary">ライト／ダークモード、ダイナミックカラー、配色、コントラスト</string>
     <string name="settings_section_settings_ui">設定画面</string>
     <string name="settings_section_keyboard_appearance">キーボードの外観</string>

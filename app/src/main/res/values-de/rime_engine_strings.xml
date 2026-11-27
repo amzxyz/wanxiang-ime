@@ -7,7 +7,7 @@
     <string name="rime_engine_ready">Die Engine-Liste ist bereit</string>
     <string name="rime_engine_fallback_title">Rückkehr zur Ersatz-Engine</string>
     <string name="rime_engine_builtin_section">Integrierte Engine</string>
-    <string name="rime_engine_builtin_name">Integriertes SandyYuR/librime</string>
+    <string name="rime_engine_builtin_name">Integriertes librime-evo</string>
     <string name="rime_engine_builtin_details">In dieser APK enthalten · Arbeitsverzeichnis: %1$s</string>
     <string name="rime_engine_imported_section">Importierte .so-Engines</string>
     <string name="rime_engine_import_so">.so-Engine importieren</string>

@@ -16,7 +16,7 @@ import uuid
 
 PACKAGE = 'org.fcitx.fcitx5.android.pr32bench.debug'
 TEST_PACKAGE = PACKAGE + '.test'
-HOST = 'io.github.sandyyur.inputbench'
+HOST = 'com.amzxyz.wanxiang.inputbench'
 PACKAGES = frozenset((PACKAGE, TEST_PACKAGE, HOST))
 COMPONENT = PACKAGE + '/org.fcitx.fcitx5.android.input.FcitxInputMethodService'
 ORIGINAL_MAIN = 'com.amzxyz.wanxiang.ime.debug/org.fcitx.fcitx5.android.ui.main.MainActivity'

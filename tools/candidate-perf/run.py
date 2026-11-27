@@ -17,7 +17,7 @@ parser.add_argument('--trials', type=int, default=3)
 parser.add_argument('--profile', action='store_true', help='Separate diagnostic run; do not compare its timings with untraced runs')
 args = parser.parse_args()
 args.output.mkdir(parents=True, exist_ok=True)
-host = 'io.github.sandyyur.inputbench'
+host = 'com.amzxyz.wanxiang.inputbench'
 
 def adb(*parts, check=True, timeout=900, input=None):
     return subprocess.run(['adb', *map(str, parts)], input=input, text=True, capture_output=True, check=check, timeout=timeout)

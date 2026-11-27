@@ -14,7 +14,7 @@ import subprocess as sp
 import time
 import zipfile
 
-HOST = 'io.github.sandyyur.inputbench'
+HOST = 'com.amzxyz.wanxiang.inputbench'
 
 
 def adb(*args, check=True, timeout=300):

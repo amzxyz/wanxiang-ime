@@ -1,4 +1,4 @@
-package io.github.sandyyur.inputbench;
+package com.amzxyz.wanxiang.inputbench;
 
 import android.app.Activity;
 import android.graphics.Canvas;

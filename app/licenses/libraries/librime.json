@@ -1,9 +1,9 @@
 {
-    "uniqueId": "rime/librime",
-    "artifactVersion": "1.17.0-1b3417d+zhongzhou.446f858",
-    "description": "Rime Input Method Engine",
-    "name": "rime/librime",
-    "website": "https://github.com/rime/librime",
+    "uniqueId": "amzxyz/librime-evo",
+    "artifactVersion": "76ed0c0",
+    "description": "Rime EVO input method engine",
+    "name": "amzxyz/librime-evo",
+    "website": "https://github.com/amzxyz/librime-evo",
     "tag": "native",
     "licenses": [
         "BSD-3-Clause"

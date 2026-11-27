@@ -1,4 +1,4 @@
-package io.github.sandyyur.inputbench;
+package com.amzxyz.wanxiang.inputbench;
 
 import android.accessibilityservice.AccessibilityServiceInfo;
 import android.content.Intent;

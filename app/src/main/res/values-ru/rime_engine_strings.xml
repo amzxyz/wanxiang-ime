@@ -7,7 +7,7 @@
     <string name="rime_engine_ready">Список движков готов</string>
     <string name="rime_engine_fallback_title">Возврат к резервному движку</string>
     <string name="rime_engine_builtin_section">Встроенный движок</string>
-    <string name="rime_engine_builtin_name">Встроенный SandyYuR/librime</string>
+    <string name="rime_engine_builtin_name">Встроенный librime-evo</string>
     <string name="rime_engine_builtin_details">Включён в этот APK · Рабочий каталог: %1$s</string>
     <string name="rime_engine_imported_section">Импортированные движки .so</string>
     <string name="rime_engine_import_so">Импортировать движок .so</string>

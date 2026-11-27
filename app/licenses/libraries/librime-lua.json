@@ -1,9 +1,9 @@
 {
-    "uniqueId": "hchunhui/librime-lua",
-    "artifactVersion": "68f9c36",
-    "description": "Extending RIME with Lua scripts",
-    "name": "hchunhui/librime-lua",
-    "website": "https://github.com/hchunhui/librime-lua",
+    "uniqueId": "amzxyz/librime-evo-lua",
+    "artifactVersion": "102189b",
+    "description": "LuaJIT-based Lua extension plugin for librime-evo",
+    "name": "amzxyz/librime-evo-lua",
+    "website": "https://github.com/amzxyz/librime-evo-lua",
     "tag": "native",
     "licenses": [
         "BSD-3-Clause"

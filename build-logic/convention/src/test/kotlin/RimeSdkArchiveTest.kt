@@ -54,7 +54,7 @@ class RimeSdkArchiveTest {
                 output.closeEntry()
             }
         }
-        return zip to RimeSdkLock(1, "SandyYuR/librime", "android-sdk-test", "rime-android-sdk.zip", RimeSdkArchive.sha256(zip), commit, upstream, abis)
+        return zip to RimeSdkLock(1, "example/rime-sdk", "android-sdk-test", "rime-android-sdk.zip", RimeSdkArchive.sha256(zip), commit, upstream, abis)
     }
 
     @Test fun verifiedSdkExtractsAllAbisAndSharedData() {

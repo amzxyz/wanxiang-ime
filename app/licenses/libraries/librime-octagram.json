@@ -1,11 +1,11 @@
 {
-    "uniqueId": "lotem/librime-octagram",
-    "artifactVersion": "dfcc151",
-    "description": "RIME octagram plugin",
-    "name": "lotem/librime-octagram",
-    "website": "https://github.com/lotem/librime-octagram",
+    "uniqueId": "amzxyz/librime-evo-octagram",
+    "artifactVersion": "f9652e7",
+    "description": "EVO Octagram language model plugin (.dlm)",
+    "name": "amzxyz/librime-evo-octagram",
+    "website": "https://github.com/amzxyz/librime-evo-octagram",
     "tag": "native",
     "licenses": [
-        "GPL-3.0-only"
+        "BSD-3-Clause"
     ]
 }

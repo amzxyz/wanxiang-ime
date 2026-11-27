@@ -158,7 +158,7 @@ def run(args):
         'script_sha256':hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
         'harness_sha256':record['harness_sha256'],'neutral_host_sha256':hashlib.sha256(args.host.read_bytes()).hexdigest(),
         'serial':args.serial,'expected_avd_name':args.expected_avd_name,'allow_destructive_reset':True},indent=2)+'\n')
-    host = 'io.github.sandyyur.inputbench'
+    host = 'com.amzxyz.wanxiang.inputbench'
 
     active_trace = None
     def preserve_failed_trace():

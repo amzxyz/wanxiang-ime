@@ -7,7 +7,7 @@
     <string name="rime_engine_ready">エンジン一覧の準備ができました</string>
     <string name="rime_engine_fallback_title">エンジンのフォールバック</string>
     <string name="rime_engine_builtin_section">内蔵エンジン</string>
-    <string name="rime_engine_builtin_name">内蔵 SandyYuR/librime</string>
+    <string name="rime_engine_builtin_name">内蔵 librime-evo</string>
     <string name="rime_engine_builtin_details">この APK に同梱 · 作業ディレクトリ：%1$s</string>
     <string name="rime_engine_imported_section">インポート済みの .so エンジン</string>
     <string name="rime_engine_import_so">.so エンジンをインポート</string>

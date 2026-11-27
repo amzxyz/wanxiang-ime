@@ -123,7 +123,7 @@ class ScreenFixtureTest {
                 ThemeManager.setNormalModeTheme(ThemePreset.MaterialLight)
             }
             connection.runOnReady {
-                activate(31001, "io.github.sandyyur.inputbench")
+                activate(31001, "com.amzxyz.wanxiang.inputbench")
                 if (!directory.isDirectory) {
                     setAddonSubConfig("rime", "profile-manager", RawConfig(arrayOf(RawConfig("Action", "create"), RawConfig("Name", profile))))
                     check(profiles()["Error"].value.isEmpty())
@@ -140,7 +140,7 @@ class ScreenFixtureTest {
             withTimeout(240_000) { while (connection.runOnReady { focus(true); currentIme().subMode.icon } != "fcitx-rime:wanxiang") delay(100) }
             val component = "${ctx.packageName}/org.fcitx.fcitx5.android.input.FcitxInputMethodService"
             shell("ime enable $component"); shell("ime set $component")
-            shell("am start -W -n io.github.sandyyur.inputbench/.BenchHost")
+            shell("am start -W -n com.amzxyz.wanxiang.inputbench/.BenchHost")
             await("Keyboard visible") { views().any { it.first.equals("n", true) } }
             delay(1500)
             connection.runOnReady {
@@ -157,7 +157,7 @@ class ScreenFixtureTest {
             // Untimed warmup populates identical paths; real Android hardware events, not API replay.
             for (c in "nihao zhongguo shurufa ") { hardware(c); delay(80) }
             delay(600)
-            shell("am broadcast -n io.github.sandyyur.inputbench/.BenchControl --es command clear")
+            shell("am broadcast -n com.amzxyz.wanxiang.inputbench/.BenchControl --es command clear")
             // A non-empty candidate bar is required to locate its text region.
             for (c in "nihao") { hardware(c); delay(100) }
             delay(500)
@@ -188,7 +188,7 @@ class ScreenFixtureTest {
                 requireNotNull(other)
                 check(other.contains(active.centerX(), active.centerY())) { "Keyboard geometry moves: $c $active -> $other" }
             }
-            shell("am broadcast -n io.github.sandyyur.inputbench/.BenchControl --es command clear")
+            shell("am broadcast -n com.amzxyz.wanxiang.inputbench/.BenchControl --es command clear")
             val maps = File("/proc/self/maps").readText()
             val labels = connection.runOnReady { statusArea().map { it.shortText } }
             for (expected in listOf("上下文开", "简码开", "小字集"))

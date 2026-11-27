@@ -16,7 +16,7 @@ text = manifest.read_text().replace('</application>', '''
         <activity android:name=".SendHost" android:exported="true" android:screenOrientation="portrait"
             android:windowSoftInputMode="adjustResize|stateAlwaysVisible" />
     </application>''').replace('</manifest>', '''
-    <instrumentation android:name=".SendReplay" android:targetPackage="io.github.sandyyur.inputbench"
+    <instrumentation android:name=".SendReplay" android:targetPackage="com.amzxyz.wanxiang.inputbench"
         android:label="Candidate then client Send diagnostic" />
 </manifest>''')
 manifest.write_text(text)

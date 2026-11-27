@@ -12,7 +12,7 @@ from pathlib import Path
 from runtime_config import user_seed
 
 HERE = Path(__file__).resolve().parent
-HOST = 'io.github.sandyyur.inputbench'
+HOST = 'com.amzxyz.wanxiang.inputbench'
 # Whole phrases, each followed by a candidate-commit space; only full-pinyin keys.
 PHRASES = ['jintian', 'tianqi', 'henhao', 'women', 'yiqi', 'shiyong', 'zhongwen', 'shurufa',
            'ceshi', 'xingneng', 'houxuan', 'fangan', 'qiehuan', 'shuru', 'zhongguo', 'nihao',

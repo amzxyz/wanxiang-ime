@@ -1,6 +1,6 @@
 blank_issues_enabled: false
 
 contact_links:
-  - name: 使用手册 / User manual
-    url: https://sandyyur.github.io/fcitx5-android/manual/DIRECT_RIME_USER_GUIDE_zh-CN
-    about: 安装、首次输入、方案、键盘与主题等问题通常能在手册里找到答案。 / Most questions about installation, input methods, keyboard and themes are answered here.
+  - name: 项目说明 / Project documentation
+    url: https://github.com/amzxyz/wanxiang-ime#readme
+    about: 安装、方案及使用说明请参阅项目 README。 / See the project README for installation and usage.

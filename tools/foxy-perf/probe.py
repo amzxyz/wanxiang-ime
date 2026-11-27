@@ -49,7 +49,7 @@ try:
         import shutil
         shutil.rmtree(fixture_dir)
     adb('shell', 'settings', 'put', 'secure', 'show_ime_with_hard_keyboard', '1')
-    adb('shell', 'am', 'start', '-n', 'io.github.sandyyur.inputbench/.BenchHost')
+    adb('shell', 'am', 'start', '-n', 'com.amzxyz.wanxiang.inputbench/.BenchHost')
     # Observe actual native loading, not just the advertised ABI list.
     deadline = time.monotonic() + 120
     maps = ''

@@ -7,7 +7,7 @@ build_tools=$(find "$sdk_dir/build-tools" -name aapt2 | sort -V | tail -1 | xarg
 android_jar=$(find "$sdk_dir/platforms" -name android.jar | sort -V | tail -1)
 mkdir -p "$output_dir/classes" "$output_dir/dex"
 javac -source 8 -target 8 -classpath "$android_jar" -d "$output_dir/classes" "$source_dir"/*.java
-"$build_tools/d8" --lib "$android_jar" --output "$output_dir/dex" "$output_dir"/classes/io/github/sandyyur/inputbench/*.class
+"$build_tools/d8" --lib "$android_jar" --output "$output_dir/dex" "$output_dir"/classes/com/amzxyz/wanxiang/inputbench/*.class
 "$build_tools/aapt2" link -I "$android_jar" --manifest "$source_dir/AndroidManifest.xml" -o "$output_dir/host-unsigned.apk"
 (cd "$output_dir/dex" && zip -q -u "$output_dir/host-unsigned.apk" classes.dex)
 keytool -genkeypair -keystore "$output_dir/host.keystore" -storepass android -keypass android -alias androiddebugkey -dname CN=Benchmark -keyalg RSA -validity 3650 >/dev/null 2>&1

@@ -319,7 +319,7 @@
     <string name="text_keyboard_layout_move_row_up">Zeile nach oben</string>
     <string name="text_keyboard_layout_move_row_down">Zeile nach unten</string>
     <string name="text_keyboard_layout_customized_key">%1$s (eigene Eigenschaften)</string>
-    <string name="settings_ui_appearance">Aussehen der Einstellungen</string>
+    <string name="settings_ui_appearance">Einstellungsoberfläche</string>
     <string name="settings_ui_appearance_summary">Heller und dunkler Modus, dynamische Farben, Paletten und Kontrast</string>
     <string name="settings_section_settings_ui">Einstellungsoberfläche</string>
     <string name="settings_section_keyboard_appearance">Tastaturaussehen</string>

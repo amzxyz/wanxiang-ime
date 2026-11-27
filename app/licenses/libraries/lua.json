@@ -1,9 +1,9 @@
 {
-    "uniqueId": "lua/lua",
-    "artifactVersion": "5.4.7",
-    "description": "Powerful lightweight programming language designed for extending applications",
-    "name": "lua/lua",
-    "website": "https://www.lua.org/",
+    "uniqueId": "LuaJIT/LuaJIT",
+    "artifactVersion": "14d8a7a",
+    "description": "Just-in-time compiler and Lua runtime embedded in librime-evo-lua",
+    "name": "LuaJIT/LuaJIT",
+    "website": "https://github.com/LuaJIT/LuaJIT",
     "tag": "native",
     "licenses": [
         "MIT"

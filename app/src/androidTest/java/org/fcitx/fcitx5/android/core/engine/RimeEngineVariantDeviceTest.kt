@@ -85,7 +85,7 @@ class RimeEngineVariantDeviceTest {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val context = instrumentation.targetContext
         val packageName = InstrumentationRegistry.getArguments().getString("providerPackage")
-            ?: "org.rime.plugin.sandyyur.librime_evo"
+            ?: error("Pass -e providerPackage <installed-engine-provider-package>")
         val profileSource = InstrumentationRegistry.getArguments().getString("profilePath")
             ?: error("Pass -e profilePath /data/local/tmp/<profile>.zip")
         require(profileSource.matches(Regex("/data/local/tmp/[A-Za-z0-9._-]+\\.zip")))

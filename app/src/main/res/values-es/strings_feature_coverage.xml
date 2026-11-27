@@ -319,7 +319,7 @@
     <string name="text_keyboard_layout_move_row_up">Subir fila</string>
     <string name="text_keyboard_layout_move_row_down">Bajar fila</string>
     <string name="text_keyboard_layout_customized_key">%1$s (propiedades personalizadas)</string>
-    <string name="settings_ui_appearance">Apariencia de los ajustes</string>
+    <string name="settings_ui_appearance">Interfaz de ajustes</string>
     <string name="settings_ui_appearance_summary">Modos claro y oscuro, colores dinámicos, paletas y contraste</string>
     <string name="settings_section_settings_ui">Interfaz de ajustes</string>
     <string name="settings_section_keyboard_appearance">Apariencia del teclado</string>

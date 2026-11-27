@@ -7,7 +7,7 @@
     <string name="rime_engine_ready">엔진 목록이 준비되었습니다</string>
     <string name="rime_engine_fallback_title">엔진 대체</string>
     <string name="rime_engine_builtin_section">내장 엔진</string>
-    <string name="rime_engine_builtin_name">내장 SandyYuR/librime</string>
+    <string name="rime_engine_builtin_name">내장 librime-evo</string>
     <string name="rime_engine_builtin_details">이 APK에 포함됨 · 작업 디렉터리: %1$s</string>
     <string name="rime_engine_imported_section">가져온 .so 엔진</string>
     <string name="rime_engine_import_so">.so 엔진 가져오기</string>

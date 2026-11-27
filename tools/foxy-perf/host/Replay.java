@@ -1,4 +1,4 @@
-package io.github.sandyyur.inputbench;
+package com.amzxyz.wanxiang.inputbench;
 
 import android.app.Instrumentation;
 import android.accessibilityservice.AccessibilityServiceInfo;
@@ -88,7 +88,7 @@ public class Replay extends Instrumentation {
                     int option = logs.lastIndexOf("type=option value=soft_cursor");
                     if (start >= 0 && option > start) {
                         String binding = logs.substring(start, logs.indexOf('\n', start));
-                        if (binding.contains("package=io.github.sandyyur.inputbench "))
+                        if (binding.contains("package=com.amzxyz.wanxiang.inputbench "))
                             marker = binding+logs.substring(option-60, option);
                     }
                 } else {

@@ -318,7 +318,7 @@
     <string name="text_keyboard_layout_move_row_up">Переместить строку вверх</string>
     <string name="text_keyboard_layout_move_row_down">Переместить строку вниз</string>
     <string name="text_keyboard_layout_customized_key">%1$s (свои свойства)</string>
-    <string name="settings_ui_appearance">Оформление настроек</string>
+    <string name="settings_ui_appearance">Интерфейс настроек</string>
     <string name="settings_ui_appearance_summary">Светлый и тёмный режимы, динамические цвета, палитры и контраст</string>
     <string name="settings_section_settings_ui">Интерфейс настроек</string>
     <string name="settings_section_keyboard_appearance">Оформление клавиатуры</string>

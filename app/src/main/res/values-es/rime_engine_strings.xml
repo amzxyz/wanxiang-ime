@@ -7,7 +7,7 @@
     <string name="rime_engine_ready">La lista de motores está lista</string>
     <string name="rime_engine_fallback_title">Motor de respaldo</string>
     <string name="rime_engine_builtin_section">Motor integrado</string>
-    <string name="rime_engine_builtin_name">SandyYuR/librime integrado</string>
+    <string name="rime_engine_builtin_name">librime-evo integrado</string>
     <string name="rime_engine_builtin_details">Incluido en este APK · Directorio de trabajo: %1$s</string>
     <string name="rime_engine_imported_section">Motores .so importados</string>
     <string name="rime_engine_import_so">Importar motor .so</string>

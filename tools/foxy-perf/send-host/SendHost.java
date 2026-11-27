@@ -1,4 +1,4 @@
-package io.github.sandyyur.inputbench;
+package com.amzxyz.wanxiang.inputbench;
 
 import android.os.Bundle;
 import android.view.ViewGroup;

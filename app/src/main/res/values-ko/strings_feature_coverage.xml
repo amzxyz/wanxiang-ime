@@ -319,7 +319,7 @@
     <string name="text_keyboard_layout_move_row_up">행 위로 이동</string>
     <string name="text_keyboard_layout_move_row_down">행 아래로 이동</string>
     <string name="text_keyboard_layout_customized_key">%1$s (사용자 속성)</string>
-    <string name="settings_ui_appearance">설정 화면 외관</string>
+    <string name="settings_ui_appearance">설정 화면</string>
     <string name="settings_ui_appearance_summary">밝은/어두운 모드, 동적 색상, 팔레트 및 대비</string>
     <string name="settings_section_settings_ui">설정 화면</string>
     <string name="settings_section_keyboard_appearance">키보드 외관</string>

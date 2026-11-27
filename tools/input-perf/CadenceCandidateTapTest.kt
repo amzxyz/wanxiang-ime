@@ -78,7 +78,7 @@ class CandidateTapTest {
                 setAddonSubConfig("rime", "profile-manager", RawConfig(arrayOf(RawConfig("Action", "switch"), RawConfig("Name", "candidate-bench"))))
                 check(profiles()["Current"].value == "candidate-bench")
                 setCapFlags(CapabilityFlags.DefaultFlags); setCandidatePagingMode(1)
-                activate(31001, "io.github.sandyyur.inputbench"); activateIme("rime"); focus(true)
+                activate(31001, "com.amzxyz.wanxiang.inputbench"); activateIme("rime"); focus(true)
             }
             withTimeout(240_000) {
                 while (connection.runOnReady { focus(true); currentIme().subMode.icon } != "fcitx-rime:wanxiang") delay(100)
@@ -166,7 +166,7 @@ class CandidateTapTest {
         try {
             ins.uiAutomation.adoptShellPermissionIdentity("android.permission.INJECT_EVENTS")
             // No input API warm-up, fake keys, or wait for native readiness in this fresh process.
-            shell("am start -W -n io.github.sandyyur.inputbench/.BenchHost")
+            shell("am start -W -n com.amzxyz.wanxiang.inputbench/.BenchHost")
             await("Keyboard visible") { var shown = false; ins.runOnMainSync { shown = find("n") != null }; shown }
             // The initial Latin Android subtype may override the saved Chinese mode.
             // Select the real schema, without typing a warm-up word.
@@ -259,7 +259,7 @@ class CandidateTapTest {
                 val commit = withTimeout(60_000) { commits.receive() }
                 assertEquals("你", commit.first)
                 // Dumping happens AFTER the commit; polling never determines the recorded latency.
-                shell("am broadcast -n io.github.sandyyur.inputbench/.BenchControl --es command dump")
+                shell("am broadcast -n com.amzxyz.wanxiang.inputbench/.BenchControl --es command dump")
                 rounds.put(JSONObject().put("round", round + 1).put("n", n.result()).put("i", i.result()).put("select", select.result())
                     .put("ni_ready_ns", niReady).put("preedit_collected_ns", preedit ?: JSONObject.NULL).put("commit_collected_ns", commit.second))
             }
