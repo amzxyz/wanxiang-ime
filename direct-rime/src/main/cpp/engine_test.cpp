@@ -225,10 +225,12 @@ RimeApi api() {
         result->successful_schemas = {good.size(), good.data()};
         result->failed_schemas = {bad.size(), bad.data()};
         result->success = bad.empty();
-        result->other_task_failed = f.otherTaskFailed;
         return true;
     };
     a.free_deployment_result = [](RimeDeploymentResult*) {};
+#ifdef RIME_DEPLOYMENT_FAILURE_SCOPE
+    a.deployment_has_other_failure = []() -> Bool { return f.otherTaskFailed; };
+#endif
     a.prewarm_schema = [](const char* schema, RimeStringList* result) -> Bool {
         CHECK(schema == nullptr);
         ++f.warmCalls;
@@ -857,7 +859,7 @@ void testGeneratedConfigInvalidation() {
     engine.stop(); CHECK(engine.deploy()); engine.stop();
 }
 void testUsableDeploymentWarning() {
-#ifdef RIME_SCHEMA_PREWARM
+#if defined(RIME_SCHEMA_PREWARM) && defined(RIME_DEPLOYMENT_FAILURE_SCOPE)
     f = {}; auto a = api(); Engine engine(&a);
     f.failDeploy = true; f.hasDeploymentResult = true;
     f.initialSchema = "test"; f.deployed = {"test"}; f.failed = {"other"};

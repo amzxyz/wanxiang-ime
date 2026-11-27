@@ -574,8 +574,10 @@ bool Engine::deploymentDegraded() const {
 }
 void Engine::acceptPartialDeployment() {
     if (!deployFailed_.load()) return;
-#ifdef RIME_SCHEMA_PREWARM
-    if (!RIME_API_AVAILABLE(api_, get_deployment_result) ||
+#if defined(RIME_SCHEMA_PREWARM) && defined(RIME_DEPLOYMENT_FAILURE_SCOPE)
+    if (!RIME_API_AVAILABLE(api_, deployment_has_other_failure) ||
+        api_->deployment_has_other_failure() ||
+        !RIME_API_AVAILABLE(api_, get_deployment_result) ||
         !RIME_API_AVAILABLE(api_, free_deployment_result) ||
         !RIME_API_AVAILABLE(api_, get_initial_schema)) return;
     RimeDeploymentResult result{};
@@ -583,7 +585,7 @@ void Engine::acceptPartialDeployment() {
     ScopeExit cleanup([&] { api_->free_deployment_result(&result); });
     // Only a known successful initial schema in a partial batch can downgrade
     // the failure. A global/unknown failure is never guessed from files.
-    if (result.success || result.other_task_failed || result.failed_schemas.size == 0) return;
+    if (result.success || result.failed_schemas.size == 0) return;
     char schema[1024]{};
     if (!api_->get_initial_schema(schema, sizeof(schema))) return;
     auto contains = [&](const RimeStringList& list) {
