@@ -1340,7 +1340,6 @@ class TextKeyboard private constructor(
     }
 
     private val showLangSwitchKey = AppPrefs.getInstance().keyboard.showLangSwitchKey
-    private val spaceKeyLabelMode = AppPrefs.getInstance().keyboard.spaceKeyLabelMode
     private val swipeSymbolDirection = AppPrefs.getInstance().keyboard.swipeSymbolDirection
     private val punctuationPosition = ThemeManager.prefs.punctuationPosition
     private val showKeyAltLabels = ThemeManager.prefs.showKeyAltLabels
@@ -1379,11 +1378,6 @@ class TextKeyboard private constructor(
         ManagedPreference.OnChangeListener<ThemePrefs.PunctuationPosition> { _, _ ->
             refreshLegacySwipeDirections()
         }
-
-    @Keep
-    private val spaceKeyLabelModeListener = ManagedPreference.OnChangeListener<SpaceKeyLabelMode> { _, _ ->
-        refreshSpaceLabelFromState()
-    }
 
     @Keep
     private val showKeyAltLabelsListener = ManagedPreference.OnChangeListener<Boolean> { _, _ ->
@@ -1872,7 +1866,6 @@ class TextKeyboard private constructor(
         super.onAttachedToWindow()
         registerKeyboard(this)
         showLangSwitchKey.registerOnChangeListener(showLangSwitchKeyListener)
-        spaceKeyLabelMode.registerOnChangeListener(spaceKeyLabelModeListener)
         swipeSymbolDirection.registerOnChangeListener(swipeSymbolDirectionListener)
         punctuationPosition.registerOnChangeListener(punctuationPositionListener)
         showKeyAltLabels.registerOnChangeListener(showKeyAltLabelsListener)
@@ -1882,7 +1875,6 @@ class TextKeyboard private constructor(
     override fun onDetachedFromWindow() {
         unregisterKeyboard(this)
         showLangSwitchKey.unregisterOnChangeListener(showLangSwitchKeyListener)
-        spaceKeyLabelMode.unregisterOnChangeListener(spaceKeyLabelModeListener)
         swipeSymbolDirection.unregisterOnChangeListener(swipeSymbolDirectionListener)
         punctuationPosition.unregisterOnChangeListener(punctuationPositionListener)
         showKeyAltLabels.unregisterOnChangeListener(showKeyAltLabelsListener)
@@ -1935,26 +1927,16 @@ class TextKeyboard private constructor(
             return
         }
         val directRime = ime.uniqueName == DirectRimeInputMethodEntryCache.IME_ID
+        // Only display the active schema or input state, never prepend the app name.
         // Keep the canonical mode name for existing layout keys; localize its display only.
-        val subModeText = if (directRime &&
+        val newText = if (directRime &&
             ime.subMode.name == DirectRimeInputMethodEntryCache.LATIN_MODE_NAME
         ) {
             context.getString(R.string.direct_rime_ascii_mode)
-        } else ime.subMode.run { name.ifEmpty { label.ifEmpty { "" } } }
-        fun combinedLabel(name: String) = when {
-            subModeText.isEmpty() -> name
-            directRime -> context.getString(R.string.direct_rime_space_label, name, subModeText)
-            else -> "$name ($subModeText)"
-        }
-        val newText = when (spaceKeyLabelMode.getValue()) {
-            SpaceKeyLabelMode.Default -> combinedLabel(ime.displayName)
-            SpaceKeyLabelMode.CompactWhenSubMode -> {
-                val imeText = if (subModeText.isNotEmpty()) ime.label.ifEmpty { ime.displayName } else ime.displayName
-                val combined = combinedLabel(imeText)
-                if (subModeText.isNotEmpty() && combined.length > 10) subModeText else combined
-            }
-            SpaceKeyLabelMode.SubModeOnly -> {
-                if (subModeText.isNotEmpty()) subModeText else ime.displayName
+        } else {
+            ime.subMode.name.ifBlank { ime.subMode.label }.ifBlank {
+                if (directRime) context.getString(R.string.direct_rime_chinese_mode)
+                else ime.displayName
             }
         }
         spaces.forEach { spaceKey ->

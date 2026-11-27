@@ -138,6 +138,24 @@ class SpaceKeyLabelTest {
     }
 
     @Test
+    fun automaticLabelShowsSchemaOrInputStateWithoutAppName() = keyboard(
+        """{"type":"SpaceKey"}"""
+    ) { keyboard ->
+        val cache = org.fcitx.fcitx5.android.core.DirectRimeInputMethodEntryCache()
+        val context = RuntimeEnvironment.getApplication()
+        keyboard.onInputMethodUpdate(cache.get(false, "wanxiang", "万象拼音", "万象拼音"))
+        assertEquals("万象拼音", keyboard.spaceText())
+        keyboard.onInputMethodUpdate(cache.get(false, "other", "其他方案", "万象拼音"))
+        assertEquals("其他方案", keyboard.spaceText())
+        keyboard.onInputMethodUpdate(cache.get(true, "other", "其他方案", "万象拼音"))
+        assertEquals(context.getString(R.string.direct_rime_ascii_mode), keyboard.spaceText())
+        keyboard.onInputMethodUpdate(cache.get(false, "other", "其他方案", "万象拼音"))
+        assertEquals("其他方案", keyboard.spaceText())
+        keyboard.onInputMethodUpdate(cache.get(false, "", "", "万象拼音"))
+        assertEquals(context.getString(R.string.direct_rime_chinese_mode), keyboard.spaceText())
+    }
+
+    @Test
     fun schemeNameComesBackAfterComposition() = keyboard(
         """{"type":"SpaceKey","composeOverride":{"type":"SpaceKey"}}"""
     ) { keyboard ->

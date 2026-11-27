@@ -167,7 +167,6 @@ object SettingsSearchIndex {
         R.string.keep_keyboard_letters_uppercase to "keep_keyboard_letters_uppercase",
         R.string.reset_keyboard_on_focus_change to "reset_keyboard_on_focus_change",
         R.string.space_long_press_behavior to "space_long_press_behavior",
-        R.string.space_key_label_mode to "space_key_label_mode",
         R.string.space_swipe_move_cursor to "space_swipe_move_cursor",
         R.string.show_lang_switch_key to "show_lang_switch_key",
         R.string.allow_ime_in_password_fields to "allow_ime_in_password_fields",
@@ -681,11 +680,6 @@ object SettingsSearchIndex {
         SettingsSearchEntry(
             R.string.space_long_press_behavior, P_KEYBOARD,
             listOf("space", "空格", "kongge", "长按"),
-            route = keyboard(BEHAVIOR)
-        ),
-        SettingsSearchEntry(
-            R.string.space_key_label_mode, P_KEYBOARD,
-            listOf("space label", "空格标签", "子模式", "submode"),
             route = keyboard(BEHAVIOR)
         ),
         SettingsSearchEntry(

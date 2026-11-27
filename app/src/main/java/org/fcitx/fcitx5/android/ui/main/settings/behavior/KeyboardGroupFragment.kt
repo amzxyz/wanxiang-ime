@@ -405,7 +405,7 @@ class KeyboardGroupFragment : ManagedPreferenceFragment(AppPrefs.getInstance().k
                 "popup_on_key_press", "keyboard_long_press_delay",
                 "swipe_symbol_behavior", "keep_keyboard_letters_uppercase",
                 "reset_keyboard_on_focus_change",
-                "space_long_press_behavior", "space_key_label_mode",
+                "space_long_press_behavior",
                 "space_swipe_move_cursor", "show_lang_switch_key",
             ),
             GROUP_FEEDBACK to setOf(

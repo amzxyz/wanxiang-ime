@@ -20,7 +20,6 @@ import org.fcitx.fcitx5.android.input.candidates.floating.FloatingCandidatesOrie
 import org.fcitx.fcitx5.android.input.candidates.floating.FloatingCandidatesPosition
 import org.fcitx.fcitx5.android.input.candidates.horizontal.HorizontalCandidateMode
 import org.fcitx.fcitx5.android.input.keyboard.KeyboardHeightPercentBase
-import org.fcitx.fcitx5.android.input.keyboard.SpaceKeyLabelMode
 import org.fcitx.fcitx5.android.input.keyboard.SpaceLongPressBehavior
 import org.fcitx.fcitx5.android.input.keyboard.SwipeSymbolDirection
 import org.fcitx.fcitx5.android.input.editing.TextEditingStyle
@@ -245,11 +244,6 @@ class AppPrefs(private val sharedPreferences: SharedPreferences) {
             R.string.space_long_press_behavior,
             "space_long_press_behavior",
             SpaceLongPressBehavior.None
-        )
-        val spaceKeyLabelMode = enumList(
-            R.string.space_key_label_mode,
-            "space_key_label_mode",
-            SpaceKeyLabelMode.Default
         )
         val spaceSwipeMoveCursor =
             switch(R.string.space_swipe_move_cursor, "space_swipe_move_cursor", true)

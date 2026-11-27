@@ -390,10 +390,6 @@
     <string name="space_behavior_picker">Show Rime schema menu</string>
     <string name="space_behavior_voice_input">Switch to voice input</string>
     <string name="space_behavior_voice_input_hold">Voice input (hold to talk)</string>
-    <string name="space_key_label_mode">Space key label style</string>
-    <string name="space_key_label_mode_default">Default</string>
-    <string name="space_key_label_mode_compact_when_submode">Compact when submode is active</string>
-    <string name="space_key_label_mode_submode_only">Submode only</string>
     <string name="space_bar_password_hint">(Password)</string>
     <string name="show_lang_switch_key">Show language switch key</string>
     <string name="horizontal_candidate_style">Horizontal candidate style</string>
