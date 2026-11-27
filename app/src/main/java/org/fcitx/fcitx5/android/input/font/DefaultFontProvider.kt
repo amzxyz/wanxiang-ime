@@ -8,6 +8,8 @@ import android.os.Process
 import android.os.SystemClock
 import android.util.Log
 import org.fcitx.fcitx5.android.input.config.ConfigProviders
+import org.fcitx.fcitx5.android.data.BundledPresets
+import org.fcitx.fcitx5.android.utils.appContext
 import org.fcitx.fcitx5.android.utils.LogTag
 import org.fcitx.fcitx5.android.utils.Logx
 import java.io.File
@@ -18,6 +20,16 @@ class DefaultFontProvider : FontProviderApi {
         const val CONFIG_READ_RETRY_DELAY_MS = 1_000L
         const val MAX_CONFIG_READ_RETRIES = 5
         const val MAX_FONT_FILE_RETRIES = 3
+
+        // The shipped keyboard uses the original Watercolor edit glyphs as its
+        // default secondary font. The APK resource works before external presets
+        // are copied, after upgrade, and before the device is unlocked.
+        val builtinAltTypeface: Typeface? by lazy {
+            runCatching {
+                Typeface.createFromAsset(appContext.assets, BundledPresets.EDIT_ICON_FONT_ASSET)
+            }.onFailure { Log.w("DefaultFontProvider", "Unable to load built-in edit icon font", it) }
+                .getOrNull()
+        }
     }
 
     private data class FontConfig(
@@ -195,7 +207,8 @@ class DefaultFontProvider : FontProviderApi {
         }
         if (resolved != null) return resolved
         requestPreloadIfNeeded()
-        return current ?: Typeface.DEFAULT
+        return (if (key == "key_alt_font") builtinAltTypeface else null)
+            ?: current ?: Typeface.DEFAULT
     }
 
     private fun requestPreloadIfNeeded() {

@@ -134,11 +134,6 @@
             android:exported="false"
             android:label="@string/js_voice_plugins_title" />
         <activity
-            android:name=".ui.main.settings.icon.IconThemeListActivity"
-            android:configChanges="orientation|screenSize"
-            android:exported="false"
-            android:label="@string/icon_theme" />
-        <activity
             android:name=".ui.main.settings.icon.IconThemeEditorActivity"
             android:configChanges="orientation|screenSize"
             android:exported="false"
@@ -148,11 +143,6 @@
             android:configChanges="orientation|screenSize"
             android:exported="false"
             android:label="@string/edit_monet_theme" />
-        <activity
-            android:name=".ui.main.settings.behavior.FontsetEditorActivity"
-            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout"
-            android:exported="false"
-            android:label="@string/edit_fontset" />
         <activity
             android:name=".ui.main.settings.behavior.PopupEditorActivity"
             android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout"

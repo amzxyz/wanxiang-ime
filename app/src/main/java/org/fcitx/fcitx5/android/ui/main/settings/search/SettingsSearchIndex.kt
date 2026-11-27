@@ -12,11 +12,10 @@ import androidx.core.os.ConfigurationCompat
 import java.util.Locale
 import org.fcitx.fcitx5.android.R
 import org.fcitx.fcitx5.android.ui.main.settings.SettingsRoute
-import org.fcitx.fcitx5.android.ui.main.settings.behavior.FontsetEditorActivity
+import org.fcitx.fcitx5.android.ui.main.settings.theme.KeyboardFontSettings
 import org.fcitx.fcitx5.android.ui.main.settings.behavior.KeyboardGroupFragment
 import org.fcitx.fcitx5.android.ui.main.settings.behavior.PopupEditorActivity
 import org.fcitx.fcitx5.android.ui.main.settings.group.SettingsGroupSpecs
-import org.fcitx.fcitx5.android.ui.main.settings.icon.IconThemeListActivity
 import org.fcitx.fcitx5.android.ui.main.settings.voice.JsVoicePluginsActivity
 
 /**
@@ -104,8 +103,8 @@ object SettingsSearchIndex {
     private val P_THEME = listOf(R.string.settings_search_group_android, R.string.theme)
     private val P_ADVANCED = listOf(R.string.settings_search_group_android, R.string.advanced)
     private val P_DATA = listOf(R.string.settings_search_group_android, R.string.settings_group_data)
-    private val P_APPEARANCE =
-        listOf(R.string.settings_search_group_android, R.string.settings_group_appearance)
+    private val P_OCCASIONAL =
+        listOf(R.string.settings_search_group_android, R.string.settings_home_category_more)
     private val P_CONVENIENCE =
         listOf(R.string.settings_search_group_android, R.string.settings_group_convenience)
     /** 「输入与候选」：只剩候选栏、候选窗口与语音输入（中州韵设置已移到首页「中州韵引擎」分栏）。 */
@@ -329,7 +328,7 @@ object SettingsSearchIndex {
         ),
         SettingsSearchEntry(
             R.string.wanxiang_group, P_RIME,
-            listOf("rime scheme updates", "方案更新", "万象更新", "自定义更新"),
+            listOf("rime scheme updates", "方案更新", "万象更新", "模型下载"),
             route = SettingsRoute.RimeSchemeUpdates
         ),
 
@@ -339,11 +338,6 @@ object SettingsSearchIndex {
             R.string.settings_group_input, P_ANDROID,
             listOf("input", "输入", "候选"),
             route = groupRoute(SettingsGroupSpecs.ID_INPUT)
-        ),
-        SettingsSearchEntry(
-            R.string.settings_group_appearance, P_ANDROID,
-            listOf("appearance", "外观", "waiguan", "主题", "美化"),
-            route = groupRoute(SettingsGroupSpecs.ID_APPEARANCE)
         ),
         SettingsSearchEntry(
             R.string.settings_group_convenience, P_ANDROID,
@@ -404,82 +398,82 @@ object SettingsSearchIndex {
         /* ===== Android：主题与外观 ===== */
         SettingsSearchEntry(
             R.string.theme, P_ANDROID,
-            listOf("theme", "zhuti", "配色", "夜间", "dark", "亮色", "暗色"),
+            listOf("theme", "zhuti", "配色", "夜间", "dark", "亮色", "暗色", "appearance", "外观", "waiguan", "美化"),
             route = SettingsRoute.Theme
         ),
         SettingsSearchEntry(
-            R.string.settings_ui_appearance, P_APPEARANCE,
-            listOf("settings theme", "界面主题", "设置主题", "monet", "动态色", "md3", "material 3"),
+            R.string.settings_ui_appearance, P_OCCASIONAL,
+            listOf("settings theme", "界面主题", "设置主题", "设置界面外观", "monet", "动态色", "md3", "material 3"),
             route = SettingsRoute.SettingsUiAppearance
         ),
         SettingsSearchEntry(
-            R.string.settings_ui_mode_title, P_APPEARANCE + R.string.settings_ui_appearance,
+            R.string.settings_ui_mode_title, P_OCCASIONAL + R.string.settings_ui_appearance,
             listOf("dark mode", "light mode", "夜间", "深色", "浅色"),
             route = SettingsRoute.SettingsUiAppearance
         ),
         SettingsSearchEntry(
-            R.string.settings_ui_pure_black, P_APPEARANCE + R.string.settings_ui_appearance,
+            R.string.settings_ui_pure_black, P_OCCASIONAL + R.string.settings_ui_appearance,
             listOf("amoled", "oled", "black", "黑色"),
             route = SettingsRoute.SettingsUiAppearance
         ),
         SettingsSearchEntry(
-            R.string.settings_ui_follow_keyboard, P_APPEARANCE + R.string.settings_ui_appearance,
+            R.string.settings_ui_follow_keyboard, P_OCCASIONAL + R.string.settings_ui_appearance,
             listOf("keyboard theme colors", "键盘取色", "跟随主题", "和谐配色"),
             route = SettingsRoute.SettingsUiAppearance
         ),
         SettingsSearchEntry(
-            R.string.settings_ui_dynamic_colors, P_APPEARANCE + R.string.settings_ui_appearance,
+            R.string.settings_ui_dynamic_colors, P_OCCASIONAL + R.string.settings_ui_appearance,
             listOf("monet", "dynamic color", "壁纸配色"),
             route = SettingsRoute.SettingsUiAppearance
         ),
         SettingsSearchEntry(
-            R.string.settings_ui_palette_title, P_APPEARANCE + R.string.settings_ui_appearance,
+            R.string.settings_ui_palette_title, P_OCCASIONAL + R.string.settings_ui_appearance,
             listOf("palette", "accent", "手动配色", "色系"),
             route = SettingsRoute.SettingsUiAppearance
         ),
         SettingsSearchEntry(
-            R.string.settings_ui_recipe_title, P_APPEARANCE + R.string.settings_ui_appearance,
+            R.string.settings_ui_recipe_title, P_OCCASIONAL + R.string.settings_ui_appearance,
             listOf("palette style", "cmf", "tonal", "色彩风格"),
             route = SettingsRoute.SettingsUiAppearance
         ),
         SettingsSearchEntry(
-            R.string.settings_ui_contrast_title, P_APPEARANCE + R.string.settings_ui_appearance,
+            R.string.settings_ui_contrast_title, P_OCCASIONAL + R.string.settings_ui_appearance,
             listOf("contrast", "可读性"),
             route = SettingsRoute.SettingsUiAppearance
         ),
         SettingsSearchEntry(
-            R.string.settings_ui_motion_title, P_APPEARANCE + R.string.settings_ui_appearance,
+            R.string.settings_ui_motion_title, P_OCCASIONAL + R.string.settings_ui_appearance,
             listOf("animation", "motion", "gesture", "predictive back", "动画", "手势", "预测性返回"),
             route = SettingsRoute.SettingsUiMotion
         ),
         SettingsSearchEntry(
             R.string.settings_ui_motion_enter,
-            P_APPEARANCE + listOf(R.string.settings_ui_appearance, R.string.settings_ui_motion_title),
+            P_OCCASIONAL + listOf(R.string.settings_ui_appearance, R.string.settings_ui_motion_title),
             listOf("enter animation", "页面切换", "滑入"),
             route = SettingsRoute.SettingsUiMotion
         ),
         SettingsSearchEntry(
             R.string.settings_ui_motion_return,
-            P_APPEARANCE + listOf(R.string.settings_ui_appearance, R.string.settings_ui_motion_title),
+            P_OCCASIONAL + listOf(R.string.settings_ui_appearance, R.string.settings_ui_motion_title),
             listOf("return animation", "back animation", "滑出"),
             route = SettingsRoute.SettingsUiMotion
         ),
         SettingsSearchEntry(
             R.string.settings_ui_motion_duration,
-            P_APPEARANCE + listOf(R.string.settings_ui_appearance, R.string.settings_ui_motion_title),
+            P_OCCASIONAL + listOf(R.string.settings_ui_appearance, R.string.settings_ui_motion_title),
             listOf("animation duration", "动画时长", "快慢"),
             route = SettingsRoute.SettingsUiMotion
         ),
         SettingsSearchEntry(
             R.string.settings_ui_motion_predictive,
-            P_APPEARANCE + listOf(R.string.settings_ui_appearance, R.string.settings_ui_motion_title),
+            P_OCCASIONAL + listOf(R.string.settings_ui_appearance, R.string.settings_ui_motion_title),
             listOf("predictive back", "gesture", "返回手势"),
             route = SettingsRoute.SettingsUiMotion
         ),
         SettingsSearchEntry(
-            R.string.icon_theme, P_ANDROID,
+            R.string.icon_theme, P_THEME,
             listOf("icon", "tubiao", "图标", "图标包"),
-            activityClass = IconThemeListActivity::class.java
+            route = SettingsRoute.Theme
         ),
         SettingsSearchEntry(
             R.string.key_radius, P_THEME,
@@ -851,14 +845,53 @@ object SettingsSearchIndex {
             listOf("editors", "自定义", "键盘布局自定义", "键盘自定义", "增强选项", "工具"),
             route = keyboard(EDITORS)
         ),
-        // 「字体设定」原先藏在「增强选项」这个空容器里，2026-09-28 移到「外观」分组下。
-        // 「弹出字符设定」2026-09-29 又移到「键盘 → 键盘布局自定义」：它编辑的是长按按键
-        // 弹出的字符映射，属于键盘的内容定义，不是外观。
-        // 两项都是 Activity，搜索结果直接拉起编辑器本身，不经分组页中转（少一层点击）。
         SettingsSearchEntry(
-            R.string.edit_fontset, P_APPEARANCE,
-            listOf("font", "字体", "ziti", "字型"),
-            activityClass = FontsetEditorActivity::class.java
+            R.string.edit_fontset, P_THEME + R.string.keyboard_style,
+            listOf("font", "字体", "ziti", "字型", "字号"),
+            route = SettingsRoute.Theme,
+            preferenceKey = KeyboardFontSettings.FIRST_KEY
+        ),
+        SettingsSearchEntry(
+            R.string.fontset_entry_font, P_THEME + R.string.keyboard_style,
+            listOf("font", "基础字体", "字号"),
+            route = SettingsRoute.Theme,
+            preferenceKey = KeyboardFontSettings.preferenceKey("font")
+        ),
+        SettingsSearchEntry(
+            R.string.fontset_entry_key_main, P_THEME + R.string.keyboard_style,
+            listOf("key_main_font", "主字体", "字号"),
+            route = SettingsRoute.Theme,
+            preferenceKey = KeyboardFontSettings.preferenceKey("key_main_font")
+        ),
+        SettingsSearchEntry(
+            R.string.fontset_entry_key_alt, P_THEME + R.string.keyboard_style,
+            listOf("key_alt_font", "副字体", "字号"),
+            route = SettingsRoute.Theme,
+            preferenceKey = KeyboardFontSettings.preferenceKey("key_alt_font")
+        ),
+        SettingsSearchEntry(
+            R.string.fontset_entry_candidate, P_THEME + R.string.keyboard_style,
+            listOf("cand_font", "候选字体", "字号"),
+            route = SettingsRoute.Theme,
+            preferenceKey = KeyboardFontSettings.preferenceKey("cand_font")
+        ),
+        SettingsSearchEntry(
+            R.string.fontset_entry_comment, P_THEME + R.string.keyboard_style,
+            listOf("comment_font", "注释字体", "字号"),
+            route = SettingsRoute.Theme,
+            preferenceKey = KeyboardFontSettings.preferenceKey("comment_font")
+        ),
+        SettingsSearchEntry(
+            R.string.fontset_entry_popup_key, P_THEME + R.string.keyboard_style,
+            listOf("popup_key_font", "弹出按键", "字号"),
+            route = SettingsRoute.Theme,
+            preferenceKey = KeyboardFontSettings.preferenceKey("popup_key_font")
+        ),
+        SettingsSearchEntry(
+            R.string.fontset_entry_preedit, P_THEME + R.string.keyboard_style,
+            listOf("preedit_font", "预编辑", "字号"),
+            route = SettingsRoute.Theme,
+            preferenceKey = KeyboardFontSettings.preferenceKey("preedit_font")
         ),
         SettingsSearchEntry(
             R.string.edit_popup_preset, P_KEYBOARD,
@@ -1066,9 +1099,9 @@ object SettingsSearchIndex {
         ),
 
         SettingsSearchEntry(
-            R.string.scheme_update_title, P_SCHEME,
-            listOf("rime", "Rime方案更新", "自定义更新", "本地方案", "批量更新", "zip", "custom update"),
-            activityClass = org.fcitx.fcitx5.android.ui.main.rimeupdate.RimeSchemeUpdateActivity::class.java
+            R.string.wanxiang_model_download, P_SCHEME,
+            listOf("model", "模型下载", "语法模型", "DLM"),
+            route = SettingsRoute.RimeSchemeUpdates
         ),
         SettingsSearchEntry(
             R.string.wanxiang_update, P_SCHEME,

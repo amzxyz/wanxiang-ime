@@ -13,14 +13,12 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
-import org.robolectric.util.ReflectionHelpers
-import org.robolectric.util.ReflectionHelpers.ClassParameter
 
 /**
- * 成套主题应用副字体时，读取失败必须保持文件原样。
+ * 公共字体设置读取失败时必须保持文件原样。
  *
  * 曾经的失败路径把「配置损坏」当成「没有配置」，于是拿空 map 写回，把用户其它字体
- * 设置整份抹掉；这里走真实的 applyKeyAltFont 并断言 fontset.json 一个字节都没变。
+ * 设置整份抹掉；这里走真实的 updateKeyboardFontSetting 并断言 fontset.json 一个字节都没变。
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [28], application = FcitxApplication::class, shadows = [EditorApplicationShadow::class])
@@ -37,7 +35,7 @@ class ThemeKitFontFailureTest {
     }
 
     @Test
-    fun corruptFontsetIsLeftUntouchedWhenApplyingKitFont() {
+    fun corruptFontsetIsLeftUntouchedWhenEditingGlobalFont() {
         val font = requireNotNull(fontFile()) { "fontsDir is unavailable in this test environment" }
         font.parentFile?.mkdirs()
         font.writeBytes(byteArrayOf(1, 2, 3))
@@ -49,13 +47,10 @@ class ThemeKitFontFailureTest {
         val before = config.readBytes()
         assertTrue(ConfigProviders.readFontsetPathMapSnapshot().isFailure)
 
-        ReflectionHelpers.callInstanceMethod<Unit>(
-            ThemeListFragment(), "applyKeyAltFont",
-            ClassParameter.from(String::class.java, fontName)
-        )
+        assertTrue(updateKeyboardFontSetting("key_alt_font", listOf(fontName)).isFailure)
 
         assertArrayEquals(
-            "损坏的 fontset.json 在套装字体应用失败时不能被重写",
+            "损坏的 fontset.json 在公共字体设置失败时不能被重写",
             before,
             config.readBytes()
         )

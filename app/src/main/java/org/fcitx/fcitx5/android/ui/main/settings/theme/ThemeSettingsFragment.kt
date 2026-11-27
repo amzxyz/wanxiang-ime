@@ -16,6 +16,7 @@ class ThemeSettingsFragment : ManagedPreferenceFragment(ThemeManager.prefs) {
     private val followSystemDayNightTheme = ThemeManager.prefs.followSystemDayNightTheme
 
     private lateinit var switchPreference: SwitchPreferenceCompat
+    private var fontSettings: KeyboardFontSettings? = null
 
     override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
         super.onCreatePreferences(savedInstanceState, rootKey)
@@ -27,10 +28,14 @@ class ThemeSettingsFragment : ManagedPreferenceFragment(ThemeManager.prefs) {
             setSummary(R.string.theme_global_settings_summary)
         })
         switchPreference = findPreference(followSystemDayNightTheme.key)!!
+        fontSettings = KeyboardFontSettings(requireContext()) {
+            (parentFragment as? ThemeFragment)?.refreshKeyboardFonts()
+        }.also { it.install(preferenceScreen) }
     }
 
     override fun onResume() {
         super.onResume()
         switchPreference.isChecked = followSystemDayNightTheme.getValue()
+        fontSettings?.refresh()
     }
 }

@@ -11,10 +11,8 @@ import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
 import org.fcitx.fcitx5.android.R
 import org.fcitx.fcitx5.android.ui.main.settings.SettingsRoute
-import org.fcitx.fcitx5.android.ui.main.settings.behavior.FontsetEditorActivity
 import org.fcitx.fcitx5.android.ui.main.settings.behavior.KeyboardGroupFragment
 import org.fcitx.fcitx5.android.ui.main.settings.behavior.TextKeyboardLayoutProfileManagerActivity
-import org.fcitx.fcitx5.android.ui.main.settings.icon.IconThemeListActivity
 import org.fcitx.fcitx5.android.ui.main.settings.voice.JsVoicePluginsActivity
 
 /** 分组内一条目的跳转目标。 */
@@ -85,7 +83,6 @@ object SettingsGroupSpecs {
     )
 
     const val ID_INPUT = "input"
-    const val ID_APPEARANCE = "appearance"
     const val ID_CONVENIENCE = "convenience"
 
     private val all: List<SettingsGroupSpec> = listOf(
@@ -113,47 +110,6 @@ object SettingsGroupSpecs {
                         R.drawable.ic_baseline_keyboard_voice_24,
                         SettingsRoute.KeyboardGroup(KeyboardGroupFragment.GROUP_VOICE)
                     )
-                )
-            }
-        ),
-
-        SettingsGroupSpec(
-            id = ID_APPEARANCE,
-            title = R.string.settings_group_appearance,
-            summary = R.string.settings_group_appearance_summary,
-            icon = R.drawable.ic_baseline_palette_24,
-            entries = {
-                listOf(
-                    SettingsGroupEntry.route(
-                        R.string.theme,
-                        R.drawable.ic_baseline_palette_24,
-                        SettingsRoute.Theme,
-                        sectionTitle = R.string.settings_section_keyboard_appearance
-                    ),
-                    SettingsGroupEntry.activity(
-                        R.string.icon_theme,
-                        R.drawable.ic_icon_theme_24,
-                        IconThemeListActivity::class.java,
-                        sectionTitle = R.string.settings_section_keyboard_appearance
-                    ),
-                    // 原先藏在「增强选项」这个空容器里，现在放到外观下。
-                    SettingsGroupEntry.activity(
-                        R.string.edit_fontset,
-                        R.drawable.ic_baseline_text_format_24,
-                        FontsetEditorActivity::class.java,
-                        sectionTitle = R.string.settings_section_keyboard_appearance
-                    ),
-                    SettingsGroupEntry.route(
-                        R.string.settings_ui_appearance,
-                        R.drawable.ic_baseline_palette_24,
-                        SettingsRoute.SettingsUiAppearance,
-                        R.string.settings_ui_appearance_summary,
-                        R.string.settings_section_settings_ui
-                    )
-                    // 2026-09-29：「弹出字符设定」改挂「键盘 → 键盘布局自定义」组
-                    // （`KeyboardGroupFragment.GROUP_EDITORS`）——它改的是长按按键弹出的
-                    // 字符映射，属于键盘的内容/定义，与外观无关；放在这里会让「外观」
-                    // 的小字（主题、图标和字体）对不上内容。
                 )
             }
         ),

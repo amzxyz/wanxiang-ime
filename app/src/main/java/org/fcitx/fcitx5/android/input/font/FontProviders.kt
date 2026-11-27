@@ -217,7 +217,7 @@ object FontProviders {
     fun hasCustomFontSizes(): Boolean {
         val snapshot = ConfigProviders.readFontsetPathMapSnapshot().getOrNull() ?: return false
         // Check if any font size key exists with valid value
-        val sizeKeys = snapshot.value.keys.filter { it.endsWith("_size") }
+        val sizeKeys = snapshot.value.keys.filter { it.endsWith("_size") && it != "font_size" }
         return sizeKeys.any { key ->
             parseConfiguredSize(snapshot.value[key]?.firstOrNull()) != null
         }

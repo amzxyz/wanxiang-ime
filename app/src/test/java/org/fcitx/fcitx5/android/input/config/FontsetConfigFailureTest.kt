@@ -1,7 +1,11 @@
 /* SPDX-License-Identifier: LGPL-2.1-or-later */
 package org.fcitx.fcitx5.android.input.config
 
+import android.graphics.Typeface
 import org.fcitx.fcitx5.android.FcitxApplication
+import org.fcitx.fcitx5.android.input.font.DefaultFontProvider
+import org.junit.Assert.assertNotSame
+import org.junit.Assert.assertSame
 import org.fcitx.fcitx5.android.ui.main.settings.behavior.editor.EditorApplicationShadow
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
@@ -37,5 +41,21 @@ class FontsetConfigFailureTest {
         val result = ConfigProviders.readFontsetPathMapSnapshot()
         assertTrue(result.isSuccess)
         assertNull(result.getOrNull())
+    }
+
+    @Test fun editIconFontIsAvailableWithoutAnInstalledFontset() {
+        val fontset = requireNotNull(UserConfigFiles.fontsetJson())
+        val previous = fontset.takeIf { it.isFile }?.readBytes()
+        fontset.delete()
+        try {
+            val provider = DefaultFontProvider()
+            val iconFont = provider.resolveTypeface("key_alt_font", Typeface.DEFAULT)
+            assertNotSame("The built-in edit icon font must not fall back to system text", Typeface.DEFAULT, iconFont)
+            assertSame(iconFont, provider.resolveTypeface("key_alt_font", Typeface.DEFAULT))
+            assertSame(Typeface.DEFAULT, provider.resolveTypeface("key_main_font", Typeface.DEFAULT))
+            assertTrue("Resolving the built-in font must not create a user fontset", !fontset.exists())
+        } finally {
+            if (previous != null) fontset.writeBytes(previous)
+        }
     }
 }
