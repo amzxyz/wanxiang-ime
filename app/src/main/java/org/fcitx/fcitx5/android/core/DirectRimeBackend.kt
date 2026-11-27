@@ -231,7 +231,7 @@ class DirectRimeBackend(context: Context) : InputEngine {
                 showUnavailable("正在准备方案文件…")
                 val bundledInstalled = startupStage("config") { config.load(installBundled = !directBootMode) }
                 startupStage("engine-selection") { engineOperations.configureSelectedEngine() }
-                showUnavailable(if (bundledInstalled) "正在首次部署万象拼音…" else "正在启动中州韵…")
+                showUnavailable(if (bundledInstalled) "正在首次部署…" else "正在启动中州韵…")
                 startupStage("native") { Native.start(shared.absolutePath, config.user.absolutePath, BuildConfig.VERSION_NAME,
                     fullCheck = bundledInstalled || engineOperations.newActivation || WanxiangAdvancedFiles.needsDeploymentRepair(config.user),
                     minLogLevel = DirectRimeEngineLog.minLevel()) }
