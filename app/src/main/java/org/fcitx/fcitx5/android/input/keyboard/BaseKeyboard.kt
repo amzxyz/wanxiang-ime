@@ -1637,10 +1637,22 @@ abstract class BaseKeyboard(
                 }
             }
         }
+        refreshMainContentAlignment()
     }
 
     fun reapplyTextScale() {
         setTextScale(currentTextScale)
+    }
+
+    /** Compute one alignment per active layout, never per individual key or across cached layouts. */
+    private fun refreshMainContentAlignment() {
+        if (!::keyRows.isInitialized) return
+        val keys = keyRows.flatMap { row -> row.allViews.filterIsInstance<KeyView>().toList() }
+        val prefs = ThemeManager.prefs
+        val insets = if (prefs.showKeyAltLabels.getValue() && prefs.moveMainTextForAltLabel.getValue()) {
+            keys.fold(MainContentInsets()) { shared, key -> shared.merge(key.requestedMainInsets()) }
+        } else MainContentInsets()
+        keys.forEach { it.setGlobalMainInsets(insets) }
     }
 
     fun refreshStyle() {
@@ -1727,6 +1739,7 @@ abstract class BaseKeyboard(
                 is ImageAltTextKeyView -> keyView.refreshAltTextLayout()
             }
         }
+        refreshMainContentAlignment()
     }
 
     fun setHorizontalGapScale(scale: Float) {
@@ -2068,6 +2081,7 @@ abstract class BaseKeyboard(
         // Behaviors were already rebound above, so the held key acts on the new composition
         // state; only the view swap waits.
         pendingComposeRecreations = deferred.map { it.item }.takeIf { it.isNotEmpty() }
+        refreshMainContentAlignment()
     }
 
     /**
@@ -2110,6 +2124,7 @@ abstract class BaseKeyboard(
                 keyRows.flatMap { row -> row.children.mapNotNull { it as? KeyView }.toList() }
             )
         }
+        refreshMainContentAlignment()
         onDeferredComposeRecreationsFlushed()
     }
 

@@ -23,6 +23,7 @@ import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
 import android.widget.ImageView
+import android.widget.TextView
 import androidx.annotation.ColorInt
 import androidx.annotation.DrawableRes
 import androidx.annotation.FloatRange
@@ -59,6 +60,12 @@ import kotlin.math.roundToInt
 
 interface SwipeHintAwareKeyView {
     fun shouldTriggerAltBySwipe(totalY: Int, fallback: SwipeSymbolDirection): Boolean
+}
+
+/** Shared label bands for every key of one keyboard layout, in pixels. */
+internal data class MainContentInsets(val top: Int = 0, val bottom: Int = 0) {
+    fun merge(other: MainContentInsets) =
+        MainContentInsets(max(top, other.top), max(bottom, other.bottom))
 }
 
 abstract class KeyView(
@@ -356,12 +363,99 @@ abstract class KeyView(
         // default implementation does nothing
     }
 
+    // Null is reserved for individually constructed keys (e.g. an editor fixture).
+    // A keyboard always supplies its shared insets, even when both are zero.
+    private var globalMainInsets: MainContentInsets? = null
+
+    internal fun setGlobalMainInsets(insets: MainContentInsets) {
+        if (globalMainInsets == insets) return
+        globalMainInsets = insets
+        requestLayout()
+    }
+
+    /** Reserve space from the actual active definition, not from the label of one key. */
+    internal fun requestedMainInsets(): MainContentInsets {
+        val appearance = renderedAppearance
+        if (appearance.staticDisplay) return MainContentInsets()
+        val labels = when (this) {
+            is AltTextKeyView -> altText to altText1
+            is ImageAltTextKeyView -> altText to altText1
+            else -> return MainContentInsets()
+        }
+        val (first, second) = labels
+        fun band(label: TextView, top: Boolean): Int {
+            if (label.text.isNullOrBlank()) return 0
+            val height = label.paint.run { fontMetrics.bottom - fontMetrics.top }
+            val edge = vMargin + if (top) cornerLabelTopSafeInset else dp(2)
+            return kotlin.math.ceil(height).toInt() + edge
+        }
+        return if (appearance.directionalSwipeLabels) {
+            MainContentInsets(band(first, true), band(second, false))
+        } else when (punctuationPositionForKey()) {
+            PunctuationPosition.TopCenter, PunctuationPosition.TopRight ->
+                MainContentInsets(top = band(first, true))
+            PunctuationPosition.Bottom -> MainContentInsets(bottom = band(first, false))
+            PunctuationPosition.None -> MainContentInsets()
+        }
+    }
+
+    /** All ordinary main labels and their replacement icons share the same alignment.
+     * Compact keys cap the reserved space so a large font cannot be clipped. */
+    private fun applyGlobalMainInsets(): Boolean {
+        val insets = globalMainInsets ?: return false
+        if (renderedAppearance.staticDisplay) return false
+        val content = when (this) {
+            is AltTextKeyView -> listOf(mainText, img)
+            is ImageAltTextKeyView -> listOf(img)
+            is ImageTextKeyView -> return false // independent icon/text composition
+            is TextKeyView -> listOf(mainText)
+            is ImageKeyView -> listOf(img)
+            else -> return false
+        }
+        val total = insets.top + insets.bottom
+        val mainHeight = content.filter { it.visibility != View.GONE }.maxOfOrNull { view ->
+            // Use the uncompressed font/drawable height, not the previous constrained
+            // measured height: otherwise short keys can alternate between two insets.
+            when (view) {
+                is TextView -> kotlin.math.ceil(view.paint.run { fontMetrics.bottom - fontMetrics.top })
+                    .toInt() + view.paddingTop + view.paddingBottom
+                is ImageView -> view.layoutParams.height.takeIf { it > 0 }
+                    ?: (view.drawable?.intrinsicHeight?.coerceAtLeast(0) ?: 0)
+                else -> view.measuredHeight
+            }
+        } ?: 0
+        val available = (appearanceView.measuredHeight - mainHeight).coerceAtLeast(0)
+        val fraction = if (total > 0) min(1f, available.toFloat() / total) else 0f
+        val top = (insets.top * fraction).roundToInt()
+        val bottom = (insets.bottom * fraction).roundToInt()
+        var changed = false
+        content.forEach { view ->
+            val params = view.layoutParams as ConstraintLayout.LayoutParams
+            if (params.topToTop != params.parentId || params.bottomToBottom != params.parentId ||
+                params.topToBottom != params.unset || params.bottomToTop != params.unset ||
+                params.topMargin != top || params.bottomMargin != bottom) {
+                view.updateLayoutParams<ConstraintLayout.LayoutParams> {
+                    topToTop = parentId
+                    bottomToBottom = parentId
+                    topToBottom = unset
+                    bottomToTop = unset
+                    topMargin = top
+                    bottomMargin = bottom
+                }
+                changed = true
+            }
+        }
+        return changed
+    }
+
     /** Return true when the measured key size changes its child constraints. */
     protected open fun onAppearanceMeasured(width: Int, height: Int): Boolean = false
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         super.onMeasure(widthMeasureSpec, heightMeasureSpec)
-        if (onAppearanceMeasured(appearanceView.measuredWidth, appearanceView.measuredHeight)) {
+        val labelLayoutChanged = onAppearanceMeasured(appearanceView.measuredWidth, appearanceView.measuredHeight)
+        val alignmentChanged = applyGlobalMainInsets()
+        if (labelLayoutChanged || alignmentChanged) {
             // Solve the new label constraints before laying out children. Updating them after
             // super.onLayout can leave old bounds on screen until an unrelated layer switch.
             super.onMeasure(widthMeasureSpec, heightMeasureSpec)
