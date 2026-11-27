@@ -66,9 +66,8 @@ struct Fake {
     std::vector<std::pair<std::string, std::string>> schemas{{"test", "Test"}};
     std::string dictionary = "test";
     // EVO prism fixture: input_types group, translator prism/prisms and the algebra map.
-    bool inputTypesPresent = false, resetPresent = false;
+    bool inputTypesPresent = false;
     std::vector<std::pair<std::string, std::string>> inputOptions;
-    std::string resetType;
     bool prismSet = false, prismsRefSet = false, prismsListSet = false;
     std::string prismName, prismsRef;
     std::vector<std::pair<std::string, std::string>> prismsList;
@@ -89,10 +88,9 @@ struct Fake {
 } f;
 std::string algebraPath() { return "build/dictionaries/" + f.dictionary + "/algebra"; }
 bool fakeHasMap(const std::string& path) {
-    if (path == "input_types") return f.inputTypesPresent;
     if (path == "translator") return f.prismSet || f.prismsRefSet || f.prismsListSet;
     if (path == algebraPath()) return !f.algebraKeys.empty();
-    const std::string optionPrefix = "input_types/options/@";
+    const std::string optionPrefix = "input_types/@";
     if (path.compare(0, optionPrefix.size(), optionPrefix) == 0) {
         const auto index = std::strtoul(path.c_str() + optionPrefix.size(), nullptr, 10);
         return index < f.inputOptions.size();
@@ -105,11 +103,6 @@ bool fakeHasMap(const std::string& path) {
     return false;
 }
 std::vector<std::string> fakeMapKeys(const std::string& path) {
-    if (path == "input_types") {
-        std::vector<std::string> keys{"options"};
-        if (f.resetPresent) keys.emplace_back("reset");
-        return keys;
-    }
     if (path == "translator") {
         std::vector<std::string> keys;
         if (f.prismSet) keys.emplace_back("prism");
@@ -117,7 +110,7 @@ std::vector<std::string> fakeMapKeys(const std::string& path) {
         return keys;
     }
     if (path == algebraPath()) return f.algebraKeys;
-    const std::string optionPrefix = "input_types/options/@";
+    const std::string optionPrefix = "input_types/@";
     if (path.compare(0, optionPrefix.size(), optionPrefix) == 0) {
         const auto index = std::strtoul(path.c_str() + optionPrefix.size(), nullptr, 10);
         std::vector<std::string> keys{"option"};
@@ -130,7 +123,7 @@ std::vector<std::string> fakeMapKeys(const std::string& path) {
     return {};
 }
 bool fakeHasList(const std::string& path) {
-    return (path == "input_types/options" && f.inputTypesPresent) ||
+    return (path == "input_types" && f.inputTypesPresent) ||
            (path == "translator/prisms" && f.prismsListSet);
 }
 void notifyOptionIfRequested(int& count) {
@@ -238,9 +231,6 @@ RimeApi api() {
         if (name == "translator/prisms" && f.prismsRefSet) {
             std::snprintf(value, size, "%s", f.prismsRef.c_str()); return true;
         }
-        if (name == "input_types/reset" && f.resetPresent) {
-            std::snprintf(value, size, "%s", f.resetType.c_str()); return true;
-        }
         const std::string prismPrefix = "translator/prisms/@";
         if (name.compare(0, prismPrefix.size(), prismPrefix) == 0) {
             const size_t slash = name.find('/', prismPrefix.size());
@@ -255,7 +245,7 @@ RimeApi api() {
                 std::snprintf(value, size, "%s", f.prismsList[index].second.c_str()); return true;
             }
         }
-        const std::string optionPrefix = "input_types/options/@";
+        const std::string optionPrefix = "input_types/@";
         if (name.compare(0, optionPrefix.size(), optionPrefix) == 0) {
             const size_t slash = name.find('/', optionPrefix.size());
             if (slash == std::string::npos) return false;
@@ -278,7 +268,7 @@ RimeApi api() {
     a.config_list_size = [](RimeConfig*, const char* key) -> size_t {
         const std::string name(key);
         if (name == "switcher/save_options") return f.saveOptions.size();
-        if (name == "input_types/options") return f.inputOptions.size();
+        if (name == "input_types") return f.inputOptions.size();
         if (name == "translator/prisms") return f.prismsList.size();
         return 0;
     };
@@ -1039,7 +1029,7 @@ void testUsableDeploymentWarning() {
     typed.start(shared.string(), typedUser.string(), "development", true);
     CHECK(typed.deploymentDegraded() && typed.begin(1, "editor").gate == Ready);
     typed.stop();
-    // InitialOption falls back to the first enabled option when reset is absent.
+    // InitialOption uses the first declared type.
     f = {}; auto enabled = api(); Engine enabledEngine(&enabled); f.failDeploy = true;
     f.prismsRefSet = true; f.prismsRef = "input_types";
     f.inputTypesPresent = true; f.inputOptions = {{"zrm", "zrm"}};
@@ -1116,11 +1106,10 @@ void testEvoPrismResolution() {
     f = {}; f.prismSet = true; f.prismName = "named"; f.prismsRefSet = true; f.prismsRef = "input_types";
     f.inputTypesPresent = true; f.inputOptions = {{"zrm", "zrm"}};
     CHECK(rejected(workspace("prism-conflict", {"named.prism.bin", "zrm.prism.bin"})));
-    // Even a valid legacy reset cannot override the first declared option.
+    // The first list entry is the default prism.
     f = {}; f.prismsRefSet = true; f.prismsRef = "input_types";
     f.inputTypesPresent = true; f.inputOptions = {{"zrm", "zrm"}, {"flypy", "flypy"}};
-    f.resetPresent = true; f.resetType = "flypy";
-    CHECK(accepted(workspace("old-reset", {"zrm.prism.bin"})));
+    CHECK(accepted(workspace("first-type", {"zrm.prism.bin"})));
 }
 void testRuntimeTypeGroups() {
 #ifdef RIME_EVO_TYPE_GROUPS
