@@ -20,7 +20,8 @@ object UserDataBackupManager {
         var archive: File? = null
         try {
             val state = connection.runOnReady {
-                save()
+                // The archive pauses the engine and waits for native finalization.
+                // Local backup must not depend on merging remote UserDB snapshots.
                 RimeDataDirectoryState.fromConfig(getAddonSubConfig("rime", "profile-manager"),
                     appContext.getExternalFilesDir(null)!!.resolve("data"))
             }

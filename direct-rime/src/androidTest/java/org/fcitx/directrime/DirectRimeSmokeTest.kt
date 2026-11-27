@@ -4,6 +4,11 @@ import androidx.test.platform.app.InstrumentationRegistry
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.*
 import org.junit.Test
+import java.io.ByteArrayInputStream
+import java.io.ByteArrayOutputStream
+import java.io.File
+import java.util.zip.ZipEntry
+import java.util.zip.ZipOutputStream
 
 /** Uses only this APK's sandbox and bundled deterministic schema. */
 class DirectRimeSmokeTest {
@@ -89,4 +94,63 @@ class DirectRimeSmokeTest {
         assertTrue(RimeRuntime.key(generation, 'o'.code, release = true)!!.commit.isEmpty())
         RimeRuntime.end(generation)
     }
+
+    @Test fun userDbSyncPublishesSnapshotAndRecoversAfterFailure(): Unit = runBlocking {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        // Enable learning only for this test; other smoke tests keep deterministic ranking.
+        val archive = ByteArrayOutputStream()
+        ZipOutputStream(archive).use { zip ->
+            for (name in listOf("default.yaml", "direct_smoke.schema.yaml", "direct_smoke.dict.yaml")) {
+                var bytes = context.assets.open("smoke/$name").use { it.readBytes() }
+                if (name == "direct_smoke.schema.yaml") {
+                    bytes = bytes.toString(Charsets.UTF_8)
+                        .replace("enable_user_dict: false", "enable_user_dict: true\n  learning_mode: auto")
+                        .toByteArray(Charsets.UTF_8)
+                }
+                zip.putNextEntry(ZipEntry(name))
+                zip.write(bytes)
+                zip.closeEntry()
+            }
+        }
+        assertTrue(RimeRuntime.deploy(context, profile = { ByteArrayInputStream(archive.toByteArray()) }))
+        val generation = RimeRuntime.newGeneration()
+        RimeRuntime.begin(context, generation, "smoke.sync")
+        RimeRuntime.key(generation, 'n'.code)
+        val typed = RimeRuntime.key(generation, 'i'.code)!!
+        assertEquals("你", RimeRuntime.action(typed, 1, 0)!!.commit)
+        RimeRuntime.end(generation)
+
+        assertTrue("UserDB sync must succeed on Android", RimeRuntime.synchronize(context))
+        val sync = File(context.filesDir, "rime/user/sync")
+        val snapshot = sync.walkTopDown().single {
+            it.isFile && it.name == "direct_smoke.userdb.tsv"
+        }
+        val lines = snapshot.readLines()
+        val count = lines.single { it.startsWith("#@/record_count\t") }.substringAfter('\t')
+        val records = lines.filter { it.isNotBlank() && !it.startsWith("#") }
+        assertEquals(records.size.toString(), count)
+        assertTrue(records.isNotEmpty())
+        assertFalse(sync.walkTopDown().any { it.name.endsWith(".pending.userdb.tsv") })
+
+        // A malformed peer snapshot must propagate failure, not replace the local export.
+        val remote = File(sync, "smoke-invalid-peer").apply { check(mkdir()) }
+        val original = snapshot.readBytes()
+        try {
+            File(remote, snapshot.name).writeText("invalid snapshot\n")
+            assertFalse(RimeRuntime.synchronize(context))
+            assertArrayEquals(original, snapshot.readBytes())
+        } finally {
+            check(remote.deleteRecursively())
+        }
+        assertTrue(RimeRuntime.synchronize(context))
+        val recovered = RimeRuntime.newGeneration()
+        try {
+            assertTrue(RimeRuntime.begin(context, recovered, "smoke.sync.recovered")!!.ready)
+            RimeRuntime.key(recovered, 'n'.code)
+            assertTrue(RimeRuntime.key(recovered, 'i'.code)!!.candidates.isNotEmpty())
+        } finally {
+            RimeRuntime.end(recovered)
+        }
+    }
+
 }

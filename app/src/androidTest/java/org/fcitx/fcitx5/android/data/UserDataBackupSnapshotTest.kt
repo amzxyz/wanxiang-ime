@@ -71,7 +71,7 @@ class UserDataBackupSnapshotTest {
             val name = "BackupFailureCheck-${UUID.randomUUID()}"
             val connection = FcitxDaemon.connect(name)
             try {
-                connection.runOnReady { save() }
+                connection.runOnReady { }
                 try {
                     withContext(Dispatchers.IO) {
                         UserDataBackupArchive.prepare(testDir,
