@@ -583,7 +583,7 @@ void Engine::acceptPartialDeployment() {
     ScopeExit cleanup([&] { api_->free_deployment_result(&result); });
     // Only a known successful initial schema in a partial batch can downgrade
     // the failure. A global/unknown failure is never guessed from files.
-    if (result.success || result.failed_schemas.size == 0) return;
+    if (result.success || result.other_task_failed || result.failed_schemas.size == 0) return;
     char schema[1024]{};
     if (!api_->get_initial_schema(schema, sizeof(schema))) return;
     auto contains = [&](const RimeStringList& list) {
@@ -902,6 +902,7 @@ bool Engine::sync() {
         // process-wide setup and avoid a forced schema rebuild on every sync.
         stop();
         initialize(false);
+        acceptPartialDeployment();
     } catch (...) {
         // Only a failure to restart the runtime can invalidate deployment here.
         deployFailed_.store(true);

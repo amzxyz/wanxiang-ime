@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.res.Configuration
 import android.os.Build
 import android.os.SystemClock
+import android.widget.Toast
 import androidx.tracing.trace
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -289,6 +290,7 @@ class DirectRimeBackend(context: Context) : InputEngine {
             events.offer(listOf(FcitxEvent.ReadyEvent()))
             engineScope.launch {
                 if (started && startupError.isEmpty() && registry.currentState == FcitxLifecycle.State.READY) {
+                    showDeploymentWarning()
                     requestAssetPrewarm()
                     val generation = inputSession
                     if (binding?.let { it.generation == generation && it.needsRime } == true &&
@@ -486,6 +488,15 @@ class DirectRimeBackend(context: Context) : InputEngine {
             forceCandidates, statistics, statisticsKey,
         )
         if (batch.isNotEmpty()) events.offer(batch)
+    }
+
+    // Non-blocking feedback: partial deployment must not hide usable candidates
+    // or be mistaken for full success by the user.
+    private fun showDeploymentWarning() {
+        if (!started || directBootMode || !Native.deploymentDegraded()) return
+        engineScope.launch(Dispatchers.Main) {
+            Toast.makeText(context, "部分方案部署失败，请检查部署日志", Toast.LENGTH_LONG).show()
+        }
     }
 
     private fun requestAssetPrewarm() {
@@ -768,6 +779,7 @@ class DirectRimeBackend(context: Context) : InputEngine {
         ) {
             check(Native.deploy()) { "部署失败，请检查方案文件后重新部署" }
         } else restartNative()
+        showDeploymentWarning()
     }
     private suspend fun synchronize() = maintenanceCoordinator.run(synchronizing = true) {
         check(Native.sync()) { "用户词典同步失败" }
@@ -782,7 +794,10 @@ class DirectRimeBackend(context: Context) : InputEngine {
      * watchdog timeout on the next process start.
      */
     private suspend fun switchEngineVariant() = withContext(NonCancellable) {
-        maintain(refreshAfterOperation = false, operation = engineOperations::switchVariantOnOwner)
+        maintain(refreshAfterOperation = false) {
+            engineOperations.switchVariantOnOwner()
+            showDeploymentWarning()
+        }
     }
 
     /** Native option revisions are local to an Engine slot and can collide across identities. */

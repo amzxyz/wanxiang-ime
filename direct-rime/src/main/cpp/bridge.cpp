@@ -295,6 +295,9 @@ extern "C" JNIEXPORT jboolean JNICALL JNI_METHOD(deploy)(JNIEnv* env, jobject) {
     try { const bool ok = instance().deploy(); clearSnapshotCache(env); return ok; }
     catch (const std::exception& e) { error(env, e); return false; }
 }
+extern "C" JNIEXPORT jboolean JNICALL JNI_METHOD(deploymentDegraded)(JNIEnv* env, jobject) {
+    try { return instance().deploymentDegraded(); } catch (const std::exception& e) { error(env, e); return false; }
+}
 extern "C" JNIEXPORT jobject JNICALL JNI_METHOD(rawInput)(JNIEnv* env, jobject, jlong generation, jlong revision) {
     try {
         auto value = instance().rawInput(generation, revision);

@@ -117,6 +117,7 @@ internal object Native {
     external fun action(generation: Long, revision: Long, action: Int, index: Int, value: String, statistics: Boolean = false): Snapshot
     external fun rawInput(generation: Long, revision: Long): RawInputState?
     external fun deploy(): Boolean
+    external fun deploymentDegraded(): Boolean
     external fun schemas(): Array<String>
     external fun schemaEntries(): Array<String>
     external fun options(): Array<String>

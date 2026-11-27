@@ -79,7 +79,7 @@ struct Fake {
     std::string editAction;
     std::map<std::string, std::string> schemaValues;
     std::string initialSchema;
-    bool hasDeploymentResult = false;
+    bool hasDeploymentResult = false, otherTaskFailed = false;
     std::vector<std::string> deployed, failed;
     int warmCalls = 0, freedWarm = 0, releasedWarm = 0;
     std::vector<std::string> warmPaths;
@@ -225,6 +225,7 @@ RimeApi api() {
         result->successful_schemas = {good.size(), good.data()};
         result->failed_schemas = {bad.size(), bad.data()};
         result->success = bad.empty();
+        result->other_task_failed = f.otherTaskFailed;
         return true;
     };
     a.free_deployment_result = [](RimeDeploymentResult*) {};
@@ -867,10 +868,10 @@ void testUsableDeploymentWarning() {
     engine.stop();
     auto rejected = [](bool known, const std::string& initial,
                        const std::vector<std::string>& good,
-                       const std::vector<std::string>& bad) {
+                       const std::vector<std::string>& bad, bool otherTaskFailed = false) {
         f = {}; auto a = api(); Engine engine(&a);
         f.failDeploy = true; f.hasDeploymentResult = known;
-        f.initialSchema = initial; f.deployed = good; f.failed = bad;
+        f.initialSchema = initial; f.deployed = good; f.failed = bad; f.otherTaskFailed = otherTaskFailed;
         try { engine.start("shared", "user", "development", true); }
         catch (const std::runtime_error&) { return true; }
         engine.stop(); return false;
@@ -878,6 +879,7 @@ void testUsableDeploymentWarning() {
     CHECK(rejected(false, "test", {"test"}, {"other"}));
     CHECK(rejected(true, "test", {"other"}, {"test"}));
     CHECK(rejected(true, "test", {"test"}, {})); // global failure
+    CHECK(rejected(true, "test", {"test"}, {"other"}, true)); // mixed failure
     CHECK(rejected(true, "missing", {"test"}, {"other"}));
 #endif
     // Old/short APIs never infer success from compiled filenames.
