@@ -33,6 +33,22 @@ class LayoutKeyColorsTest {
         assertEquals(dark.accentKeyBackgroundColor, colors.background(key, dark))
     }
 
+    @Test fun `functional key palette follows the selected theme and survives copying`() {
+        val colors = LayoutKeyColors()
+        val key = mapOf("type" to "BackspaceKey",
+            "backgroundColorMonet" to "theme:role.delete.altKeyBackgroundColor",
+            "textColorMonet" to "theme:role.delete.altKeyTextColor")
+        val watercolor = ThemePreset.Watercolor
+        assertEquals(0xfff5dfe4.toInt(), colors.background(key, watercolor))
+        assertEquals(ThemePreset.Pulan.altKeyBackgroundColor, colors.background(key, ThemePreset.Pulan))
+        assertEquals(dark.altKeyBackgroundColor, colors.background(key, dark))
+        assertEquals(dark.altKeyTextColor, colors.foreground(key, dark))
+        val copy = watercolor.deriveCustomNoBackground("copy")
+        assertEquals(colors.background(key, watercolor), colors.background(key, copy))
+        assertEquals(0xff123456.toInt(), colors.background(mapOf("type" to "BackspaceKey",
+            "backgroundColor" to 0xff123456.toInt()), watercolor))
+    }
+
     @Test fun `system references and fallback use the existing key field precedence`() {
         val colors = LayoutKeyColors { name -> if (name == "system_accent1_500") 42 else null }
         assertEquals(42, colors.foreground(mapOf("textColorMonet" to "system_accent1_500", "textColor" to 7), light))

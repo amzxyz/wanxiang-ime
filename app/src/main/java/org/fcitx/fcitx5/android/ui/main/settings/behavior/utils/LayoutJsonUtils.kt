@@ -190,6 +190,24 @@ object LayoutJsonUtils {
     fun childNameFromLayerLabel(label: String): String =
         label.removePrefix(LAYER_SUBMODE_PREFIX)
 
+    /** 仅转换显示名称；方案 ID、层标识和保存键保持不变。 */
+    fun displayLayoutName(layoutName: String, subLayout: String? = null): String {
+        val label = subLayout ?: layoutName
+        return when (label) {
+            "default" -> "全键盘"
+            "wanxiang_t9" -> "9键布局"
+            "wanxiang_zrm_18keys" -> "18键布局"
+            "${LAYER_SUBMODE_PREFIX}数字", "数字" -> "数字键盘"
+            "text_editor" -> "文本编辑"
+            else -> if (isLayerSubModeLabel(label)) childNameFromLayerLabel(label) else label
+        }
+    }
+
+    fun displayLayoutEntry(key: String): String =
+        parseEntryKey(key)?.let {
+            displayLayoutName(it.layoutName, it.subLayout) + if (it.isSplit) " · 分体" else ""
+        } ?: key
+
     /** 分体排列条目的子布局标签，形如 `__variant__:split`。 */
     fun toVariantSubModeLabel(variantKey: String): String = "$VARIANT_SUBMODE_PREFIX$variantKey"
 
@@ -631,10 +649,8 @@ object LayoutJsonUtils {
     /**
      * 将旧版单一 swipe 槽位迁移为物理上划或下划槽位。
      *
-     * 迁移只处理支持方向宏的键型；SpaceKey 保留旧专用滑动语义。已有新版方向槽时，旧字段按
-     * [legacySwipeTargetsUp] 跟随唯一的一侧；没有新版方向槽时，调用方传入的
-     * [legacyTargetIsUp] 决定旧字段落点。这样单独存在的旧 `swipe` 动作也会按加载时的用户设置
-     * 固定到上/下槽，旧标签与动作落在同一侧。
+     * 仅整理同时使用普通字段与明确方向槽位的布局。纯普通副标签及动作继续继承公共位置，
+     * SpaceKey 保留专用语义。混合字段按 [legacySwipeTargetsUp] 归入对应方向。
      *
      * 宏字段和标签字段分别判断：各自已有方向字段时删除对应旧字段，否则迁移旧字段，
      * 避免部分新配置覆盖另一类仍需保留的旧数据。
@@ -656,11 +672,9 @@ object LayoutJsonUtils {
                 val hasNewMacro = key.containsKey("swipeUp") || key.containsKey("swipeDown")
                 val hasNewLabel = key.containsKey("swipeUpLabel") ||
                     key.containsKey("swipeDownLabel")
-                val hasLegacySwipe = key.containsKey("swipe")
-                val hasLegacyLabel = !((key[legacyLabelField] as? String).isNullOrEmpty())
-                if (hasLegacyLabel || hasNewMacro || hasNewLabel ||
-                    (hasLegacySwipe && legacyTargetIsUp != null)
-                ) {
+                // Only reconcile mixed old/new fields. A standalone ordinary label
+                // and swipe must keep inheriting the public position at runtime.
+                if (hasNewMacro || hasNewLabel) {
                     val hasDirectionalSlots = hasNewMacro || hasNewLabel
                     val targetsUp = if (hasDirectionalSlots) {
                         legacySwipeTargetsUp(
@@ -1096,6 +1110,7 @@ object LayoutJsonUtils {
             }
             is MacroKey -> {
                 json["label"] = keyDef.label
+                keyDef.altLabel?.let { json["altLabel"] = it }
                 keyDef.displayText?.takeIf { it.isNotEmpty() }?.let { json["displayText"] = it }
                 if (keyDef.longPressLabel != null) {
                     json["longPressLabel"] = keyDef.longPressLabel
@@ -1220,18 +1235,16 @@ object LayoutJsonUtils {
         legacyTargetIsUp: Boolean? = null
     ): KeyDef? {
         // 旧版单槽划动（`swipe` / `altLabel` / `swipeLabel`）没有物理方向。调用方提供当前
-        // 设置时，动作与标签按统一迁移规则固定到对应方向；已有方向字段优先于设置。
-        // 不提供设置的旧调用方仍沿用旧的结构性判断，保持原有解析行为。
+        // 设置时也只解析明确方向；没有方向字段的普通标签与动作保持公共继承。
+        // 保留 legacyTargetIsUp 参数以兼容调用方；明确方向只由字段结构决定。
         //
-        // 已有方向字段时旧字段跟随唯一一侧；没有方向字段时使用调用方的设置判定，
-        // 使旧动作和标签落在同一侧。
+        // 已有方向字段时旧字段跟随明确方向；否则原样保留普通槽位。
         val legacyLabel = if (key.type == "MacroKey") key.altLabel else key.swipeLabel
         val hasLegacyLabel = !legacyLabel.isNullOrEmpty()
         val hasDirectionalLabel = key.swipeUpLabel != null || key.swipeDownLabel != null
         val hasDirectionalMacro = key.swipeUp != null || key.swipeDown != null
         val hasDirectionalSlots = hasDirectionalLabel || hasDirectionalMacro
-        val pinLegacySwipe = hasLegacyLabel || hasDirectionalSlots ||
-            (key.swipe != null && legacyTargetIsUp != null)
+        val pinLegacySwipe = hasDirectionalSlots
         val legacyTargetsUp = if (hasDirectionalSlots) {
             legacySwipeTargetsUp(
                 hasUpMacro = key.swipeUp != null,
@@ -1243,14 +1256,15 @@ object LayoutJsonUtils {
             legacyTargetIsUp ?: false
         }
         val directionalUpLabel = key.swipeUpLabel
-            ?: legacyLabel?.takeIf { hasLegacyLabel && !hasDirectionalLabel && legacyTargetsUp }
+            ?: legacyLabel?.takeIf { hasDirectionalSlots && hasLegacyLabel && !hasDirectionalLabel && legacyTargetsUp }
         val directionalDownLabel = key.swipeDownLabel
-            ?: legacyLabel?.takeIf { hasLegacyLabel && !hasDirectionalLabel && !legacyTargetsUp }
+            ?: legacyLabel?.takeIf { hasDirectionalSlots && hasLegacyLabel && !hasDirectionalLabel && !legacyTargetsUp }
         val directionalUpMacro = key.swipeUp
             ?: key.swipe?.takeIf { pinLegacySwipe && !hasDirectionalMacro && legacyTargetsUp }
         val directionalDownMacro = key.swipeDown
             ?: key.swipe?.takeIf { pinLegacySwipe && !hasDirectionalMacro && !legacyTargetsUp }
         val directionalLegacyMacro = key.swipe?.takeIf { !pinLegacySwipe }
+        val ordinaryLabel = legacyLabel?.takeUnless { hasDirectionalSlots }
 
         val keyDef = when (key.type) {
             "AlphabetKey" -> AlphabetKey(
@@ -1281,6 +1295,7 @@ object LayoutJsonUtils {
                 swipeDown = directionalDownMacro,
                 swipeUpLabel = directionalUpLabel,
                 swipeDownLabel = directionalDownLabel,
+                swipeLabel = ordinaryLabel,
                 swipe = directionalLegacyMacro,
                 percentWidth = key.weight ?: 0.15f,
                 textColor = key.textColor,
@@ -1295,6 +1310,7 @@ object LayoutJsonUtils {
                 swipeDown = directionalDownMacro,
                 swipeUpLabel = directionalUpLabel,
                 swipeDownLabel = directionalDownLabel,
+                swipeLabel = ordinaryLabel,
                 displayText = key.label ?: "?123",
                 to = key.subLabel ?: "",
                 swipe = directionalLegacyMacro,
@@ -1342,6 +1358,7 @@ object LayoutJsonUtils {
                 swipeDown = directionalDownMacro,
                 swipeUpLabel = directionalUpLabel,
                 swipeDownLabel = directionalDownLabel,
+                swipeLabel = ordinaryLabel,
                 symbol = key.label ?: ".",
                 swipe = directionalLegacyMacro,
                 percentWidth = key.weight ?: 0.1f,
@@ -1358,6 +1375,7 @@ object LayoutJsonUtils {
                 swipeDown = directionalDownMacro,
                 swipeUpLabel = directionalUpLabel,
                 swipeDownLabel = directionalDownLabel,
+                swipeLabel = ordinaryLabel,
                 swipe = directionalLegacyMacro,
                 percentWidth = key.weight ?: 0.15f,
                 textColor = key.textColor,
@@ -1372,6 +1390,7 @@ object LayoutJsonUtils {
                 swipeDown = directionalDownMacro,
                 swipeUpLabel = directionalUpLabel,
                 swipeDownLabel = directionalDownLabel,
+                swipeLabel = ordinaryLabel,
                 swipe = directionalLegacyMacro,
                 percentWidth = key.weight ?: 0.15f,
                 textColor = key.textColor,
@@ -1442,6 +1461,7 @@ object LayoutJsonUtils {
                     character = baseLabel.ifEmpty { resolvedDisplayText ?: "" },
                     swipeUpLabel = directionalUpLabel,
                     swipeDownLabel = directionalDownLabel,
+                    altLabel = ordinaryLabel,
                     longPressLabel = key.longPressLabel,
                     tap = tap,
                     swipeUp = directionalUpMacro,

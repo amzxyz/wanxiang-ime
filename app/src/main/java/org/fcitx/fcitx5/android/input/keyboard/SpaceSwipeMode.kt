@@ -4,23 +4,31 @@
  */
 package org.fcitx.fcitx5.android.input.keyboard
 
-/**
- * 空格键划动手势的归属判定。
- *
- * 空格键是唯一一个手势语义被设置开关接管的键，两种模式互斥：
- *
- * 1. **光标模式**——「划动空格键以移动光标」（`spaceSwipeMoveCursor`）开启：横向/纵向
- *    划动移动光标，按键自身配置的划动动作不生效。
- * 2. **划动动作模式**——开关关闭且按键配了划动动作：划动触发该动作。
- *
- * 两者都不成立时不参与划动手势（保持 `swipeEnabled = false`），这样手指在空格键上
- * 移动不会取消长按——语音输入的「按住说话」依赖长按判定，误取消会让录音半途中断。
- *
- * 抽成纯函数是为了让这条优先级规则可以被单元测试直接覆盖：它是本功能里最容易在
- * 后续改动中被改反的一处，而 `BaseKeyboard` 依赖 `AppPrefs`/`Context`，无法在 JVM
- * 测试里构造。
- */
+import kotlin.math.abs
+import org.fcitx.fcitx5.android.input.keyboard.CustomGestureView.Event
+import org.fcitx.fcitx5.android.input.keyboard.CustomGestureView.SwipeAxis
+
+/** Cursor movement and layout macros can coexist on different axes. */
 internal fun resolveSpaceSwipeEnabled(
     cursorSwipeEnabled: Boolean,
     swipeAction: MacroAction?
 ): Boolean = cursorSwipeEnabled || swipeAction != null
+
+/** Lock using actual displacement, independent of the per-axis step thresholds. */
+internal fun resolveSpaceSwipeAxis(
+    locked: SwipeAxis?,
+    deltaX: Float,
+    deltaY: Float,
+    countX: Int,
+    countY: Int
+): SwipeAxis? = locked ?: if (countX != 0 || countY != 0) {
+    if (abs(deltaX) >= abs(deltaY)) SwipeAxis.X else SwipeAxis.Y
+} else null
+
+/** A vertical layout macro is dispatched once at release, never after a cancelled or held press. */
+internal fun shouldRunSpaceSwipeMacro(
+    axis: SwipeAxis?,
+    swipeAction: MacroAction?,
+    event: Event
+): Boolean = axis == SwipeAxis.Y && swipeAction != null && event.totalY != 0 &&
+    !event.consumed && !event.cancelled && !event.longPressTriggered

@@ -116,7 +116,8 @@ class TextKeyboardLayoutProfileManagerActivity : SettingsUiActivity() {
                     .map { name ->
                         val file = UserConfigFiles.textKeyboardLayoutJson(name)
                         val builtin = file != null && !file.exists()
-                        val keys = if (builtin) listOf("default") else runCatching {
+                        val keys = if (builtin) LayoutDataManager(this@TextKeyboardLayoutProfileManagerActivity)
+                            .loadDefaultPreset().keys.toList() else runCatching {
                             LayoutDataManager(this@TextKeyboardLayoutProfileManagerActivity)
                                 .parseJsonText(file!!.readText(), file.name, fallbackToDefault = false).keys.toList()
                         }.getOrDefault(emptyList())
@@ -232,8 +233,9 @@ class TextKeyboardLayoutProfileManagerActivity : SettingsUiActivity() {
                 layouts.sortedWith(compareBy({ it.second.subLayout != null }, { it.second.subLayout }, { it.second.isSplit }))
                     .forEach { (key, identity) ->
                         val sub = identity.subLayout
-                        val title = if (sub == null && !identity.isSplit) base else
-                            "• " + (sub ?: getString(R.string.default_)) +
+                        val name = LayoutJsonUtils.displayLayoutName(base, sub)
+                        val title = if (sub == null && !identity.isSplit) name else
+                            "• " + name +
                                 if (identity.isSplit) " · " + getString(R.string.text_keyboard_layout_split_layout) else ""
                         val entryRow = horizontal().apply {
                             setPadding(dp(if (sub == null && !identity.isSplit) 12 else 32), dp(2), dp(4), dp(2))

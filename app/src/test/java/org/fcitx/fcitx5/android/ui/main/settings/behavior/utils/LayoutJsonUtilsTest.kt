@@ -748,11 +748,10 @@ class LayoutJsonUtilsTest {
     }
 
     /**
-     * 旧单槽字段默认落到下滑槽：没有方向信息时方向不该由主题的「标点位置」决定，
-     * 否则换个主题就会把用户配好的下滑键整体翻成上滑（副标签也跑到上方）。
+     * 未声明物理方向的普通标签应保留公共继承语义。
      */
     @Test
-    fun legacySingleSlotSwipeFallsBackToDownSlot() {
+    fun ordinarySingleSlotLabelKeepsPublicPosition() {
         val key = mutableMapOf<String, Any?>(
             "type" to "MacroKey",
             "label" to "M",
@@ -761,9 +760,9 @@ class LayoutJsonUtilsTest {
         val entries: MutableMap<String, MutableList<MutableList<MutableMap<String, Any?>>>> =
             mutableMapOf("main" to mutableListOf(mutableListOf(key)))
 
-        assertTrue(LayoutJsonUtils.migrateDirectionalSwipeFields(entries))
-        assertNull(key["altLabel"])
-        assertEquals("legacy", key["swipeDownLabel"])
+        assertFalse(LayoutJsonUtils.migrateDirectionalSwipeFields(entries))
+        assertEquals("legacy", key["altLabel"])
+        assertNull(key["swipeDownLabel"])
         assertNull(key["swipeUpLabel"])
     }
 
@@ -808,15 +807,15 @@ class LayoutJsonUtilsTest {
         assertNull(key["swipeLabel"])
         assertTrue(key.containsKey("swipeUp"))
         val compose = key["composeOverride"] as Map<*, *>
-        assertTrue(compose.containsKey("swipeDown"))
-        assertEquals("compose legacy label", compose["swipeDownLabel"])
-        assertNull(compose["swipe"])
+        assertFalse(compose.containsKey("swipeDown"))
+        assertEquals("compose legacy label", compose["swipeLabel"])
+        assertNotNull(compose["swipe"])
         assertTrue(!LayoutJsonUtils.migrateDirectionalSwipeFields(entries))
     }
 
-    /** 功能键旧 swipe/swipeLabel 同样迁移到下滑槽。 */
+    /** 功能键的普通字段也保留公共继承。 */
     @Test
-    fun directionalSwipeMigrationMovesLegacyFieldsDownward() {
+    fun directionalSwipeMigrationPreservesOrdinaryFields() {
         val key = mutableMapOf<String, Any?>(
             "type" to "ReturnKey",
             "swipe" to mapOf("macro" to listOf("legacy macro")),
@@ -825,19 +824,17 @@ class LayoutJsonUtilsTest {
         val entries: MutableMap<String, MutableList<MutableList<MutableMap<String, Any?>>>> =
             mutableMapOf("main" to mutableListOf(mutableListOf(key)))
 
-        assertTrue(LayoutJsonUtils.migrateDirectionalSwipeFields(entries))
-        assertTrue(key.containsKey("swipeDown"))
-        assertEquals("legacy label", key["swipeDownLabel"])
-        assertNull(key["swipe"])
-        assertNull(key["swipeLabel"])
+        assertFalse(LayoutJsonUtils.migrateDirectionalSwipeFields(entries))
+        assertFalse(key.containsKey("swipeDown"))
+        assertEquals("legacy label", key["swipeLabel"])
+        assertNotNull(key["swipe"])
     }
 
     /**
-     * 运行时解析（createKeyDef）与迁移必须给出同一个方向：旧单槽字段落到下滑槽，
-     * 不再让主题的「标点位置」参与判断。
+     * 运行时与迁移均保留普通槽位，位置由公共设置决定。
      */
     @Test
-    fun createKeyDefResolvesLegacySingleSlotSwipeToDownSlot() {
+    fun createKeyDefPreservesOrdinarySingleSlotSwipe() {
         val parsed = LayoutJsonUtils.parseKeyJsonArray(
             row(
                 """
@@ -851,10 +848,13 @@ class LayoutJsonUtilsTest {
         ).single()
         val def = LayoutJsonUtils.createKeyDef(parsed) as ReturnKey
 
-        assertNull("旧单槽动作应落到下滑槽", def.swipeUp)
-        assertNotNull(def.swipeDown)
+        assertNull(def.swipeUp)
+        assertNull(def.swipeDown)
+        assertNotNull(def.swipe)
         assertNull(def.swipeUpLabel)
-        assertEquals("legacy", def.swipeDownLabel)
+        assertNull(def.swipeDownLabel)
+        assertEquals("legacy", def.swipeLabel)
+        assertFalse(def.appearance.directionalSwipeLabels)
     }
 
     /** 键上只有上划宏时，旧标签跟随上滑槽，避免「标签在上、动作在下」。 */
@@ -959,5 +959,20 @@ class LayoutJsonUtilsTest {
         ).single()
         assertEquals(0xFF5C6B89.toInt(), parsed.backgroundColor)
         assertEquals(0xFFAABBCC.toInt(), parsed.textColor)
+    }
+
+    @Test fun builtinLayoutNamesAreReadableWithoutChangingStorageKeys() {
+        val labels = mapOf(
+            "default" to "全键盘",
+            "default:wanxiang_t9" to "9键布局",
+            "default:wanxiang_zrm_18keys" to "18键布局",
+            "default:__layer__:数字" to "数字键盘",
+            "text_editor" to "文本编辑",
+            "rime:自定义" to "自定义"
+        )
+        labels.forEach { (key, label) ->
+            assertEquals(label, LayoutJsonUtils.displayLayoutEntry(key))
+            assertEquals(key, LayoutJsonUtils.parseEntryKey(key)?.toEntryKey())
+        }
     }
 }

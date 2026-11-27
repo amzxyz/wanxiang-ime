@@ -4,20 +4,16 @@
  */
 package org.fcitx.fcitx5.android.input.keyboard
 
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
+import org.fcitx.fcitx5.android.input.keyboard.CustomGestureView.Event
+import org.fcitx.fcitx5.android.input.keyboard.CustomGestureView.GestureType
+import org.fcitx.fcitx5.android.input.keyboard.CustomGestureView.SwipeAxis
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/**
- * 空格键划动手势的归属规则。
- *
- * 两种模式互斥且开关优先级更高：
- * - 开关开启 → 光标手势接管，按键配置的划动动作**不生效**；
- * - 开关关闭 → 配了划动动作才接管。
- *
- * 这条优先级是本功能最容易在后续改动中被改反的一处（把开关与动作写成"或"之后
- * 又顺手让动作优先），所以单独钉住。
- */
+/** Horizontal cursor movement and vertical layout macros are independent. */
 class SpaceSwipeModeTest {
 
     private val action = MacroAction(
@@ -25,9 +21,9 @@ class SpaceSwipeModeTest {
     )
 
     @Test
-    fun cursorModeTakesOverEvenWhenSwipeActionConfigured() {
+    fun cursorModeAndMacroCanCoexist() {
         assertTrue(
-            "开关开启时光标手势必须参与，即使按键配了划动动作",
+            "光标和布局宏可以同时启用",
             resolveSpaceSwipeEnabled(cursorSwipeEnabled = true, swipeAction = action)
         )
     }
@@ -54,5 +50,25 @@ class SpaceSwipeModeTest {
             "开关关闭且没有划动动作时空格键不参与手势，避免滑动取消长按（按住说话）",
             resolveSpaceSwipeEnabled(cursorSwipeEnabled = false, swipeAction = null)
         )
+    }
+
+    @Test fun axisUsesPhysicalDisplacementAndStaysLocked() {
+        assertNull(resolveSpaceSwipeAxis(null, 1f, 2f, 0, 0))
+        assertEquals(SwipeAxis.Y, resolveSpaceSwipeAxis(null, 12f, 30f, 2, 0))
+        assertEquals(SwipeAxis.X, resolveSpaceSwipeAxis(null, 30f, 12f, 3, 1))
+        assertEquals(SwipeAxis.X, resolveSpaceSwipeAxis(SwipeAxis.X, 1f, 50f, 0, 2))
+        assertEquals(SwipeAxis.Y, resolveSpaceSwipeAxis(SwipeAxis.Y, 50f, 1f, 5, 0))
+    }
+
+    @Test fun onlyAnUnconsumedVerticalReleaseCanDispatchTheMacro() {
+        val up = Event(GestureType.Up, false, 0f, 30f, 0, 0, 0, 1)
+        assertTrue(shouldRunSpaceSwipeMacro(SwipeAxis.Y, action, up))
+        assertFalse(shouldRunSpaceSwipeMacro(SwipeAxis.X, action, up))
+        assertFalse(shouldRunSpaceSwipeMacro(null, action, up))
+        assertFalse(shouldRunSpaceSwipeMacro(SwipeAxis.Y, null, up))
+        assertFalse(shouldRunSpaceSwipeMacro(SwipeAxis.Y, action, up.copy(totalY = 0)))
+        assertFalse(shouldRunSpaceSwipeMacro(SwipeAxis.Y, action, up.copy(consumed = true)))
+        assertFalse(shouldRunSpaceSwipeMacro(SwipeAxis.Y, action, up.copy(cancelled = true)))
+        assertFalse(shouldRunSpaceSwipeMacro(SwipeAxis.Y, action, up.copy(longPressTriggered = true)))
     }
 }

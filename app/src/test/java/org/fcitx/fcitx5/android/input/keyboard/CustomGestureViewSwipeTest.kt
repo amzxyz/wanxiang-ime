@@ -166,4 +166,33 @@ class CustomGestureViewSwipeTest {
             h.destroy()
         }
     }
+
+    @Test fun quickVerticalFlickCountsTheReleaseDisplacementWithoutTypingSpace() = withLongPressDelay {
+        val h = harness()
+        try {
+            h.view.finalizeSwipeOnRelease = true
+            h.view.swipeThresholdY = h.slop * 1.5f
+            h.touch(MotionEvent.ACTION_DOWN, 50f, 50f)
+            h.idle(35)
+            h.touch(MotionEvent.ACTION_MOVE, 50f, 50f + h.slop * 0.5f)
+            h.idle(25)
+            h.touch(MotionEvent.ACTION_UP, 50f, 50f + h.slop * 1.6f)
+            assertEquals(1, h.moveCountY)
+            assertEquals(0, h.moveCountX)
+            assertEquals(0, h.clicks)
+        } finally { h.destroy() }
+    }
+
+    @Test fun smallVerticalTapJitterStillTypesSpaceWithReleaseFinalization() = withLongPressDelay {
+        val h = harness()
+        try {
+            h.view.finalizeSwipeOnRelease = true
+            h.view.swipeThresholdY = h.slop * 1.5f
+            h.touch(MotionEvent.ACTION_DOWN, 50f, 50f)
+            h.idle(40)
+            h.touch(MotionEvent.ACTION_UP, 50f, 50f + h.slop * 0.5f)
+            assertEquals(0, h.moveCountY)
+            assertEquals(1, h.clicks)
+        } finally { h.destroy() }
+    }
 }

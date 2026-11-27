@@ -208,14 +208,8 @@ abstract class KeyView(
         return resolveColorOverride(def.altTextColor, def.altTextColorMonet) ?: defaultColor
     }
 
-    protected fun punctuationPositionForKey(): PunctuationPosition {
-        val character = (def as? KeyDef.Appearance.AltText)?.character?.singleOrNull()
-        return if (character != null && (character in 'a'..'z' || character in 'A'..'Z')) {
-            ThemeManager.prefs.punctuationPosition.getValue()
-        } else {
-            PunctuationPosition.Bottom
-        }
-    }
+    protected fun punctuationPositionForKey(): PunctuationPosition =
+        ThemeManager.prefs.punctuationPosition.getValue()
 
     private fun defaultBackgroundColor(theme: Theme): Int = when (def.variant) {
         Variant.Normal, Variant.AltForeground -> theme.keyBackgroundColor
@@ -1114,7 +1108,7 @@ class AltTextKeyView(
         val pref = punctuationPositionForKey()
         if (def.directionalSwipeLabels) {
             // 方向性标签（上滑/下滑标签）的位置只由标签自己的方向决定：上滑标签在上面、
-            // 下滑标签在下面。**刻意不读主题的「标点位置」**——那个设置是给字母键的标点
+            // 下滑标签在下面。**刻意不读主题的「标点位置」**——那个设置是给普通
             // 副标签用的；一旦让方向性标签跟随它，用户换个主题就会把按键的划动方向与
             // 标签位置整体翻转（下滑键被画成上滑、动作也跟着变），这是要修掉的 bug。
             val hasUpLabel = !altText.text.isNullOrBlank()
@@ -1187,7 +1181,7 @@ class AltTextKeyView(
             PunctuationPosition.Bottom -> AltTextLayoutMode.Bottom
             PunctuationPosition.None -> AltTextLayoutMode.Hidden
         }
-        // 主题里手动开启「副标签显示在侧边」后，字母键的标点副标签也跟随所选侧：
+        // 主题里手动开启「副标签显示在侧边」后，普通副标签也跟随所选侧：
         // 上滑标签贴所选侧的顶角、下滑标签贴同侧的底角。位置只由该设置决定，不再看键高，
         // 与方向性标签分支保持一致；滑动方向不变（顶部标签仍上滑、底部标签仍下滑）。
         if (ThemeManager.prefs.altLabelOnSide.getValue()) {

@@ -1176,7 +1176,7 @@ class KeyEditorForm(
     private fun macroStepsOf(action: Any?): List<Any> =
         ((action as? Map<*, *>)?.get("macro") as? List<*>)?.filterNotNull() ?: emptyList()
 
-    /** 旧单槽字段编辑时跟随已有的新方向槽；否则采用当前方向设置和主题符号位置。 */
+    /** 普通标签在编辑器里投影到公共位置；明确的方向槽始终保持原方向。 */
     private fun legacySwipeToDown(keyData: Map<String, Any?>): Boolean {
         val hasDirectionalSlots = keyData.containsKey("swipeUp") ||
             keyData.containsKey("swipeDown") ||
@@ -1190,10 +1190,16 @@ class KeyEditorForm(
                 hasDownLabel = keyData.containsKey("swipeDownLabel")
             )
         } else {
-            LayoutJsonUtils.legacySwipeTargetsUpFromSettings(
-                AppPrefs.getInstance().keyboard.swipeSymbolDirection.getValue(),
-                ThemeManager.prefs.punctuationPosition.getValue()
-            )
+            when (ThemeManager.prefs.punctuationPosition.getValue()) {
+                org.fcitx.fcitx5.android.data.theme.ThemePrefs.PunctuationPosition.TopRight,
+                org.fcitx.fcitx5.android.data.theme.ThemePrefs.PunctuationPosition.TopCenter -> true
+                org.fcitx.fcitx5.android.data.theme.ThemePrefs.PunctuationPosition.Bottom -> false
+                org.fcitx.fcitx5.android.data.theme.ThemePrefs.PunctuationPosition.None ->
+                    LayoutJsonUtils.legacySwipeTargetsUpFromSettings(
+                        AppPrefs.getInstance().keyboard.swipeSymbolDirection.getValue(),
+                        ThemeManager.prefs.punctuationPosition.getValue()
+                    )
+            }
         }
         return !targetsUp
     }
@@ -1243,6 +1249,29 @@ class KeyEditorForm(
         fieldsContainer.addView(up.first)
         fieldsContainer.addView(down.first)
     }
+
+    // The editor displays old ordinary slots in their current effective position.
+    // Changing unrelated attributes must not silently pin them to that direction.
+    private fun preserveOrdinarySwipe(draft: MutableMap<String, Any?>) {
+        if (selectedType != keyData["type"] ||
+            selectedType !in setOf("MacroKey", "CapsKey", "LayoutSwitchKey", "SymbolKey", "ReturnKey", "BackspaceKey")) return
+        val slots = listOf("swipeUp", "swipeDown", "swipeUpLabel", "swipeDownLabel")
+        if (slots.any { keyData.containsKey(it) }) return
+        val labelKey = if (selectedType == "MacroKey") "altLabel" else "swipeLabel"
+        val label = (keyData[labelKey] as? String)?.trim().orEmpty()
+        val steps = macroStepsOf(keyData["swipe"])
+        if (label.isEmpty() && steps.isEmpty()) return
+        val direction = if (legacySwipeToDown(keyData)) "swipeDown" else "swipeUp"
+        val other = if (direction == "swipeDown") "swipeUp" else "swipeDown"
+        if (draft.containsKey(other) || draft.containsKey(other + "Label")) return
+        if (draft[direction + "Label"].orEmptyString() != label ||
+            macroStepsOf(draft[direction]) != steps) return
+        slots.forEach { draft.remove(it) }
+        if (label.isNotEmpty()) draft[labelKey] = label
+        if (steps.isNotEmpty()) draft["swipe"] = mapOf("macro" to steps)
+    }
+
+    private fun Any?.orEmptyString(): String = (this as? String).orEmpty()
 
     private fun appendDirectionalSwipeLabels(draft: MutableMap<String, Any?>) {
         draft.remove("swipeLabel")
@@ -1476,7 +1505,8 @@ class KeyEditorForm(
 
     private fun resolveThemeTokenColor(theme: org.fcitx.fcitx5.android.data.theme.Theme, token: String?): Int? {
         val value = token?.takeIf { it.isNotBlank() } ?: return null
-        return themeColorTokens.firstOrNull { it.token == value }?.resolver?.invoke(theme)
+        return org.fcitx.fcitx5.android.input.keyboard.LayoutKeyColorResolver.resolveThemeTokenColor(theme, value)
+            ?: themeColorTokens.firstOrNull { it.token == value }?.resolver?.invoke(theme)
     }
 
     private fun resolveColorReference(theme: org.fcitx.fcitx5.android.data.theme.Theme, ref: String?): Int? {
@@ -1777,6 +1807,7 @@ class KeyEditorForm(
             draft["independentColor"] = independentColor
         }
 
+        preserveOrdinarySwipe(draft)
         appendColorOverrides(draft)
 
         return draft
@@ -2309,6 +2340,7 @@ class KeyEditorForm(
             newKey["independentColor"] = independentColor
         }
 
+        preserveOrdinarySwipe(newKey)
         appendColorOverrides(newKey)
 
         return newKey

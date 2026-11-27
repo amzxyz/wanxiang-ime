@@ -1,0 +1,286 @@
+[
+  {
+    "type": "MacroKey",
+    "label": "1",
+    "swipeDownLabel": "`",
+    "rowHeightPercent": 15.3,
+    "tap": {
+      "macro": [
+        {
+          "type": "tap",
+          "keys": [
+            {
+              "fcitx": "1"
+            }
+          ]
+        }
+      ]
+    },
+    "swipeDown": {
+      "macro": [
+        {
+          "type": "tap",
+          "keys": [
+            {
+              "fcitx": "grave"
+            }
+          ]
+        }
+      ]
+    },
+    "longPress": {
+      "macro": [
+        {
+          "type": "shortcut",
+          "modifiers": [
+            {
+              "fcitx": "Ctrl_L"
+            }
+          ],
+          "key": {
+            "fcitx": "1"
+          }
+        }
+      ]
+    },
+    "backgroundColorMonet": "theme:altKeyBackgroundColor",
+    "longPressLabel": "Ctrl+1"
+  },
+  {
+    "type": "MacroKey",
+    "label": "2",
+    "tap": {
+      "macro": [
+        {
+          "type": "tap",
+          "keys": [
+            {
+              "fcitx": "2"
+            }
+          ]
+        }
+      ]
+    },
+    "longPress": {
+      "macro": [
+        {
+          "type": "shortcut",
+          "modifiers": [
+            {
+              "fcitx": "Ctrl_L"
+            }
+          ],
+          "key": {
+            "fcitx": "2"
+          }
+        }
+      ]
+    },
+    "backgroundColorMonet": "theme:altKeyBackgroundColor",
+    "longPressLabel": "Ctrl+2"
+  },
+  {
+    "type": "MacroKey",
+    "label": "3",
+    "tap": {
+      "macro": [
+        {
+          "type": "tap",
+          "keys": [
+            {
+              "fcitx": "3"
+            }
+          ]
+        }
+      ]
+    },
+    "longPress": {
+      "macro": [
+        {
+          "type": "shortcut",
+          "modifiers": [
+            {
+              "fcitx": "Ctrl_L"
+            }
+          ],
+          "key": {
+            "fcitx": "3"
+          }
+        }
+      ]
+    },
+    "backgroundColorMonet": "theme:altKeyBackgroundColor",
+    "longPressLabel": "Ctrl+3"
+  },
+  {
+    "type": "MacroKey",
+    "label": "4",
+    "tap": {
+      "macro": [
+        {
+          "type": "tap",
+          "keys": [
+            {
+              "fcitx": "4"
+            }
+          ]
+        }
+      ]
+    },
+    "longPress": {
+      "macro": [
+        {
+          "type": "shortcut",
+          "modifiers": [
+            {
+              "fcitx": "Ctrl_L"
+            }
+          ],
+          "key": {
+            "fcitx": "4"
+          }
+        }
+      ]
+    },
+    "backgroundColorMonet": "theme:altKeyBackgroundColor",
+    "longPressLabel": "Ctrl+4"
+  },
+  {
+    "type": "MacroKey",
+    "label": "5",
+    "tap": {
+      "macro": [
+        {
+          "type": "tap",
+          "keys": [
+            {
+              "fcitx": "5"
+            }
+          ]
+        }
+      ]
+    },
+    "longPress": {
+      "macro": [
+        {
+          "type": "shortcut",
+          "modifiers": [
+            {
+              "fcitx": "Ctrl_L"
+            }
+          ],
+          "key": {
+            "fcitx": "5"
+          }
+        }
+      ]
+    },
+    "backgroundColorMonet": "theme:altKeyBackgroundColor",
+    "longPressLabel": "Ctrl+5"
+  },
+  {
+    "type": "MacroKey",
+    "label": "6",
+    "tap": {
+      "macro": [
+        {
+          "type": "tap",
+          "keys": [
+            {
+              "fcitx": "6"
+            }
+          ]
+        }
+      ]
+    },
+    "longPress": {
+      "macro": [
+        {
+          "type": "shortcut",
+          "modifiers": [
+            {
+              "fcitx": "Ctrl_L"
+            }
+          ],
+          "key": {
+            "fcitx": "6"
+          }
+        }
+      ]
+    },
+    "backgroundColorMonet": "theme:altKeyBackgroundColor",
+    "longPressLabel": "Ctrl+6"
+  },
+  {
+    "type": "MacroKey",
+    "label": "7",
+    "swipeDownLabel": "ˉ",
+    "tap": {
+      "macro": [
+        {
+          "type": "tap",
+          "keys": [
+            {
+              "fcitx": "7"
+            }
+          ]
+        }
+      ]
+    },
+    "backgroundColorMonet": "theme:altKeyBackgroundColor"
+  },
+  {
+    "type": "MacroKey",
+    "label": "8",
+    "swipeDownLabel": "ˊ",
+    "tap": {
+      "macro": [
+        {
+          "type": "tap",
+          "keys": [
+            {
+              "fcitx": "8"
+            }
+          ]
+        }
+      ]
+    },
+    "backgroundColorMonet": "theme:altKeyBackgroundColor"
+  },
+  {
+    "type": "MacroKey",
+    "label": "9",
+    "swipeDownLabel": "ˇ",
+    "tap": {
+      "macro": [
+        {
+          "type": "tap",
+          "keys": [
+            {
+              "fcitx": "9"
+            }
+          ]
+        }
+      ]
+    },
+    "backgroundColorMonet": "theme:altKeyBackgroundColor"
+  },
+  {
+    "type": "MacroKey",
+    "label": "0",
+    "swipeDownLabel": "ˋ",
+    "tap": {
+      "macro": [
+        {
+          "type": "tap",
+          "keys": [
+            {
+              "fcitx": "0"
+            }
+          ]
+        }
+      ]
+    },
+    "backgroundColorMonet": "theme:altKeyBackgroundColor"
+  }
+]

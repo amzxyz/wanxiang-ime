@@ -18,7 +18,7 @@ import org.fcitx.fcitx5.android.ui.main.settings.behavior.utils.LayoutJsonUtils
  *
  * 布局里表达数字键盘有两种写法，自动发现两种都认：
  * - **层**：基线（通常是 rime）下面的子布局，如 "rime": { "__layer__:数字": [...] }；
- * - **独立条目**：整个文件里另起一项，如 Sandy 的 "数字": { "default": [...] }。
+ * - **独立条目**：整个文件里另起一项，如 独立条目的 "数字": { "default": [...] }。
  *   这一项本身就是布局键（forcedLayoutKey 可以直接用 "数字"），不需要基线前缀。
  *
  * 做成纯逻辑对象是因为它被三处读取，且都不该各自实现一套匹配规则：
@@ -97,7 +97,7 @@ internal object NumericLayoutResolver {
             val base = key.substringBefore(':')
             val sub = key.substringAfter(':', "")
             when {
-                // 独立条目：键本身就是数字布局名，如 Sandy 的「数字」。
+                // 独立条目：键本身就是数字布局名，如 独立条目的「数字」。
                 sub.isEmpty() -> if (isNumericName(base)) {
                     Candidate(key, base, base, standalone = true)
                 } else null
@@ -151,7 +151,7 @@ internal object NumericLayoutResolver {
     /**
      * 显式值：完整布局键优先；只写了层名（数字 / __layer__:数字）时补上基线再试。
      * 这样旧版本存下来的裸层名也能继续用，而不是变成一个「不可用」的死值。
-     * 裸层名也可能正好是一个独立布局条目（Sandy 的「数字」），containsLayoutKey
+     * 裸层名也可能正好是一个独立布局条目（独立条目的「数字」），containsLayoutKey
      * 对 base 形式会直接命中，不需要再拼基线。
      */
     private fun resolveExplicit(

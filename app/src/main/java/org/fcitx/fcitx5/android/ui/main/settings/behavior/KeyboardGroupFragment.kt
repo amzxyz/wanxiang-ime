@@ -31,6 +31,7 @@ import org.fcitx.fcitx5.android.ui.main.MainViewModel
 import org.fcitx.fcitx5.android.ui.main.settings.group.SettingsGroupAction
 import org.fcitx.fcitx5.android.ui.main.settings.group.SettingsGroupSpecs
 import org.fcitx.fcitx5.android.ui.main.settings.behavior.data.LayoutDataManager
+import org.fcitx.fcitx5.android.ui.main.settings.behavior.utils.LayoutJsonUtils
 import org.fcitx.fcitx5.android.ui.main.settings.behavior.webeditor.ImeWebEditorBridgeServer
 import org.fcitx.fcitx5.android.ui.main.settings.voice.JsVoicePluginsActivity
 import org.fcitx.fcitx5.android.utils.queryFileName
@@ -257,13 +258,13 @@ class KeyboardGroupFragment : ManagedPreferenceFragment(AppPrefs.getInstance().k
         val autoKey = NumericLayoutResolver.autoDetect(entries, NUMERIC_PREFERRED_BASES)
         val autoSummary = getString(
             R.string.numeric_layout_override_auto_summary,
-            autoKey ?: getString(R.string.numeric_layout_override_builtin)
+            autoKey?.let(LayoutJsonUtils::displayLayoutEntry) ?: getString(R.string.numeric_layout_override_builtin)
         )
         return when {
             value.isEmpty() -> autoSummary
             value == NumericLayoutResolver.BUILTIN ->
                 getString(R.string.numeric_layout_override_builtin)
-            value in entries -> value
+            value in entries -> LayoutJsonUtils.displayLayoutEntry(value)
             // 旧值多半是上一个套装留下的布局键。运行时已经按自动发现处理，
             // 摘要必须说清楚真正生效的是哪一项，否则「不可用」看起来像功能坏了。
             else -> getString(R.string.numeric_layout_override_unavailable, value) +
@@ -277,7 +278,13 @@ class KeyboardGroupFragment : ManagedPreferenceFragment(AppPrefs.getInstance().k
      * 下拉框枚举的层完全一致。
      */
     private fun collectLayoutLayerEntries(): List<String> {
-        val file = ConfigProviders.provider.textKeyboardLayoutFile() ?: return emptyList()
+        val file = ConfigProviders.provider.textKeyboardLayoutFile()
+        if (file?.isFile != true) {
+            val json = ConfigProviders.provider.textKeyboardLayoutJson() ?: return emptyList()
+            return LayoutDataManager(requireContext()).parseJsonText(
+                json.toString(), "builtin", fallbackToDefault = false
+            ).keys.sorted()
+        }
         val path = file.absolutePath
         val lastModified = file.takeIf { it.exists() }?.lastModified() ?: 0L
         layoutLayerCache?.takeIf {
@@ -296,12 +303,12 @@ class KeyboardGroupFragment : ManagedPreferenceFragment(AppPrefs.getInstance().k
         val auto = getString(R.string.numeric_layout_override_auto)
         val builtin = getString(R.string.numeric_layout_override_builtin)
         val layers = collectLayoutLayerEntries()
-        val items = listOf(auto, builtin) + layers
+        val items = listOf(auto, builtin) + layers.map(LayoutJsonUtils::displayLayoutEntry)
         val current = AppPrefs.getInstance().keyboard.numericLayoutOverride.getValue().trim()
         val checked = when {
             current.isEmpty() -> 0
             current == NumericLayoutResolver.BUILTIN -> 1
-            else -> items.indexOf(current).coerceAtLeast(0)
+            else -> layers.indexOf(current).takeIf { it >= 0 }?.plus(2) ?: 0
         }
         MaterialAlertDialogBuilder(requireContext())
             .setTitle(R.string.numeric_layout_override_title)
@@ -309,7 +316,7 @@ class KeyboardGroupFragment : ManagedPreferenceFragment(AppPrefs.getInstance().k
                 val value = when (which) {
                     0 -> ""
                     1 -> NumericLayoutResolver.BUILTIN
-                    else -> items[which]
+                    else -> layers[which - 2]
                 }
                 AppPrefs.getInstance().keyboard.numericLayoutOverride.setValue(value)
                 numericLayoutOverridePreference?.summary = buildNumericLayoutOverrideSummary()

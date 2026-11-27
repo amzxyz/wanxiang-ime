@@ -31,6 +31,9 @@ object DefaultConfigProvider : ConfigProvider {
         val profile = AppPrefs.getInstance().keyboard.textKeyboardLayoutProfile.getValue()
         return UserConfigFiles.textKeyboardLayoutJson(profile)
     }
+    override fun textKeyboardLayoutJson(): JsonObject? =
+        if (textKeyboardLayoutFile()?.isFile == true) null else BuiltinKeyboardLayout.json
+
     override fun popupPresetFile(): File? = UserConfigFiles.popupPresetJson()
     override fun fontsetFile(): File? = UserConfigFiles.fontsetJson()
     override fun buttonsLayoutConfigFile(): File? = UserConfigFiles.buttonsLayoutConfig()

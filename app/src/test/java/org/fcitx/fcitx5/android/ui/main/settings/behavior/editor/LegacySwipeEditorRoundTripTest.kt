@@ -55,20 +55,17 @@ class LegacySwipeEditorRoundTripTest {
                         .single { it.hint == page.get().getString(R.string.layout_editor_width) }.editText!!
                     weight.setText("32")
                     val saved = requireNotNull(editor.validatedDraft(false))
-                    val slot = if (up) "swipeUp" else "swipeDown"
-                    val other = if (up) "swipeDown" else "swipeUp"
                     val fixture = "$mode/$position/$type"
-                    assertEquals(fixture, action, saved[slot])
-                    assertFalse(fixture, saved.containsKey(other))
-                    assertEquals(fixture, "legacy", saved[slot + "Label"])
-                    assertFalse(fixture, saved.containsKey("swipe"))
-                    // A subsequent global preference/theme change must not reverse an explicit slot.
+                    val labelKey = if (type == "MacroKey") "altLabel" else "swipeLabel"
+                    assertEquals(fixture, action, saved["swipe"])
+                    assertEquals(fixture, "legacy", saved[labelKey])
+                    assertFalse(fixture, saved.containsKey("swipeUp"))
+                    assertFalse(fixture, saved.containsKey("swipeDown"))
                     direction.setValue(if (up) SwipeSymbolDirection.Down else SwipeSymbolDirection.Up)
                     punctuation.setValue(if (up) PunctuationPosition.Bottom else PunctuationPosition.TopRight)
                     val reopened = requireNotNull(form(page.get(), saved).validatedDraft(false))
-                    assertEquals(fixture, action, reopened[slot])
-                    assertFalse(fixture, reopened.containsKey(other))
-                    assertEquals(fixture, "legacy", reopened[slot + "Label"])
+                    assertEquals(fixture, action, reopened["swipe"])
+                    assertEquals(fixture, "legacy", reopened[labelKey])
                     direction.setValue(mode); punctuation.setValue(position)
                     org.robolectric.Shadows.shadowOf(android.os.Looper.getMainLooper())
                         .idleFor(java.time.Duration.ofSeconds(1))

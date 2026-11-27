@@ -87,8 +87,8 @@ class AuxBarSizeTest {
     }
 
     @Test
-    fun sandyT9AndNumericLayoutKeepTheirCompensatedKeyWidths() {
-        // Sandy 九键：左侧辅助栏 15%，右侧功能键按 15/85 补偿；数字布局两侧各 15%。
+    fun t9AndNumericLayoutKeepTheirCompensatedKeyWidths() {
+        // 九键布局：左侧辅助栏 15%，右侧功能键按 15/85 补偿；数字布局两侧各 15%。
         val t9FunctionWidth = 0.17647f
         val t9DigitWidth = (1f - t9FunctionWidth) / 6f
         val numericFunctionWidth = 0.15f

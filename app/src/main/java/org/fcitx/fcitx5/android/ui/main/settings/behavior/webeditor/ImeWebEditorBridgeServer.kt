@@ -67,9 +67,9 @@ object ImeWebEditorBridgeServer {
         val apiBaseUrl: String get() = "http://$host:$port"
     }
 
-    // Serve the web editor from our own fork's GitHub Pages (contains the layout-editor
-    // PR changes: NumPadKey/MiniSpaceKey editing, LayoutSwitchKey switch targets).
-    // Upstream fallback: https://fxliang.github.io/f5a-see-me/
+    // The external editor currently comes from the compatible upstream fork.
+    // It supports NumPadKey/MiniSpaceKey editing and LayoutSwitchKey switch targets.
+    // Do not substitute an unverified Wanxiang Pages URL.
     private const val UPSTREAM_EDITOR_BASE = "https://sandyyur.github.io/f5a-see-me/"
     private const val UPSTREAM_EDITOR_INDEX = "${UPSTREAM_EDITOR_BASE}index.html"
     private const val CACHE_TTL_MS = 10 * 60 * 1000L

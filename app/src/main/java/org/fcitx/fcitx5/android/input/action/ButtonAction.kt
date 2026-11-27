@@ -25,11 +25,9 @@ import org.fcitx.fcitx5.android.input.status.StatusAreaWindow
 import org.fcitx.fcitx5.android.input.wm.InputWindowManager
 import org.fcitx.fcitx5.android.ui.main.settings.SettingsRoute
 import org.fcitx.fcitx5.android.ui.main.settings.behavior.ButtonsCustomizerActivity
-import org.fcitx.fcitx5.android.ui.main.settings.behavior.FontsetEditorActivity
 import org.fcitx.fcitx5.android.ui.main.settings.behavior.TextKeyboardLayoutEditorActivity
 import org.fcitx.fcitx5.android.ui.main.settings.behavior.TextKeyboardLayoutProfileManagerActivity
 import org.fcitx.fcitx5.android.ui.main.settings.behavior.dialog.TextKeyboardLayoutProfilePickerActivity
-import org.fcitx.fcitx5.android.ui.main.settings.icon.IconThemeListActivity
 import org.fcitx.fcitx5.android.ui.main.settings.voice.JsVoicePluginsActivity
 import org.fcitx.fcitx5.android.ui.main.rimeupdate.RimeSchemeUpdateActivity
 import org.fcitx.fcitx5.android.ui.main.stats.InputStatsActivity
@@ -556,9 +554,7 @@ data object IconThemeAction : ButtonAction() {
         view: View?,
         onActionComplete: (() -> Unit)?
     ) {
-        context.startActivity(Intent(context, IconThemeListActivity::class.java).apply {
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS)
-        })
+        AppUtil.launchMainToThemeList(context)
     }
 }
 
@@ -1023,9 +1019,7 @@ data object EditFontsetAction : ButtonAction() {
         view: View?,
         onActionComplete: (() -> Unit)?
     ) {
-        context.startActivity(Intent(context, FontsetEditorActivity::class.java).apply {
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        })
+        AppUtil.launchMainToKeyboardFonts(context)
     }
 }
 

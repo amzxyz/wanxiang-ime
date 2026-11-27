@@ -586,8 +586,9 @@ class TextKeyboard private constructor(
 
         @Synchronized
         fun currentBaseLayoutKey(): String? {
-            val currentIme = ime ?: return null
+            val currentIme = ime
             val json = textLayoutJson
+            if (currentIme == null) return "default".takeIf { json?.containsKey(it) == true }
             return when {
                 json?.containsKey(currentIme.uniqueName) == true -> currentIme.uniqueName
                 json?.containsKey(currentIme.displayName) == true -> currentIme.displayName
@@ -1197,13 +1198,16 @@ class TextKeyboard private constructor(
                             .ifEmpty { parseAuxBarKeys(layoutElement) }
                         val layoutArray = parseLayoutArray(rowsElement)
                         if (layoutArray != null) {
-                            val cacheKey = "${cacheKeyPrefix()}default:${variant.name}:$showLangSwitch:$lastRawModified:legacyUp=$legacyTargetIsUp"
+                            val cacheKey = "${cacheKeyPrefix()}default:${variant.name}:$showLangSwitch:$lastRawModified:$displayTextContextCacheKey:legacyUp=$legacyTargetIsUp"
                             return cachedKeyDefLayouts.getOrPut(cacheKey) {
                                 layoutArray.map { rowElement ->
                                     LayoutJsonUtils.parseKeyJsonArray(rowElement.jsonArray, showLangSwitch)
                                         .mapNotNull {
                                             LayoutJsonUtils.createKeyDef(
                                                 it,
+                                                subModeLabel = subModeLabel,
+                                                schemaId = schemaId,
+                                                subModeName = subModeName,
                                                 legacyTargetIsUp = legacyTargetIsUp
                                             )
                                         }
@@ -1220,6 +1224,17 @@ class TextKeyboard private constructor(
         }
 
         fun getDefaultLayout(showLangSwitch: Boolean = true): List<List<KeyDef>> {
+            val root = org.fcitx.fcitx5.android.input.config.BuiltinKeyboardLayout.json
+            val rows = (root?.get("default") as? JsonObject)?.get("default") as? JsonArray
+            if (rows != null) {
+                val legacyTargetIsUp = legacySwipeTargetIsUp()
+                return rows.map { row ->
+                    LayoutJsonUtils.parseKeyJsonArray(row.jsonArray, showLangSwitch).mapNotNull {
+                        LayoutJsonUtils.createKeyDef(it, legacyTargetIsUp = legacyTargetIsUp)
+                    }
+                }
+            }
+            // Emergency fallback for an unreadable APK resource, not a selectable preset.
             return listOf(
                 listOf(
                     AlphabetKey("Q", "1"),
@@ -1526,7 +1541,7 @@ class TextKeyboard private constructor(
             val rows = findLayoutElementByKey(json, forced) ?: return true
             return layoutArrayUsesSubMode(rows)
         }
-        val baseElement = json[ime.uniqueName] ?: json[ime.displayName]
+        val baseElement = json[ime.uniqueName] ?: json[ime.displayName] ?: json["default"]
         if (baseElement is JsonObject) {
             val hasSubModeLayout = baseElement.keys.any { key ->
                 key != LAYOUT_META_KEY &&

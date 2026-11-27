@@ -36,7 +36,9 @@ open class CustomGestureView(ctx: Context) : FrameLayout(ctx) {
         val countX: Int,
         val countY: Int,
         val totalX: Int,
-        val totalY: Int
+        val totalY: Int,
+        val cancelled: Boolean = false,
+        val longPressTriggered: Boolean = false
     )
 
     fun interface OnGestureListener {
@@ -69,6 +71,8 @@ open class CustomGestureView(ctx: Context) : FrameLayout(ctx) {
 
     var swipeEnabled = false
     var swipeRepeatEnabled = false
+    /** 空格等快速手势需要计入抬手事件携带的最后一段位移。 */
+    var finalizeSwipeOnRelease = false
     var swipeThresholdX = 24f
     var swipeThresholdY = 24f
 
@@ -409,6 +413,13 @@ open class CustomGestureView(ctx: Context) : FrameLayout(ctx) {
                 // 抬手前把「不够一格的小幅拖动」补成一格（只对常规划动分支生效；
                 // 按住后滑动模式自己按 Y 轴计数，不走这里）。
                 if (!holdSwipeEnabled) {
+                    if (finalizeSwipeOnRelease && swipeEnabled && !longPressTriggered && !repeatStarted) {
+                        val countX = consumeSwipe(x, SwipeAxis.X)
+                        val countY = consumeSwipe(y, SwipeAxis.Y)
+                        if (countX != 0 || countY != 0) {
+                            dispatchGestureEvent(GestureType.Move, x, y, countX, countY)
+                        }
+                    }
                     commitSwipeStepIfPending(event.x, event.y, event.eventTime)
                 }
                 if (!holdSwipeEnabled || holdSwipeWasArmed) {
@@ -508,7 +519,7 @@ open class CustomGestureView(ctx: Context) : FrameLayout(ctx) {
             MotionEvent.ACTION_CANCEL -> {
                 // 与 ACTION_UP 同样的配对规则：只有派发过 Down 才派发 Up。
                 if (!holdSwipeEnabled || holdSwipeArmed) {
-                    dispatchGestureEvent(GestureType.Up, event.x, event.y)
+                    dispatchGestureEvent(GestureType.Up, event.x, event.y, cancelled = true)
                 }
                 cancelPress()
                 return true
@@ -552,9 +563,11 @@ open class CustomGestureView(ctx: Context) : FrameLayout(ctx) {
         x: Float,
         y: Float,
         countX: Int = 0,
-        countY: Int = 0
+        countY: Int = 0,
+        cancelled: Boolean = false
     ) {
-        val event = Event(type, gestureConsumed, x, y, countX, countY, swipeTotalX, swipeTotalY)
+        val event = Event(type, gestureConsumed, x, y, countX, countY, swipeTotalX, swipeTotalY,
+            cancelled, longPressTriggered)
         val consumed = onGestureListener?.onGesture(this, event) ?: return
         if (consumed && !gestureConsumed) {
             gestureConsumed = true

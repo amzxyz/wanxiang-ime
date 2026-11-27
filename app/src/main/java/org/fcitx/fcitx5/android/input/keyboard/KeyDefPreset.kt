@@ -454,9 +454,8 @@ class LanguageKey(
 /**
  * 空格键。
  *
- * @param swipe 划动时执行的 macro（可选）。**与「划动空格键以移动光标」开关互斥**：
- *   开关开启时光标手势完全接管空格键，这里配置的划动动作不生效；关闭开关后划动动作
- *   才接管（判定见 `SpaceSwipeMode.resolveSpaceSwipeEnabled`）。注意这里**不注册**
+ * @param swipe 纵向划动时执行的 macro（可选）。与横向光标移动可以同时生效；
+ *   没有配置宏时，保留原来的纵向光标移动。注意这里**不注册**
  *   [KeyDef.Behavior.Swipe]：通用 Swipe 绑定会把阈值改写成
  *   `disabledSwipeThreshold`/`inputSwipeThreshold`，那会直接打断光标模式的横向移动，
  *   因此空格键的手势在 `BaseKeyboard.createKeyView` 里自建。

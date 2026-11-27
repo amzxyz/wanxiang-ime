@@ -32,6 +32,13 @@ object LayoutKeyColorResolver {
     }
 
     fun resolveThemeTokenColor(theme: Theme, token: String): Int? {
+        // role.<semantic key>.<common color field> supplies both an optional palette slot
+        // and a fallback for themes which do not define a functional-key palette.
+        if (token.startsWith("role.")) {
+            val parts = token.split('.')
+            if (parts.size != 3 || parts[1].isBlank()) return null
+            return theme.keyRoleColors[token] ?: resolveThemeTokenColor(theme, parts[2])
+        }
         return when (token) {
             "backgroundColor" -> theme.backgroundColor
             "barColor" -> theme.barColor

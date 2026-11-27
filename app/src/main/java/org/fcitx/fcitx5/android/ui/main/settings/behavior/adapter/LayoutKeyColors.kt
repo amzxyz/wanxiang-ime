@@ -6,6 +6,7 @@ package org.fcitx.fcitx5.android.ui.main.settings.behavior.adapter
 
 import android.content.Context
 import org.fcitx.fcitx5.android.data.theme.Theme
+import org.fcitx.fcitx5.android.input.keyboard.LayoutKeyColorResolver
 
 /** Editor colors only: reads existing key fields without changing layout data.
  * Inspired by boomker/fcitx5-android@1d85a0d5, with this project's key variants.
@@ -41,31 +42,8 @@ internal class LayoutKeyColors(private val systemColor: (String) -> Int? = { nul
         else -> null
     }
 
-    // Same token vocabulary as KeyView and the existing key color editor.
-    private fun themeToken(theme: Theme, token: String): Int? = when (token) {
-        "backgroundColor" -> theme.backgroundColor
-        "barColor" -> theme.barColor
-        "keyboardColor" -> theme.keyboardColor
-        "keyBackgroundColor" -> theme.keyBackgroundColor
-        "keyTextColor" -> theme.keyTextColor
-        "candidateTextColor" -> theme.candidateTextColor
-        "candidateLabelColor" -> theme.candidateLabelColor
-        "candidateCommentColor" -> theme.candidateCommentColor
-        "altKeyBackgroundColor" -> theme.altKeyBackgroundColor
-        "altKeyTextColor" -> theme.altKeyTextColor
-        "accentKeyBackgroundColor" -> theme.accentKeyBackgroundColor
-        "accentKeyTextColor" -> theme.accentKeyTextColor
-        "keyPressHighlightColor" -> theme.keyPressHighlightColor
-        "keyShadowColor" -> theme.keyShadowColor
-        "popupBackgroundColor" -> theme.popupBackgroundColor
-        "popupTextColor" -> theme.popupTextColor
-        "spaceBarColor" -> theme.spaceBarColor
-        "dividerColor" -> theme.dividerColor
-        "clipboardEntryColor" -> theme.clipboardEntryColor
-        "genericActiveBackgroundColor" -> theme.genericActiveBackgroundColor
-        "genericActiveForegroundColor" -> theme.genericActiveForegroundColor
-        else -> null
-    }
+    private fun themeToken(theme: Theme, token: String): Int? =
+        LayoutKeyColorResolver.resolveThemeTokenColor(theme, token)
 
     companion object {
         fun forContext(context: Context): LayoutKeyColors {

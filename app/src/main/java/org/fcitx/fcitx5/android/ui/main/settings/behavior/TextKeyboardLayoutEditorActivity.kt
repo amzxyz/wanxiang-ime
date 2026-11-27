@@ -596,8 +596,9 @@ class TextKeyboardLayoutEditorActivity : SettingsUiActivity() {
     private fun currentEditingSubtitle(): String? {
         val layout = currentLayout?.takeIf { it.isNotBlank() } ?: return null
         return listOf(
-            displayProfile(currentLayoutProfile), layout,
-            previewSubModeLabel ?: getString(R.string.default_),
+            displayProfile(currentLayoutProfile), LayoutJsonUtils.displayLayoutName(layout),
+            previewSubModeLabel?.let { LayoutJsonUtils.displayLayoutName(layout, it) }
+                ?: if (layout == "default") LayoutJsonUtils.displayLayoutName(layout) else getString(R.string.default_),
             getString(if (editingSplit) R.string.layout_editor_split else R.string.layout_editor_normal)
         ).joinToString(" › ")
     }
@@ -644,9 +645,9 @@ class TextKeyboardLayoutEditorActivity : SettingsUiActivity() {
             return
         }
         if (subModeLabel != null && editingTargetFor(layoutName, subModeLabel) != "$layoutName:default") {
-            showToast(getString(R.string.text_keyboard_layout_editing_submode, subModeLabel))
+            showToast(getString(R.string.text_keyboard_layout_editing_submode, LayoutJsonUtils.displayLayoutName(layoutName, subModeLabel)))
         } else {
-            showToast(getString(R.string.text_keyboard_layout_editing_default, layoutName))
+            showToast(getString(R.string.text_keyboard_layout_editing_default, LayoutJsonUtils.displayLayoutName(layoutName)))
         }
     }
 
@@ -1015,9 +1016,9 @@ class TextKeyboardLayoutEditorActivity : SettingsUiActivity() {
                 val hasDedicatedSubModeLayout = resolveExistingSubModeKey(layoutName) != null
 
                 if (hasDedicatedSubModeLayout) {
-                    showToast(getString(R.string.text_keyboard_layout_editing_submode, subModeLabel))
+                    showToast(getString(R.string.text_keyboard_layout_editing_submode, LayoutJsonUtils.displayLayoutName(layoutName, subModeLabel)))
                 } else {
-                    showToast(getString(R.string.text_keyboard_layout_editing_default, layoutName))
+                    showToast(getString(R.string.text_keyboard_layout_editing_default, LayoutJsonUtils.displayLayoutName(layoutName)))
                 }
             }
 
@@ -1440,13 +1441,7 @@ class TextKeyboardLayoutEditorActivity : SettingsUiActivity() {
     }
 
     private fun readDefaultPresetFromTextKeyboardKt(): Map<String, List<List<Map<String, Any?>>>> {
-        val defaultLayout = TextKeyboard.getDefaultLayout(showLangSwitch = true)
-        val rows = defaultLayout.map { row ->
-            row.map { keyDef ->
-                LayoutJsonUtils.keyDefToJson(keyDef)
-            }
-        }
-        return mapOf("default" to rows)
+        return LayoutDataManager(this).loadDefaultPreset()
     }
 
     private fun buildSpinner() {
@@ -1473,7 +1468,11 @@ class TextKeyboardLayoutEditorActivity : SettingsUiActivity() {
                 it.uniqueName == layoutName || it.displayName == layoutName
             }
 
-            if (matchingIme != null) {
+            if (layoutName == "default" || layoutName == "text_editor") {
+                val displayItem = LayoutJsonUtils.displayLayoutName(layoutName)
+                displayItems.add(displayItem)
+                layoutNameMap[displayItem] = layoutName
+            } else if (matchingIme != null) {
                 // Show both names if they are different
                 // Format: displayName (uniqueName)
                 if (matchingIme.uniqueName != matchingIme.displayName) {
@@ -1819,13 +1818,9 @@ class TextKeyboardLayoutEditorActivity : SettingsUiActivity() {
         subModeSpinnerSelectionMap = selectionMap
         val displayItems = selectionMap.map { label ->
             when {
-                label == null -> getString(R.string.default_)
-                // 层子布局在列表里用「层：数字」这种可读文本，但选中值仍是原始 __layer__: 标签。
-                LayoutJsonUtils.isLayerSubModeLabel(label) -> getString(
-                    R.string.layout_editor_layer_submode,
-                    label.removePrefix(LayoutJsonUtils.LAYER_SUBMODE_PREFIX)
-                )
-                else -> label
+                label == null -> if (currentLayout == "default") LayoutJsonUtils.displayLayoutName("default")
+                    else getString(R.string.default_)
+                else -> LayoutJsonUtils.displayLayoutName(currentLayout.orEmpty(), label)
             }
         }
         val adapter = compactSelectorAdapter(displayItems)

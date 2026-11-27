@@ -488,7 +488,11 @@ class LayoutDataManager(private val context: Context) {
     /**
      * 加载默认预设布局
      */
-    private fun loadDefaultPreset(): Map<String, List<List<Map<String, Any?>>>> {
+    internal fun loadDefaultPreset(): Map<String, List<List<Map<String, Any?>>>> {
+        org.fcitx.fcitx5.android.input.config.BuiltinKeyboardLayout.json?.let { root ->
+            val parsed = parseJsonText(root.toString(), "builtin", fallbackToDefault = false)
+            if (parsed.isNotEmpty()) return parsed
+        }
         val defaultLayout = TextKeyboard.getDefaultLayout(showLangSwitch = true)
         val rows = defaultLayout.map { row ->
             row.map { keyDef ->

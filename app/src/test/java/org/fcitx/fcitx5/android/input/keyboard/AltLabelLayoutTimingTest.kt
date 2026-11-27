@@ -23,7 +23,6 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
-import java.io.File
 import kotlin.math.roundToInt
 
 /** Check actual child bounds after one traversal, before a layer switch can repair them. */
@@ -58,10 +57,10 @@ class AltLabelLayoutTimingTest {
         else assertEquals(params.topMargin, label.top)
     }
 
-    @Test fun sandyShortNumberRowUsesCornersOnItsFirstLayout() {
-        val row = Json.parseToJsonElement(File(
-            "src/main/assets/bundled/keyboard_layouts/TextKeyboardLayout.Sandy-数字行26+万象九键.json"
-        ).readText()).jsonObject.getValue("default").jsonArray.first().jsonArray
+    @Test fun shortNumberRowUsesCornerLabelsOnFirstLayout() {
+        // Keep the original regression input independent of the APK preset list.
+        val row = javaClass.classLoader!!.getResourceAsStream("layouts/short-number-row.json")!!
+            .bufferedReader(Charsets.UTF_8).use { Json.parseToJsonElement(it.readText()).jsonArray }
         for (index in listOf(0, 6, 7, 8, 9)) {
             val def = LayoutJsonUtils.createKeyDef(requireNotNull(LayoutJsonUtils.parseKeyJson(row[index].jsonObject)))!!
             val key = AltTextKeyView(context, ThemePreset.PixelLight, def.appearance as KeyDef.Appearance.AltText)
@@ -78,6 +77,21 @@ class AltLabelLayoutTimingTest {
         layout(key, 40)
         assertCorner(key.altText, bottom = false)
         assertTrue(key.shouldTriggerAltBySwipe(-10, SwipeSymbolDirection.Down))
+    }
+
+    @Test fun ordinaryNonLetterLabelsFollowPublicPosition() {
+        val pref = ThemeManager.prefs.punctuationPosition
+        val old = pref.getValue()
+        try {
+            for (main in listOf("/", "1", "a")) {
+                pref.setValue(PunctuationPosition.TopRight)
+                val key = AltTextKeyView(context, ThemePreset.PixelLight,
+                    KeyDef.Appearance.AltText(main, "!", main, 23f))
+                layout(key, 64)
+                assertCorner(key.altText, bottom = false)
+                assertTrue(key.shouldTriggerAltBySwipe(-10, SwipeSymbolDirection.Down))
+            }
+        } finally { pref.setValue(old) }
     }
 
     @Test fun directionalTextAndIconLabelsUseBothCornersImmediately() {

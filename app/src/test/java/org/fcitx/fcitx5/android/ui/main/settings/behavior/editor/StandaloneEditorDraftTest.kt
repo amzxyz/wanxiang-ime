@@ -16,7 +16,8 @@ import org.fcitx.fcitx5.android.input.config.ConfigProviders
 import org.fcitx.fcitx5.android.input.config.UserConfigFiles
 import org.fcitx.fcitx5.android.input.font.FontProviders
 import org.fcitx.fcitx5.android.input.keyboard.MacroStep
-import org.fcitx.fcitx5.android.ui.main.settings.behavior.FontsetEditorActivity
+import org.fcitx.fcitx5.android.ui.main.settings.theme.KeyboardFontSettings
+import org.fcitx.fcitx5.android.ui.main.settings.theme.updateKeyboardFontSetting
 import org.fcitx.fcitx5.android.ui.main.settings.behavior.PopupEditorActivity
 import org.fcitx.fcitx5.android.ui.main.settings.behavior.dialog.MacroEditorDialogFragment
 import kotlinx.serialization.json.Json
@@ -135,65 +136,37 @@ class StandaloneEditorDraftTest {
         } finally { finish(editor) }
     }
 
-    @Test fun fractionalFontSizesAreShownAndKeptWhenTheSliderIsUntouched() {
-        assertEquals("10.67", FontsetEditorActivity.formatFontSize(10.67f))
-        assertEquals("20", FontsetEditorActivity.formatFontSize(20f))
-        assertEquals("12.5", FontsetEditorActivity.formatFontSize(12.5f))
-        val editor = Robolectric.buildActivity(FontsetEditorActivity::class.java).setup()
-        try {
-            val views: Map<String, TextView> = ReflectionHelpers.getField(editor.get(), "fontSizeViews")
-            val sizes: Map<String, Float> = ReflectionHelpers.getField(editor.get(), "selectedFontSizes")
-            val label = views.getValue("key_alt_font")
-            assertEquals("10.67 sp", label.text.toString())
-            label.performClick()
-            val dialog = ShadowDialog.getLatestDialog() as AlertDialog
-            dialog.getButton(DialogInterface.BUTTON_POSITIVE).performClick()
-            shadowOf(Looper.getMainLooper()).idle()
-            assertEquals(10.67f, sizes.getValue("key_alt_font"), 0f)
-            assertEquals("10.67 sp", label.text.toString())
-            val menu = MenuBuilder(editor.get())
-            editor.get().onCreateOptionsMenu(menu)
-            assertFalse(menu.getItem(0).isEnabled)
-        } finally { finish(editor) }
+    @Test fun fractionalFontSizesAndFallbackValuesRemainExact() {
+        assertEquals("10.67", KeyboardFontSettings.formatFontSize(10.67f))
+        assertEquals("20", KeyboardFontSettings.formatFontSize(20f))
+        assertEquals("12.5", KeyboardFontSettings.formatFontSize(12.5f))
+        assertNull(FontProviders.parseConfiguredSize("NaN"))
+        assertNull(FontProviders.parseConfiguredSize("Infinity"))
+        assertNull(FontProviders.parseConfiguredSize("-Infinity"))
+        assertEquals(72f, FontProviders.parseConfiguredSize("99"))
     }
 
-    @Test fun nonFiniteSavedFontSizeFallsBackToTheDefault() {
+    @Test fun savingOneFontSlotPreservesOtherFontsAndUnspecifiedSizes() {
         val provider = ConfigProviders.provider
         val config = requireNotNull(provider.fontsetFile())
         val previous = config.takeIf { it.isFile }?.readBytes()
-        provider.writeFontsetPathMap(mapOf("key_alt_font_size" to listOf("NaN"))).getOrThrow()
         try {
-            assertFalse(FontProviders.hasCustomFontSizes())
-            assertNull(FontProviders.parseConfiguredSize("Infinity"))
-            assertNull(FontProviders.parseConfiguredSize("-Infinity"))
-            assertEquals(72f, FontProviders.parseConfiguredSize("99"))
-
-            val editor = Robolectric.buildActivity(FontsetEditorActivity::class.java).setup()
-            try {
-                val views: Map<String, TextView> = ReflectionHelpers.getField(editor.get(), "fontSizeViews")
-                val sizes: Map<String, Float> = ReflectionHelpers.getField(editor.get(), "selectedFontSizes")
-                assertEquals(10.67f, sizes.getValue("key_alt_font"), 0f)
-                assertEquals("10.67 sp", views.getValue("key_alt_font").text.toString())
-            } finally { finish(editor) }
+            val original = mapOf(
+                "key_main_font" to listOf("first.ttf", "second.ttf"),
+                "key_alt_font_size" to listOf("10.67"),
+                "future_slot" to listOf("custom.ttf")
+            )
+            provider.writeFontsetPathMap(original).getOrThrow()
+            assertFalse(updateKeyboardFontSetting("key_alt_font_size", listOf("10.67")).getOrThrow())
+            assertTrue(updateKeyboardFontSetting("cand_font_size", listOf("24")).getOrThrow())
+            assertEquals(original + ("cand_font_size" to listOf("24")),
+                ConfigProviders.readFontsetPathMapSnapshot().getOrThrow()!!.value)
+            assertTrue(updateKeyboardFontSetting("cand_font_size", emptyList()).getOrThrow())
+            assertEquals(original, ConfigProviders.readFontsetPathMapSnapshot().getOrThrow()!!.value)
+            assertFalse(updateKeyboardFontSetting("font_size", emptyList()).getOrThrow())
         } finally {
             if (previous == null) config.delete() else config.writeBytes(previous)
         }
-    }
-
-    @Test fun fontSelectionsSizesAndDirtySaveButtonSurviveAParcelRoundTrip() {
-        val first = Robolectric.buildActivity(FontsetEditorActivity::class.java).setup()
-        val fonts: MutableMap<String, MutableList<String>> = ReflectionHelpers.getField(first.get(), "selectedFonts")
-        val sizes: MutableMap<String, Float> = ReflectionHelpers.getField(first.get(), "selectedFontSizes")
-        fonts["key_main_font"] = mutableListOf("first.ttf", "second.ttf"); sizes["key_main_font"] = 33f
-        val second = Robolectric.buildActivity(FontsetEditorActivity::class.java).setup(state(first))
-        try {
-            val restored: Map<String, List<String>> = ReflectionHelpers.getField(second.get(), "selectedFonts")
-            val restoredSizes: Map<String, Float> = ReflectionHelpers.getField(second.get(), "selectedFontSizes")
-            assertEquals(listOf("first.ttf", "second.ttf"), restored["key_main_font"])
-            assertEquals(33f, restoredSizes["key_main_font"])
-            val menu = MenuBuilder(second.get()); second.get().onCreateOptionsMenu(menu)
-            assertTrue(menu.getItem(0).isEnabled)
-        } finally { finish(second) }
     }
 
     @Test fun malformedDraftsFallBackToOriginalDataWithoutBecomingDirty() {

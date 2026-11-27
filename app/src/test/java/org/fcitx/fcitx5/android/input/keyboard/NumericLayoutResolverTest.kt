@@ -120,8 +120,8 @@ class NumericLayoutResolverTest {
 
     @Test
     fun autoDetectsStandaloneNumericLayout() {
-        // Sandy 的写法：数字键盘是文件里的独立条目「数字」，不在 rime 下面做层。
-        val sandy = json(
+        // 独立布局写法：数字键盘是文件里的独立条目「数字」，不在 rime 下面做层。
+        val standaloneLayout = json(
             """
             {
               "default": [],
@@ -131,7 +131,7 @@ class NumericLayoutResolverTest {
             }
             """.trimIndent()
         )
-        assertEquals("数字", NumericLayoutResolver.resolve(sandy, "", listOf("rime")))
+        assertEquals("数字", NumericLayoutResolver.resolve(standaloneLayout, "", listOf("rime")))
     }
 
     @Test
@@ -169,8 +169,8 @@ class NumericLayoutResolverTest {
 
     @Test
     fun explicitStandaloneLayoutKeyResolves() {
-        val sandy = json("""{"rime": {"default": []}, "数字": {"default": []}}""")
-        assertEquals("数字", NumericLayoutResolver.resolve(sandy, "数字", listOf("rime")))
+        val standaloneLayout = json("""{"rime": {"default": []}, "数字": {"default": []}}""")
+        assertEquals("数字", NumericLayoutResolver.resolve(standaloneLayout, "数字", listOf("rime")))
     }
 
     @Test
