@@ -115,11 +115,22 @@ def optimize_zip(packed):
             raise ValueError("Invalid scheme entry for 7-Zip list file")
         listing = root / "files.txt"
         listing.write_text("\n".join(names) + "\n", encoding="utf-8")
-        subprocess.run(
-            [encoder, "a", "-tzip", "-mm=Deflate", "-mx=9", "-mfb=258",
-             "-mpass=15", "-mmt=1", "-mtc=off", "-mta=off", "-mcu=on",
-             "-scsUTF-8", "-spd", str(candidate), "@" + str(listing)],
-            cwd=stage, env={**os.environ, "TZ": "UTC"}, check=True)
+        # p7zip 16.02 ZIP supports tc, but not the separate ta timestamp option.
+        # Keep the Deflate tuning and disable NTFS timestamps with tc alone.
+        try:
+            subprocess.run(
+                [encoder, "a", "-tzip", "-mm=Deflate", "-mx=9", "-mfb=258",
+                 "-mpass=15", "-mmt=1", "-mtc=off", "-mcu=on",
+                 "-scsUTF-8", "-spd", str(candidate), "@" + str(listing)],
+                cwd=stage, env={**os.environ, "TZ": "UTC"}, check=True)
+        except subprocess.CalledProcessError as error:
+            report = (f"7-Zip optimization failed (exit {error.returncode}); "
+                      f"retaining validated Python Deflate-9 ZIP ({packed.stat().st_size:,} bytes)")
+            print(f"::warning::{report}")
+            if summary := os.environ.get("GITHUB_STEP_SUMMARY"):
+                with open(summary, "a", encoding="utf-8") as stream:
+                    stream.write(report + "\n")
+            return
         with zipfile.ZipFile(candidate) as archive:
             validate_zip(archive)
             assert all(i.compress_type in {zipfile.ZIP_STORED, zipfile.ZIP_DEFLATED}
