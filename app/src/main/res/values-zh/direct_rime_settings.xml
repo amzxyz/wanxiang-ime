@@ -20,8 +20,8 @@
     <string name="direct_rime_input_summary">候选栏、候选窗口与语音输入</string>
     <string name="direct_rime_preparing_data">正在准备数据…</string>
     <string name="direct_rime_config_retry">重新加载设置</string>
-    <string name="bundled_wanxiang_restore">更新/恢复内置万象拼音</string>
-    <string name="bundled_wanxiang_restore_summary">从安装包离线安装 EVO 专用万象拼音，可覆盖当前工作目录或新建目录。不包含语言模型。</string>
+    <string name="bundled_wanxiang_restore">还原内置方案</string>
+    <string name="bundled_wanxiang_restore_summary">从安装包还原内置 EVO 万象拼音方案，包括方案配置、词库及配套资源；不包含语言模型。模型请在「万象更新」中下载。可覆盖当前工作目录或新建目录。</string>
     <string name="bundled_wanxiang_overwrite">覆盖原目录</string>
     <string name="bundled_wanxiang_new_directory">新建目录</string>
     <string name="bundled_wanxiang_directory_name">目录名称</string>

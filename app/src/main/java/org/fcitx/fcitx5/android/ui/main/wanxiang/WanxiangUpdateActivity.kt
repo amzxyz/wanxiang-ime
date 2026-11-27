@@ -47,10 +47,7 @@ class WanxiangUpdateActivity : SettingsUiActivity() {
         super.onCreate(savedInstanceState)
         val initial = savedInstanceState?.getString("selection")?.let {
             runCatching { Json.decodeFromString<WanxiangSelection>(it).also { selection -> selection.packages() } }.getOrNull()
-        } ?: if (intent.getBooleanExtra(MODEL_ONLY, false)) {
-            WanxiangUpdates.selection(this).asEvo().copy(
-                components = listOf(WanxiangPackage.Kind.MODEL), extraDictionaries = emptyList())
-        } else WanxiangUpdates.selection(this)
+        } ?: WanxiangUpdates.selection(this)
         form = WanxiangUpdateForm(this, initial)
         form.onSelectionChanged = { selection ->
             WanxiangUpdates.preferences(this).edit().putString("selection", Json.encodeToString(selection)).apply()
@@ -341,7 +338,6 @@ class WanxiangUpdateActivity : SettingsUiActivity() {
         super.onDestroy()
     }
     companion object {
-        const val MODEL_ONLY = "model_only"
         private const val ADVANCED_MENU = 0x5741
     }
     private fun dp(value: Int) = (value * resources.displayMetrics.density).toInt()

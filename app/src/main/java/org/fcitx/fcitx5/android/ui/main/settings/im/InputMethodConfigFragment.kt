@@ -31,7 +31,7 @@ class InputMethodConfigFragment : FcitxPreferenceFragment() {
 
     override fun decorateLoadingPreferenceScreen(screen: PreferenceScreen) {
         if (args.uniqueName != RIME_UNIQUE_NAME) return
-        // Both management actions eventually need the native owner. Keep them visible,
+        // Engine management needs the native owner. Keep the action visible,
         // but do not start a second maintenance operation during initialization.
         decoratePreferenceScreen(screen)
         for (index in 0 until screen.preferenceCount) {
@@ -51,18 +51,6 @@ class InputMethodConfigFragment : FcitxPreferenceFragment() {
             }
             widgetLayoutResource = R.layout.preference_settings_navigation
         })
-        if (org.fcitx.fcitx5.android.data.BundledWanxiang.available(requireContext())) {
-            screen.addPreference(Preference(requireContext()).apply {
-                key = "restore_bundled_wanxiang"
-                isPersistent = false
-                setup(getString(R.string.bundled_wanxiang_restore),
-                    getString(R.string.bundled_wanxiang_restore_summary)) {
-                    startActivity(Intent(requireContext(), RimeImportActivity::class.java)
-                        .putExtra(RimeImportActivity.EXTRA_BUNDLED_WANXIANG, true))
-                }
-                widgetLayoutResource = R.layout.preference_settings_navigation
-            })
-        }
     }
 
     /**

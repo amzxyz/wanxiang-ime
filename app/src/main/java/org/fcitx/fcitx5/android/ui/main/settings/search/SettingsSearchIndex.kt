@@ -11,6 +11,7 @@ import androidx.annotation.StringRes
 import androidx.core.os.ConfigurationCompat
 import java.util.Locale
 import org.fcitx.fcitx5.android.R
+import org.fcitx.fcitx5.android.data.BundledWanxiang
 import org.fcitx.fcitx5.android.ui.main.settings.SettingsRoute
 import org.fcitx.fcitx5.android.ui.main.settings.theme.KeyboardFontSettings
 import org.fcitx.fcitx5.android.ui.main.settings.behavior.KeyboardGroupFragment
@@ -280,8 +281,12 @@ object SettingsSearchIndex {
      * 末尾统一用 [PREFERENCE_KEYS] 补上滚动定位键：条目自己声明的优先，
      * 没有声明的按标题查表。这样新增条目时不必记得手工传 `preferenceKey`。
      */
-    fun entries(context: Context): List<SettingsSearchEntry> =
-        buildEntries(context).map { original ->
+    fun entries(context: Context): List<SettingsSearchEntry> {
+        // The APK-only restore action exists only when the bundled scheme archive is packaged.
+        val bundledAvailable = BundledWanxiang.available(context)
+        return buildEntries(context).filter {
+            it.titleRes != R.string.bundled_wanxiang_restore || bundledAvailable
+        }.map { original ->
             val entry = if (original.route == keyboard(VOICE)) {
                 original.copy(pathRes = if (original.titleRes == R.string.keyboard_category_voice) P_INPUT
                     else P_INPUT + R.string.keyboard_category_voice)
@@ -289,6 +294,7 @@ object SettingsSearchIndex {
             entry.preferenceKey?.let { entry }
                 ?: entry.copy(preferenceKey = PREFERENCE_KEYS[entry.titleRes])
         }
+    }
 
     private fun buildEntries(context: Context): List<SettingsSearchEntry> = listOf(
         SettingsSearchEntry(
@@ -1099,14 +1105,19 @@ object SettingsSearchIndex {
         ),
 
         SettingsSearchEntry(
-            R.string.wanxiang_model_download, P_SCHEME,
-            listOf("model", "模型下载", "语法模型", "DLM"),
+            R.string.bundled_wanxiang_restore, P_SCHEME,
+            listOf("restore built-in scheme", "内置方案", "还原方案", "恢复方案", "万象拼音", "离线恢复", "EVO"),
             route = SettingsRoute.RimeSchemeUpdates
         ),
         SettingsSearchEntry(
             R.string.wanxiang_update, P_SCHEME,
-            listOf("wanxiang", "万象", "Rime方案更新", "方案更新", "词库更新", "模型下载"),
-            route = SettingsRoute.RimeSchemeUpdates
+            listOf("wanxiang", "万象", "Rime方案更新", "方案更新", "词库更新", "模型下载", "语法模型", "model", "DLM"),
+            activityClass = org.fcitx.fcitx5.android.ui.main.wanxiang.WanxiangUpdateActivity::class.java
+        ),
+        SettingsSearchEntry(
+            R.string.scheme_update_title, P_SCHEME,
+            listOf("custom update", "自定义更新", "本地文件", "本地ZIP", "导入ZIP", "zip", "URL", "更新任务"),
+            activityClass = org.fcitx.fcitx5.android.ui.main.rimeupdate.RimeSchemeUpdateActivity::class.java
         ),
         SettingsSearchEntry(
             R.string.wanxiang_advanced, P_SCHEME,

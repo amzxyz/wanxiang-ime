@@ -117,7 +117,7 @@ class SettingsEntryNavigationTest {
         assertTrue(current() is DeveloperFragment)
     }
 
-    @Test fun customSchemeUpdateImmediatelyFollowsWanxiangInTheSameGroup() = page { activity, current ->
+    @Test fun bundledRestorePrecedesWanxiangAndCustomUpdatesInTheSameGroup() = page { activity, current ->
         val rimeEngine = current().preferenceScreen.find(activity.getString(R.string.settings_home_category_rime_engine)) as PreferenceGroup
         assertEquals(
             listOf(
@@ -128,12 +128,41 @@ class SettingsEntryNavigationTest {
         )
         rimeEngine.find(activity.getString(R.string.wanxiang_group)).performClick()
         val group = current() as RimeSchemeUpdatesFragment
-        assertEquals(listOf(activity.getString(R.string.wanxiang_update), activity.getString(R.string.scheme_update_title)), group.preferenceScreen.entries().map { it.title })
-        group.preferenceScreen.entries()[1].performClick()
+        val bundledAvailable = org.fcitx.fcitx5.android.data.BundledWanxiang.available(activity)
+        val expectedTitles = buildList {
+            if (bundledAvailable) add(activity.getString(R.string.bundled_wanxiang_restore))
+            add(activity.getString(R.string.wanxiang_update))
+            add(activity.getString(R.string.scheme_update_title))
+        }
+        assertEquals(expectedTitles, group.preferenceScreen.entries().map { it.title })
+
+        val searchEntries = SettingsSearchIndex.entries(activity)
+        if (bundledAvailable) {
+            val bundled = searchEntries.single { it.titleRes == R.string.bundled_wanxiang_restore }
+            assertEquals(SettingsRoute.RimeSchemeUpdates, bundled.route)
+            group.preferenceScreen.entries()[0].performClick()
+            val restoreIntent = shadowOf(activity).nextStartedActivity
+            assertEquals(org.fcitx.fcitx5.android.ui.main.settings.im.RimeImportActivity::class.java.name,
+                restoreIntent.component?.className)
+            assertTrue(restoreIntent.getBooleanExtra(
+                org.fcitx.fcitx5.android.ui.main.settings.im.RimeImportActivity.EXTRA_BUNDLED_WANXIANG, false))
+        } else {
+            assertTrue(searchEntries.none { it.titleRes == R.string.bundled_wanxiang_restore })
+        }
+
+        val wanxiangIndex = if (bundledAvailable) 1 else 0
+        val wanxiang = searchEntries.single { it.titleRes == R.string.wanxiang_update }
+        assertEquals(org.fcitx.fcitx5.android.ui.main.wanxiang.WanxiangUpdateActivity::class.java, wanxiang.activityClass)
+        group.preferenceScreen.entries()[wanxiangIndex].performClick()
+        assertEquals(org.fcitx.fcitx5.android.ui.main.wanxiang.WanxiangUpdateActivity::class.java.name,
+            shadowOf(activity).nextStartedActivity.component?.className)
+
+        val custom = searchEntries.single { it.titleRes == R.string.scheme_update_title }
+        assertEquals(org.fcitx.fcitx5.android.ui.main.rimeupdate.RimeSchemeUpdateActivity::class.java, custom.activityClass)
+        group.preferenceScreen.entries()[wanxiangIndex + 1].performClick()
         assertEquals(org.fcitx.fcitx5.android.ui.main.rimeupdate.RimeSchemeUpdateActivity::class.java.name,
             shadowOf(activity).nextStartedActivity.component?.className)
-        val indexed = SettingsSearchIndex.entries(activity).single { it.titleRes == R.string.scheme_update_title }
-        assertEquals(org.fcitx.fcitx5.android.ui.main.rimeupdate.RimeSchemeUpdateActivity::class.java, indexed.activityClass)
+        assertTrue(searchEntries.none { it.titleRes == R.string.wanxiang_model_download })
     }
 
     @Test fun inputStatisticsIsLastInConvenienceAndSearchUsesThatBreadcrumb() = page { activity, current ->
