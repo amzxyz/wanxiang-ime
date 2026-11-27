@@ -12,7 +12,7 @@ import com.google.android.material.button.MaterialButton
 import org.fcitx.fcitx5.android.FcitxApplication
 import org.fcitx.fcitx5.android.R
 import org.fcitx.fcitx5.android.data.prefs.SettingsUiPreferences
-import org.fcitx.fcitx5.android.ui.common.MaterialSpinner
+import com.google.android.material.checkbox.MaterialCheckBox
 import org.fcitx.fcitx5.android.ui.common.OperationStatusView
 import org.fcitx.fcitx5.android.ui.main.settings.behavior.editor.EditorApplicationShadow
 import org.fcitx.fcitx5.android.utils.settingsColor
@@ -44,7 +44,7 @@ class WanxiangUpdateFormTest {
                 val context = SettingsUiPreferences.themedContext(activity, SettingsUiPreferences.read(activity).copy(
                     mode = if (dark) SettingsUiPreferences.MODE_DARK else SettingsUiPreferences.MODE_LIGHT,
                     palette = SettingsUiPreferences.PALETTE_COMPAT, followKeyboardTheme = false))
-                val form = WanxiangUpdateForm(context, WanxiangSelection(scheme = WanxiangSelection.Scheme.PRO))
+                val form = WanxiangUpdateForm(context, WanxiangSelection(components = listOf(WanxiangPackage.Kind.SCHEME, WanxiangPackage.Kind.DICTIONARY)))
                 form.target.text = "rime\n/storage/emulated/0/Android/data/com.amzxyz.wanxiang.ime/files/data/rime"
                 activity.setContentView(form)
                 form.layoutDirection = direction
@@ -55,7 +55,7 @@ class WanxiangUpdateFormTest {
                 assertEquals(direction, form.update.layoutDirection)
                 assertTrue(form.update.isEnabled)
                 assertEquals(View.GONE, form.cancel.visibility)
-                assertEquals(WanxiangSelection.Scheme.PRO, form.selection().scheme)
+                assertEquals(setOf(WanxiangPackage.Kind.SCHEME, WanxiangPackage.Kind.DICTIONARY), form.selection().components!!.toSet())
                 assertTrue(form.update.measuredHeight >= 48)
                 assertFixedFooter(form)
                 form.scroll.scrollTo(0, 0)
@@ -116,40 +116,34 @@ class WanxiangUpdateFormTest {
         } finally { RuntimeEnvironment.setFontScale(1f); controller.get().finish(); controller.pause().stop().destroy() }
     }
 
-    @Test fun updateScopeShowsOnlyApplicableOptionsAndRequiresAnExtraSelection() {
+    @Test fun independentCheckboxesAndExtrasRequireAtLeastOneSelection() {
         val controller = Robolectric.buildActivity(Activity::class.java).setup().visible()
         try {
             val activity = controller.get()
-            val form = WanxiangUpdateForm(SettingsUiPreferences.themedContext(activity, SettingsUiPreferences.read(activity)), WanxiangSelection())
+            val form = WanxiangUpdateForm(SettingsUiPreferences.themedContext(activity, SettingsUiPreferences.read(activity)),
+                WanxiangSelection(components = emptyList()))
             activity.setContentView(form)
             form.setBusy(false, canUpdate = true)
             layout(form, 360)
-            val scope = views(form).filterIsInstance<MaterialSpinner>().single {
-                it.contentDescription.toString() == activity.getString(R.string.wanxiang_scope)
-            }
-            val extras = button(form, R.string.wanxiang_extra_choose)
-            assertTrue(extras.isShown)
-            for (choice in listOf(WanxiangSelection.Scope.SCHEME, WanxiangSelection.Scope.MODEL)) {
-                scope.setSelection(choice.ordinal)
-                layout(form, 360)
-                assertEquals(choice, form.selection().scope)
-                assertFalse("Extra dictionaries must be hidden for $choice", extras.isShown)
-                assertTrue(form.update.isEnabled)
-            }
-            scope.setSelection(WanxiangSelection.Scope.EXTRA.ordinal)
-            layout(form, 360)
-            assertTrue(extras.isShown)
+            val boxes = views(form).filterIsInstance<MaterialCheckBox>()
+            assertEquals(3, boxes.size)
+            assertFalse(form.update.isEnabled)
+            val model = boxes.single { it.text == activity.getString(R.string.wanxiang_scope_model) }
+            val dict = boxes.single { it.text == activity.getString(R.string.wanxiang_scope_dictionary) }
+            model.isChecked = true
+            dict.isChecked = true
+            assertEquals(setOf(WanxiangPackage.Kind.MODEL, WanxiangPackage.Kind.DICTIONARY),
+                form.selection().components!!.toSet())
+            assertTrue(form.update.isEnabled)
+            model.isChecked = false
+            dict.isChecked = false
             assertFalse(form.update.isEnabled)
             form.setExtras(listOf("medical"))
             assertTrue(form.update.isEnabled)
             assertEquals(listOf("medical"), form.selection().extraDictionaries)
             form.setExtras(emptyList())
             assertFalse(form.update.isEnabled)
-
-            scope.setSelection(WanxiangSelection.Scope.DICTIONARY.ordinal)
-            layout(form, 360)
-            assertTrue(extras.isShown)
-            assertTrue(form.update.isEnabled)
+            dict.isChecked = true
             form.setBusy(false, canUpdate = false)
             assertFalse(form.update.isEnabled)
         } finally { controller.get().finish(); controller.pause().stop().destroy() }
@@ -159,7 +153,7 @@ class WanxiangUpdateFormTest {
         val controller = Robolectric.buildActivity(Activity::class.java).setup().visible()
         try {
             val activity = controller.get()
-            val form = WanxiangUpdateForm(SettingsUiPreferences.themedContext(activity, SettingsUiPreferences.read(activity)), WanxiangSelection(scheme = WanxiangSelection.Scheme.PRO))
+            val form = WanxiangUpdateForm(SettingsUiPreferences.themedContext(activity, SettingsUiPreferences.read(activity)), WanxiangSelection(components = listOf(WanxiangPackage.Kind.SCHEME, WanxiangPackage.Kind.DICTIONARY)))
             activity.setContentView(form)
             for (label in listOf(R.string.wanxiang_protection, R.string.wanxiang_network_options)) button(form, label).performClick()
             form.setBusy(true, canUpdate = true, canCancel = true)
@@ -186,9 +180,9 @@ class WanxiangUpdateFormTest {
         .single { it.text.toString() == form.context.getString(label) }
 
     private fun assertAllChangesDisabled(form: WanxiangUpdateForm) {
-        views(form).filterIsInstance<MaterialSpinner>().forEach { assertFalse(it.contentDescription.toString(), it.isEnabled) }
+        views(form).filterIsInstance<MaterialCheckBox>().forEach { assertFalse(it.text.toString(), it.isEnabled) }
         for (label in listOf(R.string.wanxiang_protection_edit, R.string.wanxiang_token, R.string.wanxiang_github_check,
-                R.string.wanxiang_extra_choose, R.string.wanxiang_extra_refresh)) {
+                R.string.wanxiang_extra_choose)) {
             assertFalse(form.context.getString(label), button(form, label).isEnabled)
         }
         assertFalse(form.advanced.isEnabled)

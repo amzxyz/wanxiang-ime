@@ -8,7 +8,7 @@
     <string name="wanxiang_scope_all_hint">Updates the scheme and dictionaries, selected extra dictionaries, and the grammar model. The model download may be large.</string>
     <string name="wanxiang_scope_scheme_hint">Updates the selected scheme. Dictionaries and the grammar model stay unchanged.</string>
     <string name="wanxiang_scope_dictionary_hint">Updates dictionaries and any selected extra dictionaries. The scheme and model stay unchanged.</string>
-    <string name="wanxiang_scope_model_hint">Downloads the LTS grammar model. This may use a significant amount of data.</string>
+    <string name="wanxiang_scope_model_hint">Download the EVO DLM model. This may use significant data.</string>
     <string name="wanxiang_scope_extra_hint">Choose at least one dictionary below. Files come from the official GitHub repository; Pro conversion uses the character table in the current directory.</string>
     <string name="wanxiang_expanded">Expanded</string>
     <string name="wanxiang_collapsed">Collapsed</string>
@@ -17,7 +17,7 @@
     <string name="wanxiang_nothing_changed">No files needed updating</string>
     <string name="wanxiang_nothing_changed_hint">The selected files are protected by your current rules. No files were installed or redeployed.</string>
     <string name="wanxiang_update">Wanxiang update</string>
-    <string name="wanxiang_group">Rime scheme updates</string>
+    <string name="wanxiang_group">Scheme updates</string>
     <string name="wanxiang_update_summary">For Wanxiang users only: update schemes, dictionaries and models in the current directory</string>
     <string name="wanxiang_directory">Current Rime directory</string>
     <string name="wanxiang_loading_directory">Reading the current directory…</string>
@@ -29,8 +29,8 @@
     <string name="wanxiang_channel">Scheme channel</string>
     <string name="wanxiang_source">Download source</string>
     <string name="wanxiang_channel_hint">Dictionaries use the rolling release; the grammar model uses LTS. The scheme channel applies to scheme downloads.</string>
-    <string name="wanxiang_preserve_hint">Rime redeploys after updates. Protection rules control existing configuration and dictionary resources; user databases, sync and runtime data are always protected. A full update also downloads the grammar model.</string>
-    <string name="wanxiang_start">Download and update</string>
+    <string name="wanxiang_preserve_hint">Rime redeploys after updating. Protection rules preserve existing configuration; user databases, sync and runtime data remain protected.</string>
+    <string name="wanxiang_start">Download / update</string>
     <string name="wanxiang_ready">Ready to update the current directory</string>
     <string name="wanxiang_preparing">Preparing the update…</string>
     <string name="wanxiang_waiting">Waiting for a network connection or retry…</string>
@@ -54,7 +54,7 @@
     <string name="wanxiang_github_check">Check GitHub connection</string>
     <string name="wanxiang_github_ok">GitHub connected: %1$s</string>
     <string name="wanxiang_extra">Extra dictionaries</string>
-    <string name="wanxiang_extra_hint">Choose from the official catalog. Files are converted for the selected edition and saved in dicts. Pro uses the downloaded or existing zi.pro character table. To enable a dictionary, reference it in the main dictionary’s import_tables.</string>
+    <string name="wanxiang_extra_hint">Choose extra dictionaries. Tone-marked dictionaries are saved to dicts; reference them in import_tables to enable them.</string>
     <string name="wanxiang_extra_choose">Choose dictionaries</string>
     <string name="wanxiang_extra_refresh">Refresh catalog</string>
     <string name="wanxiang_extra_loading">Loading dictionary catalog…</string>
@@ -74,4 +74,6 @@
     <string-array name="wanxiang_channels"><item>Stable</item><item>Preview</item></string-array>
     <string-array name="wanxiang_sources"><item>CNB</item><item>GitHub</item></string-array>
     <string-array name="wanxiang_auxiliaries"><item>Ziranma</item><item>Wanxiang</item><item>Xiaohe</item><item>Moqi</item><item>Hanxin</item><item>Shouyou</item><item>Shouyou+</item><item>Tiger</item><item>Wubi</item></string-array>
+    <string name="wanxiang_model_download">Model download</string>
+    <string name="wanxiang_evo_components_hint">Update the EVO-specific scheme only. Select one or more components.</string>
 </resources>

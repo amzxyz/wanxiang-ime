@@ -8,7 +8,7 @@
     <string name="wanxiang_scope_all_hint">更新方案、词库、已选附加词库及语法模型。模型较大，请留意流量。</string>
     <string name="wanxiang_scope_scheme_hint">更新所选方案，不下载词库和语法模型。</string>
     <string name="wanxiang_scope_dictionary_hint">更新词库与已选附加词库，不下载方案和语法模型。</string>
-    <string name="wanxiang_scope_model_hint">下载 LTS 语法模型，可能消耗较多流量。</string>
+    <string name="wanxiang_scope_model_hint">下载 EVO 专用 DLM 模型，可能消耗较多流量。</string>
     <string name="wanxiang_scope_extra_hint">请在下方至少选择一个词库。文件来自官方 GitHub 仓库；Pro 转换使用当前工作目录中的字表。</string>
     <string name="wanxiang_expanded">已展开</string>
     <string name="wanxiang_collapsed">已收起</string>
@@ -17,7 +17,7 @@
     <string name="wanxiang_nothing_changed">没有需要写入的文件</string>
     <string name="wanxiang_nothing_changed_hint">所选文件均被当前保护规则保留，本次未写入文件或重新部署。</string>
     <string name="wanxiang_update">万象更新</string>
-    <string name="wanxiang_group">中州韵方案更新</string>
+    <string name="wanxiang_group">方案更新</string>
     <string name="wanxiang_update_summary">仅适用于万象方案用户，下载更新当前工作目录的方案、词库和模型</string>
     <string name="wanxiang_directory">当前 Rime 工作目录</string>
     <string name="wanxiang_loading_directory">正在读取当前工作目录…</string>
@@ -29,8 +29,8 @@
     <string name="wanxiang_channel">方案更新通道</string>
     <string name="wanxiang_source">下载源</string>
     <string name="wanxiang_channel_hint">词库使用滚动更新版，语法模型使用 LTS 版；方案更新通道只影响方案包。</string>
-    <string name="wanxiang_preserve_hint">更新完成后自动重新部署。防覆盖规则控制已有配置和词库的保留；用户词典、同步及运行数据始终保护。全量更新也会下载语法模型。</string>
-    <string name="wanxiang_start">下载并更新</string>
+    <string name="wanxiang_preserve_hint">更新完成后自动部署。防覆盖规则保留已有配置；用户词典、同步及运行数据始终保护。</string>
+    <string name="wanxiang_start">下载/更新</string>
     <string name="wanxiang_ready">准备好更新当前工作目录</string>
     <string name="wanxiang_preparing">正在准备更新…</string>
     <string name="wanxiang_waiting">等待网络连接或重试…</string>
@@ -54,7 +54,7 @@
     <string name="wanxiang_github_check">检查 GitHub 连接</string>
     <string name="wanxiang_github_ok">GitHub 连接成功：%1$s</string>
     <string name="wanxiang_extra">附加词库</string>
-    <string name="wanxiang_extra_hint">从官方目录选择词库，按所选版本转换后保存到 dicts。Pro 使用本次下载或当前目录的 zi.pro 字表。要启用词库，需在主词库的 import_tables 中引用对应文件。</string>
+    <string name="wanxiang_extra_hint">选择附加词库，直接保存带调词库至 dicts。启用时在主词库 import_tables 中引用对应文件。</string>
     <string name="wanxiang_extra_choose">选择附加词库</string>
     <string name="wanxiang_extra_refresh">刷新词库目录</string>
     <string name="wanxiang_extra_loading">正在加载附加词库目录…</string>
@@ -74,4 +74,6 @@
     <string-array name="wanxiang_channels"><item>正式版</item><item>预览版</item></string-array>
     <string-array name="wanxiang_sources"><item>CNB</item><item>GitHub</item></string-array>
     <string-array name="wanxiang_auxiliaries"><item>自然码</item><item>万象</item><item>小鹤</item><item>墨奇</item><item>汉心</item><item>首右</item><item>首右+</item><item>虎码</item><item>五笔</item></string-array>
+    <string name="wanxiang_model_download">模型下载</string>
+    <string name="wanxiang_evo_components_hint">仅更新 EVO 专用方案。勾选需要的项目，可单独或同时下载。</string>
 </resources>

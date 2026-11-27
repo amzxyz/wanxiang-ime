@@ -32,7 +32,7 @@ import org.fcitx.fcitx5.android.data.WanxiangYaml
 import org.fcitx.fcitx5.android.input.InputView
 import org.fcitx.fcitx5.android.input.keyboard.KeyView
 import org.fcitx.fcitx5.android.data.prefs.SettingsUiPreferences
-import org.fcitx.fcitx5.android.ui.common.MaterialSpinner
+import com.google.android.material.checkbox.MaterialCheckBox
 import org.junit.After
 import org.junit.Assert.*
 import org.junit.Before
@@ -83,19 +83,24 @@ class WanxiangSettingsUiTest {
             page(WanxiangUpdateActivity::class.java, "updater-${mode(dark)}", ready = { form(it).update.isEnabled }) { activity ->
                 onMain {
                     assertTrue(texts(activity).any { it.text == activity.getString(R.string.wanxiang_only_title) && it.isShown })
-                    spinner(activity, R.string.wanxiang_scope).setSelection(WanxiangSelection.Scope.ALL.ordinal)
+                    checkbox(activity, R.string.wanxiang_scope_model).isChecked = true
+                    checkbox(activity, R.string.wanxiang_scope_dictionary).isChecked = true
+                    checkbox(activity, R.string.wanxiang_scope_scheme).isChecked = true
                 }
-                await("Full update choices should be visible") {
-                    spinner(activity, R.string.wanxiang_scheme).isShown && spinner(activity, R.string.wanxiang_channel).isShown
+                await("All three independent components should be selected") {
+                    form(activity).selection().components?.size == 3
                 }
                 onMain { assertVisibleAction(activity, form(activity).update) }
                 capture("updater-${mode(dark)}-all")
-                onMain { spinner(activity, R.string.wanxiang_scope).setSelection(WanxiangSelection.Scope.MODEL.ordinal) }
-                await("Model updates must hide irrelevant scheme and release controls") {
-                    !spinner(activity, R.string.wanxiang_scheme).isShown && !spinner(activity, R.string.wanxiang_channel).isShown
+                onMain {
+                    checkbox(activity, R.string.wanxiang_scope_dictionary).isChecked = false
+                    checkbox(activity, R.string.wanxiang_scope_scheme).isChecked = false
+                }
+                await("Only the model should remain selected") {
+                    form(activity).selection().components == listOf(WanxiangPackage.Kind.MODEL)
                 }
                 onMain {
-                    assertEquals(WanxiangSelection.Scope.MODEL, form(activity).selection().scope)
+                    assertEquals(listOf(WanxiangPackage.Kind.MODEL), form(activity).selection().components)
                     assertVisibleAction(activity, form(activity).update)
                     assertFalse(ancestors(form(activity).update).any { it is ScrollView })
                 }
@@ -115,9 +120,11 @@ class WanxiangSettingsUiTest {
                 ready = { form(it).update.isEnabled }) { activity ->
                 onMain {
                     assertTrue("The Activity must use the actual large font setting", activity.resources.configuration.fontScale >= 1.5f)
-                    spinner(activity, R.string.wanxiang_scope).setSelection(WanxiangSelection.Scope.MODEL.ordinal)
+                    checkbox(activity, R.string.wanxiang_scope_model).isChecked = true
+                    checkbox(activity, R.string.wanxiang_scope_dictionary).isChecked = false
+                    checkbox(activity, R.string.wanxiang_scope_scheme).isChecked = false
                 }
-                await("Model choices should settle") { !spinner(activity, R.string.wanxiang_scheme).isShown }
+                await("Model choices should settle") { form(activity).selection().components == listOf(WanxiangPackage.Kind.MODEL) }
                 onMain { assertVisibleAction(activity, form(activity).update) }
             }
             page(WanxiangAdvancedActivity::class.java, "advanced-narrow-${mode(dark)}", narrow = true,
@@ -311,8 +318,8 @@ class WanxiangSettingsUiTest {
     private fun form(activity: Activity) = descendants(activity.window.decorView).filterIsInstance<WanxiangUpdateForm>().single()
     private fun model(activity: Activity) = ViewModelProvider(activity as WanxiangAdvancedActivity)[WanxiangAdvancedViewModel::class.java]
     private fun texts(activity: Activity) = descendants(activity.window.decorView).filterIsInstance<TextView>()
-    private fun spinner(activity: Activity, label: Int) = descendants(activity.window.decorView).filterIsInstance<MaterialSpinner>()
-        .single { it.contentDescription == activity.getString(label) }
+    private fun checkbox(activity: Activity, label: Int) = descendants(activity.window.decorView).filterIsInstance<MaterialCheckBox>()
+        .single { it.text == activity.getString(label) }
     private fun button(activity: Activity, label: Int) = descendants(activity.window.decorView).filterIsInstance<MaterialButton>()
         .single { it.text == activity.getString(label) }
     private fun back(activity: Activity): ImageButton {

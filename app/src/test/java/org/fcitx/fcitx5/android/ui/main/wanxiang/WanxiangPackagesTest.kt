@@ -5,6 +5,22 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class WanxiangPackagesTest {
+    @Test fun evoComponentsUseOnlyTheDedicatedBranchAndDlm() {
+        val selection = WanxiangSelection(scheme = WanxiangSelection.Scheme.PRO,
+            source = WanxiangSelection.Source.CNB).asEvo().copy(
+            components = listOf(WanxiangPackage.Kind.SCHEME, WanxiangPackage.Kind.DICTIONARY, WanxiangPackage.Kind.MODEL),
+            extraDictionaries = listOf("medical"))
+        val assets = selection.packages()
+        assertEquals(4, assets.size)
+        assertEquals(WanxiangSelection.EVO_ARCHIVE_URL, assets[0].url)
+        assertEquals(assets[0].url, assets[1].url)
+        assertEquals("wanxiang-lts-zh-hans.dlm", assets[2].name)
+        assertTrue(assets[2].url.endsWith(".dlm"))
+        assertTrue(assets.none { "cnb.cool" in it.url || "dict-nightly" in it.url })
+        assertEquals(listOf(WanxiangPackage.Kind.EXTRA),
+            selection.copy(components = emptyList()).packages().map { it.kind })
+    }
+
     @Test fun allVariantsHaveIndependentPublishedAssetNames() {
         val names = WanxiangSelection.Scheme.entries.map { scheme ->
             WanxiangSelection(scheme = scheme).packages().map { it.name }

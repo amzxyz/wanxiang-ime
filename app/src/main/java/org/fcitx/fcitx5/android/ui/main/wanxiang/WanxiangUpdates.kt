@@ -40,7 +40,7 @@ internal object WanxiangUpdates {
     suspend fun enqueue(context: Context, selection: WanxiangSelection, target: WanxiangTarget) = commands.withLock {
         withContext(Dispatchers.IO) {
             org.fcitx.fcitx5.android.data.RimeUpdateCoordinator.requireOtherIdle(context, WORK)
-            require(selection.packages().isNotEmpty()) { "请先选择附加词库" }
+            require(selection.asEvo().packages().isNotEmpty()) { "请至少选择一个更新项目" }
             val manager = WorkManager.getInstance(context)
             val old = manager.getWorkInfosForUniqueWork(WORK).get()
             if (old.any { !it.state.isFinished }) return@withContext
@@ -58,7 +58,7 @@ internal object WanxiangUpdates {
                 .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
                 .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS)
                 .build()
-            FileUtil.writeAtomically(WanxiangPayload.child(directory(context, request.id), "selection.json"), Json.encodeToString(selection))
+            FileUtil.writeAtomically(WanxiangPayload.child(directory(context, request.id), "selection.json"), Json.encodeToString(selection.asEvo()))
             manager.enqueueUniqueWork(WORK, ExistingWorkPolicy.KEEP, request).result.get()
         }
     }
@@ -73,5 +73,5 @@ internal object WanxiangUpdates {
     }
     fun selection(context: Context): WanxiangSelection = runCatching {
         Json.decodeFromString<WanxiangSelection>(preferences(context).getString("selection", "")!!).also { it.packages() }
-    }.getOrDefault(WanxiangSelection())
+    }.getOrDefault(WanxiangSelection()).asEvo()
 }

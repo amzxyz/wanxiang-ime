@@ -44,7 +44,7 @@ private class EngineWanxiangUpdateHost(private val context: Context, id: UUID) :
     private val name = "WanxiangUpdate-$id"
     private val connection by lazy { FcitxDaemon.connect(name) }
     override fun client(): OkHttpClient = WanxiangGithub.client(context)
-    override fun resolvedUrl(client: OkHttpClient, asset: WanxiangPackage) = WanxiangGithub.downloadUrl(client, asset)
+    override fun resolvedUrl(client: OkHttpClient, asset: WanxiangPackage) = asset.url
     override suspend fun verify(target: WanxiangTarget) {
         val raw = connection.runOnReady { getAddonSubConfig("rime", "profile-manager") }
         require(WanxiangTarget.from(context, raw) == target) { context.getString(R.string.wanxiang_target_changed) }
@@ -101,7 +101,10 @@ class WanxiangUpdateWorker internal constructor(context: Context, parameters: Wo
                 return@withContext Result.success(it.outputData(applicationContext))
             }
             val target = Json.decodeFromString<WanxiangTarget>(inputData.getString(TARGET) ?: error("Missing Rime target"))
-            val selection = WanxiangUpdates.jobSelection(applicationContext, id, inputData.getString(SELECTION))
+            val savedSelection = WanxiangUpdates.jobSelection(applicationContext, id, inputData.getString(SELECTION))
+            // Reject stale pending jobs, rather than resume a pre-EVO package into an EVO profile.
+            require(testHost != null || savedSelection.components != null) { "旧版更新任务已失效，请重新勾选更新项目" }
+            val selection = savedSelection
             FileUtil.writeAtomically(WanxiangPayload.child(directory, "selection.json"), Json.encodeToString(selection))
             val runtime = (testHost ?: EngineWanxiangUpdateHost(applicationContext, id)).also { host = it }
             phase("preparing", applicationContext.getString(R.string.wanxiang_preparing))
@@ -116,7 +119,8 @@ class WanxiangUpdateWorker internal constructor(context: Context, parameters: Wo
             var auxiliary = emptyMap<String, String>()
             for ((index, asset) in packages.withIndex()) {
                 ensureActive()
-                val downloadKey = if (asset.kind == WanxiangPackage.Kind.EXTRA) "${asset.kind}:${asset.name}" else asset.kind.name
+                val downloadKey = if (asset.url == WanxiangSelection.EVO_ARCHIVE_URL) "evo-branch"
+                    else if (asset.kind == WanxiangPackage.Kind.EXTRA) "${asset.kind}:${asset.name}" else asset.kind.name
                 val downloadId = UUID.nameUUIDFromBytes(downloadKey.toByteArray(Charsets.UTF_8))
                 val files = DownloadFiles(File(directory, "downloads"), downloadId)
                 try {
@@ -139,7 +143,8 @@ class WanxiangUpdateWorker internal constructor(context: Context, parameters: Wo
                         }
                         phase("extract", applicationContext.getString(R.string.wanxiang_extracting), asset.name)
                         when (asset.kind) {
-                            WanxiangPackage.Kind.MODEL -> WanxiangPayload.model(files.part, payload)
+                            WanxiangPackage.Kind.MODEL -> if (selection.components != null)
+                                WanxiangPayload.evoModel(files.part, payload) else WanxiangPayload.model(files.part, payload)
                             WanxiangPackage.Kind.EXTRA -> {
                                 if (!preparedExtras) {
                                     protection.filter(payload, File(target.path))
@@ -148,7 +153,9 @@ class WanxiangUpdateWorker internal constructor(context: Context, parameters: Wo
                                 }
                                 WanxiangExtraDictionaries.stage(files.part, payload, asset, selection.scheme, auxiliary) { ensureActive() }
                             }
-                            else -> WanxiangPayload.extract(files.part, payload, asset.kind == WanxiangPackage.Kind.DICTIONARY, allowOverrides = true) { ensureActive() }
+                            else -> if (selection.components != null)
+                                WanxiangPayload.extractEvo(files.part, payload, asset.kind == WanxiangPackage.Kind.DICTIONARY) { ensureActive() }
+                            else WanxiangPayload.extract(files.part, payload, asset.kind == WanxiangPackage.Kind.DICTIONARY, allowOverrides = true) { ensureActive() }
                         }
                     }
                 } catch (missing: MissingAssetDownload) {

@@ -11,7 +11,7 @@ import java.util.zip.ZipInputStream
 internal object WanxiangPayload {
     const val MAX_BYTES = 2L * 1024 * 1024 * 1024
     const val MAX_ENTRIES = 20_000
-    private val resourceDirectories = setOf("lua", "opencc", "dicts", "custom")
+    private val resourceDirectories = setOf("lua", "opencc", "dicts", "custom", "data")
 
     fun relative(path: String): String {
         require(path.isNotEmpty() && !path.startsWith('/') && '\\' !in path && '\u0000' !in path &&
@@ -38,7 +38,7 @@ internal object WanxiangPayload {
         if (if (allowOverrides) runtimeState(path) else protected(path)) return false
         val parts = path.split('/')
         return if (parts.size > 1) parts.first() in resourceDirectories
-        else path.endsWith(".yaml") || path.endsWith(".lua") || path.endsWith(".gram") || path == "version.txt" ||
+        else path.endsWith(".yaml") || path.endsWith(".lua") || path.endsWith(".gram") || path.endsWith(".dlm") || path == "version.txt" ||
             allowOverrides && path.endsWith(".txt")
     }
 
@@ -98,6 +98,73 @@ internal object WanxiangPayload {
         if (!dictionary) require(payload.listFiles().orEmpty().any { it.name.startsWith("wanxiang") && it.name.endsWith(".schema.yaml") }) {
             "Archive contains no Wanxiang scheme"
         }
+    }
+
+    /** Extract only the selected part of the EVO branch archive. */
+    fun extractEvo(archive: File, payload: File, dictionary: Boolean, checkActive: () -> Unit = {}) {
+        check(payload.isDirectory || payload.mkdirs())
+        ZipFile(archive).use { zip ->
+            val entries = zip.entries().asSequence().take(MAX_ENTRIES + 1).toList()
+            require(entries.size in 1..MAX_ENTRIES)
+            val paths = entries.map { relative(it.name.trimEnd('/')) }
+            require(paths.distinct().size == paths.size) { "Duplicate archive path" }
+            val wrapper = paths.map { it.substringBefore('/') }.distinct().singleOrNull()
+                ?.takeIf { it.startsWith("rime-wanxiang-") }
+                ?: error("Not the Wanxiang branch archive")
+            val prefix = "$wrapper/"
+            val schema = zip.getEntry(prefix + "wanxiang.schema.yaml") ?: error("Missing Wanxiang schema")
+            require(schema.size in 1..1024 * 1024)
+            require(zip.getInputStream(schema).bufferedReader().use { it.readText() }.contains("input_types:")) {
+                "Not the EVO scheme"
+            }
+            var bytes = payload.walkTopDown().filter { it.isFile }.sumOf { it.length() }
+            var accepted = 0
+            for (entry in entries) {
+                checkActive()
+                if (entry.isDirectory) continue
+                val path = relative(entry.name.removePrefix(prefix))
+                if (!resource(path, allowOverrides = true) || path.endsWith(".gram") || path.endsWith(".dlm")) continue
+                val dict = path.startsWith("dicts/") && path.endsWith(".dict.yaml")
+                val scheme = !path.startsWith("dicts/") &&
+                    (('/' !in path && path.endsWith(".yaml")) ||
+                     ((path.startsWith("lua/") || path.startsWith("data/")) &&
+                      path.substringAfterLast('.').lowercase(Locale.ROOT) in setOf("lua", "yaml", "txt", "json", "bin")))
+                if (if (dictionary) !dict else !scheme) continue
+                val target = child(payload, path)
+                check(target.parentFile!!.isDirectory || target.parentFile!!.mkdirs())
+                val crc = java.util.zip.CRC32()
+                var written = 0L
+                zip.getInputStream(entry).use { input ->
+                    target.outputStream().buffered().use { output ->
+                        val buffer = ByteArray(32 * 1024)
+                        while (true) {
+                            checkActive()
+                            val count = input.read(buffer)
+                            if (count < 0) break
+                            bytes += count
+                            written += count
+                            require(bytes <= MAX_BYTES) { "Update archive exceeds extraction limit" }
+                            crc.update(buffer, 0, count)
+                            output.write(buffer, 0, count)
+                        }
+                    }
+                }
+                require(written == entry.size && crc.value == entry.crc) { "Corrupt update entry: $path" }
+                accepted++
+            }
+            require(accepted > 0) { "No selected EVO resources in archive" }
+        }
+    }
+
+    fun evoModel(download: File, payload: File) {
+        val header = "Rime::EvoGrammar/2\u0000".toByteArray(Charsets.US_ASCII)
+        require(download.length() >= 88 && download.length() <= MAX_BYTES) { "Invalid EVO model size" }
+        val actual = download.inputStream().use { input ->
+            ByteArray(header.size).also { java.io.DataInputStream(input).readFully(it) }
+        }
+        if (!actual.contentEquals(header)) throw IOException("Invalid EVO DLM model")
+        check(payload.isDirectory || payload.mkdirs())
+        download.copyTo(child(payload, "wanxiang-lts-zh-hans.dlm"), overwrite = true)
     }
 
     fun model(download: File, payload: File) {
