@@ -89,7 +89,7 @@ internal class JsVoiceInputProvider(
     private inner class Session(val target: IVoiceInputCallback, val rate: Int) {
         val taskId = UUID.randomUUID().toString()
         val queue = JsVoiceCommandQueue(rate)
-        /** 把宿主的分片对齐到 3 字节，保证插件拼出的 base64 始终合法，见 [JsVoicePcmAligner]。 */
+        /** 把宿主的分片对齐到 6 字节，保证 base64 可拼接且包长始终为偶数，见 [JsVoicePcmAligner]。 */
         val pcm = JsVoicePcmAligner()
         private val ended = AtomicBoolean(false)
         var worker: Job? = null
@@ -234,7 +234,7 @@ internal class JsVoiceInputProvider(
                     is JsVoiceCommand.Audio -> {
                         // 插件可能把每个分片的 base64 直接拼起来（qwen-asr 的 flash 模式就是
                         // state.chunks.join("")）；带 '=' 填充的分片一旦拼接就是非法 base64，所以先把
-                        // PCM 对齐到 3 字节的整数倍再投递。不足 3 字节的尾巴在 stop 前补投。
+                        // PCM 对齐到 6 字节（3 的倍数且偶数）再投递。不足一个对齐块的尾巴在 stop 前补投。
                         val pcm = session.pcm.take(cmd.pcm) ?: continue
                         finished = handle(cb, call(js, "audio", audioArg(settings, socket, pcm), AUDIO_TIMEOUT_MS).actions)
                     }
@@ -359,30 +359,43 @@ internal class JsVoiceInputProvider(
 }
 
 /**
- * 把宿主的分片对齐到 3 字节（PCM 16bit 单声道一个采样 = 2 字节，3 字节就是 base64 的 4 字符倍数）。
+ * 把宿主的分片对齐到 6 字节：既是 16bit 单声道采样的整数倍（2 字节），也是 base64 的整数倍（3 字节）。
  *
  * 为什么要对齐：qwen-asr 的 flash 模式把每个分片的 base64 直接 `chunks.join("")` 后当整段音频解码，
  * 而 base64 分片各自带 `=` 填充。100ms @16kHz 是 3200 字节，base64 长度 4268（含一个 `=`），
  * 拼接后中间出现 `=`，解码器直接抛 "Input byte array has incorrect ending byte"。
- * 只发 3 字节整数倍也顺带保证切在采样边界上，不会把 16bit 样本劈成两半。
+ * 为什么是 6 而不是 3：3 的整数倍只能保证 base64 无填充，却会切出奇数长度的 PCM 包（3198/3201/3201…）。
+ * 火山引擎豆包流式识别收到奇数长度的音频包会直接回错误帧 55000000「The service encountered an internal error」，
+ * 用户看到的就是「豆包 2.0 用不了、旧版能用」——旧版宿主没有这层对齐，包长恒为录制缓冲的 3200 字节。
+ * 取 3 与 2 的最小公倍数 6，两个约束同时满足：包长恒为偶数，且 base64 无填充。
  */
 internal class JsVoicePcmAligner {
     private var pending = ByteArray(0)
 
-    /** 返回可以直接投递给插件的 PCM；不足一次 base64 边界时返回 null 并缓存到下一片。 */
+    /** 返回可以直接投递给插件的 PCM；不足一次对齐边界时返回 null 并缓存到下一片。 */
     fun take(pcm: ByteArray): ByteArray? {
-        if (pending.isEmpty() && pcm.size % 3 == 0) return pcm
+        if (pending.isEmpty() && pcm.size % ALIGNMENT == 0) return pcm
         val joined = pending + pcm
-        val usable = joined.size - joined.size % 3
+        val usable = joined.size - joined.size % ALIGNMENT
         pending = joined.copyOfRange(usable, joined.size)
         return if (usable == 0) null else joined.copyOfRange(0, usable)
     }
 
-    /** stop 前补齐尾巴；长度可能带 `=` 填充，但它是最后一段，不会再被拼接。 */
+    /**
+     * stop 前取出尾巴。它是最后一段，base64 带 `=` 填充也没关系（不会被拼接），
+     * 但仍要保持偶数长度：豆包对任何奇数长度音频包都回 55000000，尾巴也不例外，
+     * 所以奇数时补一个 0 采样字节（静音，不影响识别）。
+     */
     fun flush(): ByteArray? {
         val tail = pending
         pending = ByteArray(0)
-        return if (tail.isEmpty()) null else tail
+        if (tail.isEmpty()) return null
+        return if (tail.size % 2 == 0) tail else tail + ByteArray(1)
+    }
+
+    private companion object {
+        /** lcm(3, 2)：base64 量子 3 字节与 16bit 采样 2 字节的最小公倍数。 */
+        const val ALIGNMENT = 6
     }
 }
 

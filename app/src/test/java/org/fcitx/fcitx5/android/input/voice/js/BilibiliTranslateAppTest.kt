@@ -130,8 +130,8 @@ class BilibiliTranslateAppTest {
             val opened = harness.invoke("open")
             val rendered = opened.toString()
 
-            assertTrue(rendered.contains("\"maxWidth\":340"))
-            assertTrue(rendered.contains("\"maxHeight\":240"))
+            assertTrue(rendered.contains("\"maxWidth\":380"))
+            assertTrue(rendered.contains("\"maxHeight\":440"))
             assertTrue(rendered.contains("\"id\":\"input\""))
             assertTrue(rendered.contains("\"value\":\"こんにちは\""))
             assertTrue(rendered.contains("\"id\":\"target\""))
