@@ -757,7 +757,7 @@ class DirectRimeBackend(context: Context) : InputEngine {
                     is DirectRimeStatusMenu.OwnerCommand.SelectSchema -> act(3, value = command.schema)
                     is DirectRimeStatusMenu.OwnerCommand.SetOptions -> {
                         // New core selects a radio group in one operation.
-                        val changes = if (Native.schemaSwitchSelectionAvailable())
+                        val changes = if (started && !maintenance && Native.schemaSwitchSelectionAvailable())
                             command.changes.takeLast(1) else command.changes
                         changes.forEach { change ->
                             act(8, if (change.enabled) 1 else 0, change.name)
