@@ -749,6 +749,27 @@ void testCandidateIteratorFailureDoesNotReclosePartialApiState() {
         engine.stop();
     }
 }
+void testNativeSchemaSwitchSelection() {
+#ifdef RIME_SCHEMA_SWITCH_SELECTION
+    f = {}; auto a = api();
+    // A capture-free mock mirrors the native preference contract.
+    a.select_switch = [](RimeSessionId, const char* name, Bool value) -> Bool {
+        if (std::strcmp(name, "ascii_mode") && std::strcmp(name, "s2t")) return false;
+        if (!std::strcmp(name, "ascii_mode")) f.ascii = value;
+        f.savedOptions[std::string("native/") + name] = value;
+        return true;
+    };
+    Engine engine(&a); engine.start("shared", "user");
+    auto value = engine.begin(1, "editor");
+    value = engine.action(1, value.revision, 8, 1, "s2t");
+    CHECK(f.savedOptions["native/s2t"] && f.userConfigOpens == 0);
+    value = engine.action(1, value.revision, 6, 0, "");
+    CHECK(value.ascii && f.savedOptions["native/ascii_mode"] && f.userConfigOpens == 0);
+    value = engine.action(1, value.revision, 8, 1, "_no_learning");
+    CHECK(f.noLearning && f.userConfigOpens == 0 && f.savedOptions.size() == 2);
+    engine.stop();
+#endif
+}
 void testFrontendWritesOnlySaveableOptions() {
     f = {}; auto a = api(); Engine engine(&a); engine.start("shared", "user");
     auto value = engine.begin(1, "editor.one");
@@ -961,7 +982,7 @@ int main(int argc, char** argv) {
             return 0;
         }
         if (argc != 1) { std::cerr << "usage: engine-test [--statistics]\n"; return 2; }
-        testInputContract(); testEngineLogLevel(); testMaintenanceAndAbi(); testFrontendExtensions(); testCandidateSequence(); testReadOnlyRefresh(); testOptionalInputStatistics(); testInputStatisticsUnicodeAndPresentationReuse(); testSyncCompletion(); testPresentationReuse(); testUnicode(); testOptionInvalidation(); testStatusCache(); testCandidateIteratorFailureDoesNotReclosePartialApiState(); testFrontendWritesOnlySaveableOptions(); testAsciiToggleSharesSavedOptionRule(); testSessionReuseAndEditorIsolation(); testGeneratedConfigInvalidation(); testUsableDeploymentWarning(); testNativePrewarm(); testRuntimeTypeGroups(); testCurrentSchemaPreference(); std::cout << "engine contract: passed\n";
+        testInputContract(); testEngineLogLevel(); testMaintenanceAndAbi(); testFrontendExtensions(); testCandidateSequence(); testReadOnlyRefresh(); testOptionalInputStatistics(); testInputStatisticsUnicodeAndPresentationReuse(); testSyncCompletion(); testPresentationReuse(); testUnicode(); testOptionInvalidation(); testStatusCache(); testCandidateIteratorFailureDoesNotReclosePartialApiState(); testNativeSchemaSwitchSelection(); testFrontendWritesOnlySaveableOptions(); testAsciiToggleSharesSavedOptionRule(); testSessionReuseAndEditorIsolation(); testGeneratedConfigInvalidation(); testUsableDeploymentWarning(); testNativePrewarm(); testRuntimeTypeGroups(); testCurrentSchemaPreference(); std::cout << "engine contract: passed\n";
     }
     catch (const std::exception& e) { std::cerr << e.what() << '\n'; return 1; }
 }

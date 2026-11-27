@@ -746,7 +746,17 @@ bool Engine::selectTypeOption(const std::string& schema, const std::string& grou
 }
 
 void Engine::setOption(const std::string& option, bool value) {
+#ifdef RIME_SCHEMA_SWITCH_SELECTION
+    if (RIME_API_AVAILABLE(api_, select_switch)) {
+        // The core owns schema-scoped preference and radio-group selection.
+        // Undeclared options (including _no_learning) remain temporary.
+        if (!api_->select_switch(session_, option.c_str(), value))
+            api_->set_option(session_, option.c_str(), value);
+        return;
+    }
+#endif
     api_->set_option(session_, option.c_str(), value);
+    // Legacy/external engines still use their traditional save_options contract.
     if (saveableOption(option)) rememberOption(option, value);
 }
 bool Engine::saveableOption(const std::string& option) {
