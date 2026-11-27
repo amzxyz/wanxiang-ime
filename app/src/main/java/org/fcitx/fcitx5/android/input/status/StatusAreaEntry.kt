@@ -34,7 +34,7 @@ sealed class StatusAreaEntry(
         StatusAreaEntry(label, icon, active) {
         enum class Type {
             InputMethod,
-            ReloadConfig,
+            RedeployRime,
             Keyboard,
             ThemeList,
             OneHandKeyboard

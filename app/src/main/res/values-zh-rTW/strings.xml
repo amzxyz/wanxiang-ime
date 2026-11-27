@@ -155,7 +155,7 @@
     <string name="addon_dir_profile_android10_unsupported">Android 10 不支援外部 Rime 目錄，請使用應用程式資料目錄。Android 11 以上可使用此功能。</string>
     <string name="addon_dir_profile_open_failed">無法開啟目前的 Rime 目錄，請檢查目錄路徑和儲存空間存取權限。</string>
     <string name="reset">重設</string>
-    <string name="reload_config">重新讀取設定</string>
+    <string name="reload_config">重新部署</string>
     <string name="input_method_options">輸入法設定</string>
     <string name="theme">主題</string>
     <string name="random_theme">隨機主題</string>

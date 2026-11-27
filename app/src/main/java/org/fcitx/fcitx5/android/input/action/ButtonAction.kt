@@ -12,7 +12,6 @@ import androidx.annotation.DrawableRes
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
 import org.fcitx.fcitx5.android.R
-import org.fcitx.fcitx5.android.core.SubtypeManager
 import org.fcitx.fcitx5.android.daemon.FcitxConnection
 import org.fcitx.fcitx5.android.daemon.launchOnReady
 import org.fcitx.fcitx5.android.data.clipboard.ClipboardManager
@@ -156,7 +155,7 @@ sealed class ButtonAction {
                 ThemeAction,
                 IconThemeAction,
                 InputMethodOptionsAction,
-                ReloadConfigAction,
+                RedeployRimeAction,
                 VirtualKeyboardAction,
                 OneHandedKeyboardAction,
                 BrowseUserDataDirAction,
@@ -212,7 +211,7 @@ sealed class ButtonAction {
                 RandomThemeAction,
                 IconThemeAction,
                 InputMethodOptionsAction,
-                ReloadConfigAction,
+                RedeployRimeAction,
                 VirtualKeyboardAction,
                 OneHandedKeyboardAction
             )
@@ -630,7 +629,8 @@ data object RimeSchemaMenuAction : ButtonAction() {
     }
 }
 
-data object ReloadConfigAction : ButtonAction() {
+data object RedeployRimeAction : ButtonAction() {
+    // Persisted button/macro IDs and icon slots are a user configuration contract.
     override val id = "reload_config"
     override val defaultIcon = R.drawable.ic_baseline_sync_24
     override val defaultLabelRes = R.string.reload_config
@@ -644,15 +644,7 @@ data object ReloadConfigAction : ButtonAction() {
         view: View?,
         onActionComplete: (() -> Unit)?
     ) {
-        fcitx.launchOnReady { f ->
-            f.reloadConfig()
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-                SubtypeManager.syncWith(f.enabledIme())
-            }
-            service.lifecycleScope.launch {
-                android.widget.Toast.makeText(service, R.string.done, android.widget.Toast.LENGTH_SHORT).show()
-            }
-        }
+        service.requestRimeRedeploy()
     }
 }
 

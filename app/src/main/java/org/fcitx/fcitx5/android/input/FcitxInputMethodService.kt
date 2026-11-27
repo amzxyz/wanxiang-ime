@@ -52,6 +52,7 @@ import androidx.core.view.updateLayoutParams
 import androidx.core.view.inputmethod.InputConnectionCompat
 import androidx.core.view.inputmethod.InputContentInfoCompat
 import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
@@ -572,6 +573,34 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
     }
 
     fun postFcitxJob(block: suspend FcitxAPI.() -> Unit): Job = postFcitxJob("operation", block = block)
+
+    private var redeployJob: Job? = null
+
+    /** All keyboard deployment buttons share the ordered input queue and one pending request. */
+    @Synchronized
+    internal fun requestRimeRedeploy() {
+        // Lazy queued jobs are not active yet, so isActive is not a sufficient guard.
+        if (redeployJob?.isCompleted == false) return
+        redeployJob = postFcitxJob("rime-redeploy") {
+            try {
+                redeployRime()
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (failure: Exception) {
+                Timber.w(failure, "Rime redeployment failed")
+                withContext(Dispatchers.Main.immediate) {
+                    android.widget.Toast.makeText(this@FcitxInputMethodService,
+                        failure.message ?: getString(R.string.unknown_error),
+                        android.widget.Toast.LENGTH_LONG).show()
+                }
+                return@postFcitxJob
+            }
+            withContext(Dispatchers.Main.immediate) {
+                android.widget.Toast.makeText(this@FcitxInputMethodService,
+                    R.string.done, android.widget.Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
 
     /** Capture at the time of the key, before either the service or native owner queues it. */
     private fun postFcitxKeyJob(category: String, block: suspend FcitxAPI.() -> Unit): Job {

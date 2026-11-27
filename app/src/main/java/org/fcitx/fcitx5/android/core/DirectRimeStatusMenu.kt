@@ -6,6 +6,7 @@ internal object DirectRimeStatusMenu {
     const val ROOT_ID = 1
     const val SEPARATOR_ID = 9
     const val MODE_ID = 10
+    // Reserved for legacy action callers; no longer shown in the scheme menu.
     const val DEPLOY_ID = 11
     const val SYNC_ID = 12
 
@@ -61,7 +62,6 @@ internal object DirectRimeStatusMenu {
             }
         }
 
-        menu += action(DEPLOY_ID, "deploy", "重新部署")
         menu += action(SYNC_ID, "sync", "同步用户词典")
         val label = if (state.ascii) labels.asciiMode else state.schemaName.ifEmpty { "Rime" }
         return arrayOf(action(ROOT_ID, "rime", label, menu = menu.toTypedArray()), *options.toTypedArray())

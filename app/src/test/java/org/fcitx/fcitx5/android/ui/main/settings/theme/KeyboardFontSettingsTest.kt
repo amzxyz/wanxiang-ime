@@ -12,6 +12,13 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [28], qualifiers = "zh-rCN")
 class KeyboardFontSettingsTest {
+    @Test fun legacyReloadButtonKeepsItsIdButNowRepresentsDeployment() {
+        val action = org.fcitx.fcitx5.android.input.action.ButtonAction.fromId("reload_config")
+        assertEquals(org.fcitx.fcitx5.android.input.action.RedeployRimeAction, action)
+        assertEquals("toolbar.reload_config", action?.iconSlot)
+        assertEquals("重新部署", RuntimeEnvironment.getApplication().getString(R.string.reload_config))
+    }
+
     @Test fun unconfiguredSlotsShowTheirActualDefaultSizes() {
         val context = RuntimeEnvironment.getApplication()
         val default = context.getString(R.string.default_)

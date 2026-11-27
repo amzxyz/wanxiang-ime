@@ -521,7 +521,7 @@ end
             connection.runOnReady {
                 val previousGeneration = inputSession
                 if (settingsEntry) setAddonSubConfig("rime", "deploy", RawConfig())
-                else activateAction(11) // The expanded status area's deployment action.
+                else redeployRime() // The keyboard deployment button's direct API.
                 assertNotEquals(previousGeneration, inputSession)
                 assertEquals(listOf(label, "新增方案"), SubModeManager.resolveSchemaMenuEntries(statusArea()).map { it.first })
             }

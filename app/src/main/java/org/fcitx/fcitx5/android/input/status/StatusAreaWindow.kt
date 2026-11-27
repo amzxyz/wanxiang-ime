@@ -5,14 +5,11 @@
 package org.fcitx.fcitx5.android.input.status
 
 import android.net.Uri
-import android.os.Build
 import android.view.View
-import android.widget.Toast
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
 import org.fcitx.fcitx5.android.R
 import org.fcitx.fcitx5.android.core.Action
-import org.fcitx.fcitx5.android.core.SubtypeManager
 import org.fcitx.fcitx5.android.daemon.FcitxConnection
 import org.fcitx.fcitx5.android.daemon.launchOnReady
 import org.fcitx.fcitx5.android.data.prefs.AppPrefs
@@ -247,15 +244,7 @@ class StatusAreaWindow : InputWindow.ExtendedInputWindow<StatusAreaWindow>(Statu
                                 context, it.uniqueName, it.displayName
                             )
                         }
-                        StatusAreaEntry.Android.Type.ReloadConfig -> fcitx.launchOnReady { f ->
-                            f.reloadConfig()
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-                                SubtypeManager.syncWith(f.enabledIme())
-                            }
-                            service.lifecycleScope.launch {
-                                Toast.makeText(service, R.string.done, Toast.LENGTH_SHORT).show()
-                            }
-                        }
+                        StatusAreaEntry.Android.Type.RedeployRime -> service.requestRimeRedeploy()
                         StatusAreaEntry.Android.Type.Keyboard -> AppUtil.launchMainToKeyboard(context)
                         StatusAreaEntry.Android.Type.ThemeList -> AppUtil.launchMainToThemeList(context)
                         StatusAreaEntry.Android.Type.OneHandKeyboard -> {

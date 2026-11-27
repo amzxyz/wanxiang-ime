@@ -62,7 +62,8 @@ interface FcitxAPI {
      */
     suspend fun saveNonRimeState()
 
-    suspend fun reloadConfig()
+    /** Redeploy the active Rime working directory; never used for frontend-only settings. */
+    suspend fun redeployRime()
 
     suspend fun sendKey(key: String, states: UInt = 0u, code: Int = 0, up: Boolean = false, timestamp: Int = -1)
 

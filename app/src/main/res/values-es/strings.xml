@@ -96,7 +96,7 @@
     <string name="addon_dir_profile_delete_confirm">¿Eliminar el directorio de datos "%1$s"?</string>
     <string name="addon_dir_profile_current_format">%1$s (actual)</string>
     <string name="reset">Restablecer</string>
-    <string name="reload_config">Recargar configuración</string>
+    <string name="reload_config">Volver a desplegar</string>
     <string name="input_method_options">Opciones de método de entrada</string>
     <string name="theme">Tema</string>
     <string name="brightness">Brillo</string>

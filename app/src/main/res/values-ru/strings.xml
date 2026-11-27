@@ -129,7 +129,7 @@
     <string name="addon_dir_profile_delete_confirm">Удалить каталог данных "%1$s"?</string>
     <string name="addon_dir_profile_current_format">%1$s (текущий)</string>
     <string name="reset">Перезагрузить</string>
-    <string name="reload_config">Перезагрузить конфигурацию</string>
+    <string name="reload_config">Повторное развёртывание</string>
     <string name="input_method_options">Параметры метода ввода</string>
     <string name="theme">Тема</string>
     <string name="key_ripple_effect">Включить эффект пульсации клавиш</string>

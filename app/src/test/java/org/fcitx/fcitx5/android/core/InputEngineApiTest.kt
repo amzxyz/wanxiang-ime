@@ -28,6 +28,17 @@ class InputEngineApiTest {
         assertEquals(listOf(17L to 1234L), calls)
     }
 
+    @Test fun redeploymentDelegatesToTheDedicatedEngineApi() = runBlocking {
+        var calls = 0
+        val api: FcitxAPI = InputEngineApi(engine { method, _ ->
+            assertEquals("redeployRime", method.name)
+            calls++
+            Unit
+        })
+        api.redeployRime()
+        assertEquals(1, calls)
+    }
+
     @Test fun cachedReadsDelegateWithoutExposingTheLifecycleInterface() {
         val api: FcitxAPI = InputEngineApi(engine { method, _ ->
             when (method.name) {

@@ -19,7 +19,6 @@ import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.checkbox.MaterialCheckBox
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import org.fcitx.fcitx5.android.R
-import org.fcitx.fcitx5.android.daemon.FcitxDaemon
 import org.fcitx.fcitx5.android.input.config.ConfigProviders
 import org.fcitx.fcitx5.android.input.font.FontProviders
 import org.fcitx.fcitx5.android.utils.settingsColor
@@ -119,9 +118,6 @@ internal class KeyboardFontSettings(private val ctx: Context, private val onChan
         return updateKeyboardFontSettings(changes).fold(onSuccess = { changed ->
             if (changed) {
                 FontProviders.markNeedsRefresh()
-                FcitxDaemon.getFirstConnectionOrNull()?.let { connection ->
-                    runCatching { connection.runIfReady { reloadConfig() } }
-                }
                 refresh()
                 onChanged()
             }

@@ -128,7 +128,7 @@
     <string name="addon_dir_profile_delete_confirm">データディレクトリ「%1$s」を削除しますか？</string>
     <string name="addon_dir_profile_current_format">%1$s（現在）</string>
     <string name="reset">リセット</string>
-    <string name="reload_config">設定の再読み込み</string>
+    <string name="reload_config">再デプロイ</string>
     <string name="input_method_options">インプットメソッドのオプション</string>
     <string name="theme">テーマ</string>
     <string name="key_ripple_effect">キーの波紋効果を有効にする</string>

@@ -715,7 +715,7 @@ class DirectRimeBackend(context: Context) : InputEngine {
     override suspend fun statusArea() = statusAreaActionsCached
     override suspend fun activateAction(id: Int) {
         when {
-            id == DirectRimeStatusMenu.DEPLOY_ID -> redeploy()
+            id == DirectRimeStatusMenu.DEPLOY_ID -> redeployRime()
             id == DirectRimeStatusMenu.SYNC_ID -> synchronize()
             else -> onOwner {
                 demandSessionForAction()
@@ -738,9 +738,14 @@ class DirectRimeBackend(context: Context) : InputEngine {
 
     private suspend fun maintain(refreshAfterOperation: Boolean = true, operation: () -> Unit) =
         maintenanceCoordinator.run(refreshAfterOperation, operation = operation)
-    private suspend fun redeploy() = maintain {
-        if (started) check(Native.deploy()) { "部署失败，请检查方案文件后重新部署" }
-        else restartNative()
+    override suspend fun redeployRime() = maintain {
+        // External engines need the existing guarded restart/watchdog and profile binding.
+        // The built-in engine can redeploy its current native workspace directly.
+        if (started && engineOperations.activeSelection.kind ==
+            org.fcitx.fcitx5.android.core.engine.RimeEngineKind.BUILTIN
+        ) {
+            check(Native.deploy()) { "部署失败，请检查方案文件后重新部署" }
+        } else restartNative()
     }
     private suspend fun synchronize() = maintenanceCoordinator.run(synchronizing = true) {
         check(Native.sync()) { "用户词典同步失败" }
@@ -777,16 +782,6 @@ class DirectRimeBackend(context: Context) : InputEngine {
         if (onOwner { started }) synchronize()
     }
     override suspend fun saveNonRimeState() {}
-    override suspend fun reloadConfig() = maintain {
-        config.load()
-        if (!directBootMode) {
-            engineRepository.activeExternalProfile()?.let { bound ->
-                config.requireExternalEngineProfile(bound)
-                if (config.current != bound) config.switch(bound)
-            }
-        }
-        restartNative()
-    }
     override suspend fun getGlobalConfig() = getImConfig("rime")
     override suspend fun setGlobalConfig(config: RawConfig) = setImConfig("rime", config)
     override suspend fun getAddonConfig(addon: String) = getImConfig(addon)
@@ -879,7 +874,7 @@ class DirectRimeBackend(context: Context) : InputEngine {
                     config,
                 )?.let { RimeProfileUpdateInstaller.install(it, ::stopNativeForRestart, ::restartNative) }
             } }
-            "deploy" -> redeploy()
+            "deploy" -> redeployRime()
             "sync" -> synchronize()
             "schema-selector" -> maintain {
                 val command = DirectRimeManagementCommands.schemaSelection(config)

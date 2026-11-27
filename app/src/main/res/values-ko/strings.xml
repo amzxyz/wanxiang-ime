@@ -122,7 +122,7 @@
     <string name="addon_dir_profile_delete_confirm">데이터 디렉터리 "%1$s"를 삭제하시겠습니까?</string>
     <string name="addon_dir_profile_current_format">%1$s (현재)</string>
     <string name="reset">재설정</string>
-    <string name="reload_config">구성 새로고침</string>
+    <string name="reload_config">다시 배포</string>
     <string name="input_method_options">입력기 옵션</string>
     <string name="redo">다시 실행</string>
     <string name="edit_popup_preset">팝업 문자 설정</string>
