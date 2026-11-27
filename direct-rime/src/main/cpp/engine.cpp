@@ -935,31 +935,29 @@ std::vector<std::string> Engine::options() {
     }
     return result;
 }
-// Catalogs are read from the deployed schema; the core owns all persistent choices.
+// The core returns display-ready options and the effective selection together.
 std::vector<std::string> Engine::typeGroupState(const std::string& schema, const std::string& group) {
     owner();
-#ifdef RIME_EVO_TYPE_GROUPS
+#ifdef RIME_EVO_TYPE_OPTIONS
     if (!started_ || api_->is_maintenance_mode() || deployFailed_.load() ||
-        (group != "input_types" && group != "aux_types") ||
-        !RIME_API_AVAILABLE(api_, get_type_option) || !RIME_API_AVAILABLE(api_, select_type_option))
+        !RIME_API_AVAILABLE(api_, get_type_options) || !RIME_API_AVAILABLE(api_, free_type_options) ||
+        !RIME_API_AVAILABLE(api_, select_type_option))
         return {};
     const auto deployed = schemas();
     if (std::find(deployed.begin(), deployed.end(), schema) == deployed.end()) return {};
-    if (!RIME_API_AVAILABLE(api_, schema_open) || !RIME_API_AVAILABLE(api_, config_close) ||
-        !RIME_API_AVAILABLE(api_, config_begin_map) || !RIME_API_AVAILABLE(api_, config_begin_list) ||
-        !RIME_API_AVAILABLE(api_, config_next) || !RIME_API_AVAILABLE(api_, config_end) ||
-        !RIME_API_AVAILABLE(api_, config_list_size) || !RIME_API_AVAILABLE(api_, config_get_cstring)) return {};
-    RimeConfig config{};
-    if (!api_->schema_open(schema.c_str(), &config)) return {};
-    ScopeExit cleanup([&] { api_->config_close(&config); });
-    InputTypesConfig types;
-    if (!types.load(api_, &config, group) || types.options.empty()) return {};
-    char selected[1024]{};
-    if (!api_->get_type_option(session_, schema.c_str(), group.c_str(), selected, sizeof(selected))) return {};
-    std::vector<std::string> result{selected};
-    for (const auto& item : types.options) {
-        result.push_back(item.option);
-        result.push_back(item.label);
+    RimeTypeOption* options = nullptr;
+    size_t count = 0;
+    if (!api_->get_type_options(session_, schema.c_str(), group.c_str(), &options, &count))
+        return {};
+    ScopeExit cleanup([&] { api_->free_type_options(options, count); });
+    if (count == 0) return {};
+    std::vector<std::string> result(1);
+    result.reserve(1 + 2 * count);
+    for (size_t i = 0; i < count; ++i) {
+        const auto& item = options[i];
+        if (item.selected) result.front() = item.option;
+        result.emplace_back(item.option);
+        result.emplace_back(item.label);
     }
     return result;
 #else
