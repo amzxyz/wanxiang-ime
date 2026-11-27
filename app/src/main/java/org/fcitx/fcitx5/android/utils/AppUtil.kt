@@ -29,10 +29,11 @@ object AppUtil {
         }
     }
 
-    private fun launchMainToDest(context: Context, route: SettingsRoute) {
+    private fun launchMainToDest(context: Context, route: SettingsRoute, preferenceKey: String? = null) {
         context.startActivity<MainActivity> {
             action = Intent.ACTION_RUN
             putExtra(MainActivity.EXTRA_SETTINGS_ROUTE, route)
+            preferenceKey?.let { putExtra(MainActivity.EXTRA_SETTINGS_PREFERENCE, it) }
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS)
         }
     }
@@ -45,6 +46,10 @@ object AppUtil {
 
     fun launchMainToThemeList(context: Context) =
         launchMainToDest(context, SettingsRoute.Theme)
+
+    fun launchMainToKeyboardFonts(context: Context) =
+        launchMainToDest(context, SettingsRoute.Theme,
+            org.fcitx.fcitx5.android.ui.main.settings.theme.KeyboardFontSettings.FIRST_KEY)
 
     fun launchMainToInputMethodConfig(context: Context, uniqueName: String, displayName: String) =
         launchMainToDest(context, SettingsRoute.InputMethodConfig(displayName, uniqueName))

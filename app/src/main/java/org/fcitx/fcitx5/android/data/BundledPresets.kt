@@ -23,7 +23,7 @@ import java.io.File
  * 这些资源随 APK 打包在 `assets/bundled/` 下，首次启动时解包到应用外部
  * 文件目录的对应位置，实现"开箱即用"：
  *
- * - `bundled/keyboard_layouts/TextKeyboardLayout.<名称>.json` → `config/`，并注册对应 profile
+ * - `bundled/default_keyboard_layout.json` → 运行时内置默认布局，不释放独立 profile
  * - `bundled/keyboard_layouts/PopupPreset.json`               → 不落盘，作为运行时默认弹出定义
  * - `bundled/themes/<主题名>.json`                            → `theme/`（自定义主题目录）
  * - `bundled/icon_themes/<主题名>.json`                       → `icon_themes/`
@@ -57,18 +57,6 @@ object BundledPresets {
         prefs.edit { putStringSet(KEY_INSTALLED, handled) }
     }
 
-    /** Android assets 无法可靠列举中文文件名，直接维护清单最可靠。 */
-    private val layoutAssets = listOf(
-        "TextKeyboardLayout.大同-9+18+26keys.json",
-        "TextKeyboardLayout.九键布局.json",
-        "TextKeyboardLayout.行之-26键.json",
-        "TextKeyboardLayout.行之-万象九键v2.json",
-        "TextKeyboardLayout.QM-朝花.json",
-        "TextKeyboardLayout.Sandy-数字行26+万象九键.json",
-        "TextKeyboardLayout.水彩.json",
-        "TextKeyboardLayout.普蓝.json"
-    )
-
     /**
      * 「上一版内置内容」的字节大小，用于区分用户是否改过本地文件：
      * [installAsset] 只在 `dest.length()` 等于这里的登记值时才原位替换，
@@ -79,16 +67,7 @@ object BundledPresets {
      * 资源则只在目标文件不存在时才写出。
      */
     private val assetSizes = mapOf(
-        "bundled/keyboard_layouts/TextKeyboardLayout.大同-9+18+26keys.json" to 13777,
-        "bundled/keyboard_layouts/TextKeyboardLayout.Sandy-数字行26+万象九键.json" to 36265,
-        "bundled/icon_themes/谷歌.json" to 68073,
-        // 水彩套装：随 foxy 上游素材更新；登记的是上一版内置内容的字节数。
-        "bundled/icon_themes/水彩.json" to 183743,
-        "bundled/keyboard_layouts/TextKeyboardLayout.水彩.json" to 30782,
-        "bundled/themes/水彩.json" to 838,
-        "bundled/icon_themes/普蓝.json" to 62181,
-        "bundled/keyboard_layouts/TextKeyboardLayout.普蓝.json" to 9436,
-        "bundled/themes/普蓝.json" to 701
+        "bundled/icon_themes/谷歌.json" to 68073
     )
 
     /**
@@ -104,6 +83,22 @@ object BundledPresets {
         "theme/蓝狐狸.json" to 709L
     )
 
+    // Only remove byte-identical previously shipped presets. User-edited files survive.
+    private val retiredPresetBlobs = mapOf(
+        "config/TextKeyboardLayout.QM-朝花.json" to setOf("a0f3c5bcf5e4e906c72d41bf902ab6fb6b71f0ee"),
+        "config/TextKeyboardLayout.Sandy-数字行26+万象九键.json" to setOf("77671de8bf4048f58ae2777d268bfebf524cd157"),
+        "config/TextKeyboardLayout.九键布局.json" to setOf("adb48201e44eb608528c3a03c3528f200c741e18"),
+        "config/TextKeyboardLayout.大同-9+18+26keys.json" to setOf("45b4cd3ade5251057f89a662346f2f2799f26d6c"),
+        "config/TextKeyboardLayout.普蓝.json" to setOf("e9d2ab406b66e5ab402493c36b749157bb7aee11"),
+        "config/TextKeyboardLayout.水彩.json" to setOf("5aadb7d598fa26dae167280d87907bce34a32453", "d6e92bb0878e9ba8696e39b2854ab01e783d0a87"),
+        "config/TextKeyboardLayout.行之-26键.json" to setOf("ef35ebb2a1cf6580fe2c27694864dd9744097845"),
+        "config/TextKeyboardLayout.行之-万象九键v2.json" to setOf("9becffbfc0cf2a193bbff3e74cdfeb2fdd36fb13"),
+        "config/TextKeyboardLayout.万象-9+18+26keys.json" to setOf("21ef3cd97fbe1472160fdca8d4e1b7dc1c0ca513"),
+        "theme/水彩.json" to setOf("930bb3dd32bf98d73acf6d4db1b865585e9ed3a0"),
+        "theme/普蓝.json" to setOf("bc816f6f958d9935fd4ab44ea772965f69119dc8"),
+        "icon_themes/普蓝.json" to setOf("bc424062b8d60a85c729eff71843359b386190f9")
+    )
+
     private val themeAssets = listOf(
         "森林集·write.json",
         "长日将烬.json",
@@ -116,34 +111,25 @@ object BundledPresets {
         "isGboard.json",
         "sage-journey.json",
         "WeChat Dark.json",
-        "wechat-light.json",
-        "水彩.json",
-        "普蓝.json"
+        "wechat-light.json"
     )
 
     private val iconThemeAssets = listOf(
+        "水彩.json",
+        "经典.json",
         "谷歌.json",
         "无题.json",
-        "长日将烬.json",
-        "水彩.json",
-        "普蓝.json"
+        "长日将烬.json"
     )
 
     /**
      * 内置字体：安装到 `fonts/`，即「字体设定」列出可选字体的目录。
      * 成套主题引用的字体必须在这里登记，否则新装设备上主题会指向一个不存在的文件。
      */
-    private val fontAssets = listOf(
-        "字体图标.otf"
-    )
+    const val EDIT_ICON_FONT_ASSET = "bundled/fonts/keyboard-edit-icons.otf"
+    private const val EDIT_ICON_FONT_FILE = "字体图标.otf"
 
     const val POPUP_PRESET_ASSET = "bundled/keyboard_layouts/PopupPreset.json"
-
-    /** 布局文件名 → profile 名（去掉 TextKeyboardLayout. 前缀与 .json 后缀）。 */
-    fun layoutProfileOf(fileName: String): String? {
-        if (!fileName.startsWith("TextKeyboardLayout.") || !fileName.endsWith(".json")) return null
-        return fileName.removePrefix("TextKeyboardLayout.").removeSuffix(".json")
-    }
 
     /**
      * 在后台安装内置资源。重复调用是安全的；安装失败只记录日志，不影响启动。
@@ -162,13 +148,14 @@ object BundledPresets {
         val extDir = appContext.getExternalFilesDir(null) ?: return
         var installedCount = 0
 
-        // 键盘布局：安装到 config/
-        val configDir = UserConfigFiles.configDir() ?: File(extDir, "config").apply { mkdirs() }
-        // 只有第一次铺内置布局时才自动选中第一套；之后用户显式选择 "default" 也要保留，
-        // 不能因为每次启动都跑一遍而把他改回内置布局。
-        val hadBundledLayout = layoutAssets.any { File(configDir, it).isFile }
-        layoutAssets.forEach { name ->
-            installAsset("bundled/keyboard_layouts/$name", File(configDir, name)).let { installedCount += it }
+        // Default layout is read directly from the APK, with optional user overrides.
+        // Remove old stock copies without touching a user's edited layout.
+        retiredPresetBlobs.forEach { (path, hashes) ->
+            val file = File(extDir, path)
+            if (file.isFile && gitBlobSha(file) in hashes && file.delete()) {
+                Timber.i("Retired bundled preset %s", path)
+                installedCount += 1
+            }
         }
 
         // 退役资源：只删除仍与上一版内置内容一致的文件，用户改过的保留。
@@ -184,8 +171,7 @@ object BundledPresets {
             }
         }
 
-        // 改名迁移必须每次跑；首次默认布局的选择只在还没有任何内置布局时做。
-        ensureLayoutProfile(allowDefaultProfileSelection = !hadBundledLayout)
+        ensureLayoutProfile()
 
         // 主题：安装到 theme/（与用户自定义主题同目录）
         val themeDir = File(extDir, "theme").apply { mkdirs() }
@@ -201,9 +187,7 @@ object BundledPresets {
 
         // 字体：安装到 fonts/（「字体设定」与成套主题的按键副字体都从这里取）
         val fontDir = UserConfigFiles.fontsDir() ?: File(extDir, "fonts").apply { mkdirs() }
-        fontAssets.forEach { name ->
-            installAsset("bundled/fonts/$name", File(fontDir, name)).let { installedCount += it }
-        }
+        installedCount += installAsset(EDIT_ICON_FONT_ASSET, File(fontDir, EDIT_ICON_FONT_FILE))
 
         if (installedCount > 0) {
             Timber.i("Bundled presets installed %d file(s)", installedCount)
@@ -249,6 +233,13 @@ object BundledPresets {
         return 1
     }
 
+    private fun gitBlobSha(file: File): String? = runCatching {
+        val bytes = file.readBytes()
+        val digest = java.security.MessageDigest.getInstance("SHA-1")
+        digest.update("blob ${bytes.size}\u0000".toByteArray(Charsets.UTF_8))
+        digest.digest(bytes).joinToString("") { "%02x".format(it.toInt() and 255) }
+    }.getOrNull()
+
     private fun readAsset(assetPath: String): ByteArray? {
         return runCatching {
             appContext.assets.open(assetPath).use { it.readBytes() }
@@ -257,40 +248,14 @@ object BundledPresets {
         }.getOrNull()
     }
 
-    /**
-     * 首次铺完内置布局后，把"布局文件"选择指向第一份内置布局，让用户开机即得完整布局；
-     * 用户已选择过其它 profile 时保持其选择不动。改名迁移每次都会执行；
-     * [allowDefaultProfileSelection] 为 false 时连显式选择 "default" 也保留，
-     * 避免每次启动都把默认布局改回第一套内置布局。
-     */
-    private fun ensureLayoutProfile(allowDefaultProfileSelection: Boolean) {
-        val keyboardPrefs = AppPrefs.getInstance().keyboard
-        val current = keyboardPrefs.textKeyboardLayoutProfile.getValue()
-        // 蓝狐狸改名为普蓝：只有旧文件确实不存在（原版已在本轮退役）时才迁移。
-        // 旧文件还在说明用户改过它，那是用户自己的布局，不能把选择悄悄换到另一份。
-        if (current == "蓝狐狸") {
-            val renamed = "普蓝"
-            val oldFile = UserConfigFiles.textKeyboardLayoutJson(current)
-            if (oldFile?.exists() != true &&
-                UserConfigFiles.textKeyboardLayoutJson(renamed)?.exists() == true
-            ) {
-                keyboardPrefs.textKeyboardLayoutProfile.setValue(renamed)
-                return
-            }
-        }
-        if (current != UserConfigFiles.DEFAULT_TEXT_KEYBOARD_LAYOUT_PROFILE) {
-            // 用户已选择过：仅当指向的文件确实不存在时才回退
-            val file = UserConfigFiles.textKeyboardLayoutJson(current)
-            if (file?.exists() == true) return
-        } else {
-            // 显式选择 "default" 时保留其选择；首次铺内置布局时才自动落到第一套。
-            // 同时不覆盖用户自己放在 config/TextKeyboardLayout.json 的默认布局。
-            if (!allowDefaultProfileSelection) return
-            if (UserConfigFiles.textKeyboardLayoutJson()?.exists() == true) return
-        }
-        val defaultProfile = layoutProfileOf(layoutAssets.first()) ?: return
-        if (UserConfigFiles.textKeyboardLayoutJson(defaultProfile)?.exists() == true) {
-            keyboardPrefs.textKeyboardLayoutProfile.setValue(defaultProfile)
+    /** Missing/retired profiles return to the built-in default. User files are never renamed. */
+    private fun ensureLayoutProfile() {
+        val preference = AppPrefs.getInstance().keyboard.textKeyboardLayoutProfile
+        val current = preference.getValue()
+        if (current != UserConfigFiles.DEFAULT_TEXT_KEYBOARD_LAYOUT_PROFILE &&
+            UserConfigFiles.textKeyboardLayoutJson(current)?.isFile != true
+        ) {
+            preference.setValue(UserConfigFiles.DEFAULT_TEXT_KEYBOARD_LAYOUT_PROFILE)
         }
     }
 

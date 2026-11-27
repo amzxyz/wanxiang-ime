@@ -228,8 +228,10 @@ class DirectRimeBackend(context: Context) : InputEngine {
             engineOperations.resetStartupState()
             try {
                 startupStage("assets") { DataManager.sync() }
+                showUnavailable("正在准备方案文件…")
                 val bundledInstalled = startupStage("config") { config.load(installBundled = !directBootMode) }
                 startupStage("engine-selection") { engineOperations.configureSelectedEngine() }
+                showUnavailable(if (bundledInstalled) "正在首次部署万象拼音…" else "正在启动中州韵…")
                 startupStage("native") { Native.start(shared.absolutePath, config.user.absolutePath, BuildConfig.VERSION_NAME,
                     fullCheck = bundledInstalled || engineOperations.newActivation || WanxiangAdvancedFiles.needsDeploymentRepair(config.user),
                     minLogLevel = DirectRimeEngineLog.minLevel()) }
@@ -248,8 +250,18 @@ class DirectRimeBackend(context: Context) : InputEngine {
             keyGate.running(started)
         },
         afterReady = {
+            // A successful native start must retire the preparation panel even without an editor.
+            if (started && startupError.isEmpty()) showUnavailable("")
             events.offer(listOf(FcitxEvent.ReadyEvent()))
-            if (Build.VERSION.SDK_INT >= 34) engineScope.launch { SubtypeManager.syncWith(enabledIme()) }
+            engineScope.launch {
+                if (started && startupError.isEmpty() && registry.currentState == FcitxLifecycle.State.READY) {
+                    val generation = inputSession
+                    if (binding?.let { it.generation == generation && it.needsRime } == true &&
+                        !hasUsableBinding(generation)
+                    ) begin(generation)
+                }
+                if (Build.VERSION.SDK_INT >= 34 && started) SubtypeManager.syncWith(enabledIme())
+            }
         },
         onStopping = {
             invalidateInputSession()
@@ -277,6 +289,7 @@ class DirectRimeBackend(context: Context) : InputEngine {
     private val shared get() = File(DataManager.dataDir, "usr/share/rime-data")
     private inline fun <T> startupStage(name: String, crossinline block: () -> T): T {
         val start = SystemClock.elapsedRealtime()
+        Logx.i(LogTag.RimeLifecycle, "startup phase=$name begin")
         return try { trace("rime.direct.startup.$name") { block() } }
         finally { Logx.i(LogTag.RimeLifecycle, "startup phase=$name duration_ms=${SystemClock.elapsedRealtime() - start}") }
     }

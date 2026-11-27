@@ -33,7 +33,11 @@ import org.fcitx.fcitx5.android.input.config.UserConfigFiles
 import org.fcitx.fcitx5.android.input.config.DefaultConfigProvider
 import org.fcitx.fcitx5.android.input.clipboard.ClipboardContent
 import org.fcitx.fcitx5.android.input.font.DefaultFontProvider
-import org.fcitx.fcitx5.android.input.keyboard.AlphabetKey
+import org.fcitx.fcitx5.android.input.keyboard.KeyAction
+import org.fcitx.fcitx5.android.input.keyboard.KeyDef
+import org.fcitx.fcitx5.android.input.keyboard.KeyRef
+import org.fcitx.fcitx5.android.input.keyboard.MacroAction
+import org.fcitx.fcitx5.android.input.keyboard.MacroStep
 import org.fcitx.fcitx5.android.input.keyboard.TextKeyboard
 import org.fcitx.fcitx5.android.input.keyboard.TextKeyboardLayoutState
 import org.fcitx.fcitx5.android.testing.hostDatabaseContext
@@ -197,8 +201,7 @@ class DirectBootStartupTest {
         assertNull(UserConfigFiles.fontsetJson())
         TextKeyboard.setPasswordDefaultLayout(true)
         try {
-            val letters = TextKeyboard.getLayout(TextKeyboardLayoutState()).flatten()
-                .filterIsInstance<AlphabetKey>().joinToString("") { it.character.lowercase() }
+            val letters = passwordLetterTaps()
             assertEquals("qwertyuiopasdfghjklzxcvbnm", letters)
         } finally { TextKeyboard.setPasswordDefaultLayout(false) }
         val clipboardPrefs = ClipboardContent.categoryPreferences()
@@ -256,8 +259,7 @@ class DirectBootStartupTest {
         assertEquals(snapshot, DefaultConfigProvider.textKeyboardLayoutFile())
         TextKeyboard.setPasswordDefaultLayout(true)
         try {
-            val actual = TextKeyboard.getLayout(TextKeyboardLayoutState()).flatten()
-                .filterIsInstance<AlphabetKey>().joinToString("") { it.character.lowercase() }
+            val actual = passwordLetterTaps()
             assertEquals(letters, actual)
         } finally { TextKeyboard.setPasswordDefaultLayout(false) }
         assertTrue("CE reads: ${access.credentialReads}", access.credentialReads.isEmpty())
@@ -283,8 +285,7 @@ class DirectBootStartupTest {
         startApplication(StorageContext(base, access))
         TextKeyboard.setPasswordDefaultLayout(true)
         try {
-            val actual = TextKeyboard.getLayout(TextKeyboardLayoutState()).flatten()
-                .filterIsInstance<AlphabetKey>().joinToString("") { it.character.lowercase() }
+            val actual = passwordLetterTaps()
             assertEquals("qwertyuiopasdfghjklzxcvbnm", actual)
         } finally { TextKeyboard.setPasswordDefaultLayout(false) }
         assertTrue(access.credentialReads.isEmpty())
@@ -318,6 +319,21 @@ class DirectBootStartupTest {
         )
     }
 
+    // Verify the actual tap actions, not the concrete key class or its display label.
+    // The built-in Watercolor layout uses single-key macros for its alphabet, and
+    // AlphabetKey for slash. Neither a decorative label nor punctuation is a letter.
+    private fun passwordLetterTaps(): String =
+        TextKeyboard.getLayout(TextKeyboardLayoutState()).flatten().mapNotNull { key ->
+            val action = key.behaviors.filterIsInstance<KeyDef.Behavior.Press>().singleOrNull()?.action
+            val code = when (action) {
+                is KeyAction.FcitxKeyAction -> action.act
+                is MacroAction -> ((action.steps.singleOrNull() as? MacroStep.Tap)
+                    ?.keys?.singleOrNull() as? KeyRef.Fcitx)?.code
+                else -> null
+            }
+            code?.singleOrNull()?.lowercaseChar()?.takeIf { it in 'a'..'z' }
+        }.joinToString("")
+
     private fun assertLockedPasswordLayout(snapshot: String, expectedLetters: String) {
         val base = RuntimeEnvironment.getApplication()
         File(base.createDeviceProtectedStorageContext().filesDir,
@@ -330,8 +346,7 @@ class DirectBootStartupTest {
         startApplication(StorageContext(base, access))
         TextKeyboard.setPasswordDefaultLayout(true)
         try {
-            val letters = TextKeyboard.getLayout(TextKeyboardLayoutState()).flatten()
-                .filterIsInstance<AlphabetKey>().joinToString("") { it.character.lowercase() }
+            val letters = passwordLetterTaps()
             assertEquals(expectedLetters, letters)
         } finally { TextKeyboard.setPasswordDefaultLayout(false) }
         assertTrue(access.credentialReads.isEmpty())
