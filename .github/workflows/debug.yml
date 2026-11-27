@@ -28,7 +28,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           repository: amzxyz/librime-evo-lua
-          ref: fdcd64ab054dde8c37b977234e72dc65eeb61e36
+          ref: 14a11aeb0a0d51c72208aab3fcad181a7c5b211d
           path: .ci/evo/plugins/lua
           submodules: recursive
           persist-credentials: false
