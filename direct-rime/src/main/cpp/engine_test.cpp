@@ -66,9 +66,8 @@ struct Fake {
     std::vector<std::pair<std::string, std::string>> schemas{{"test", "Test"}};
     std::string dictionary = "test";
     // EVO prism fixture: input_types group, translator prism/prisms and the algebra map.
-    bool inputTypesPresent = false, enabledPresent = false, resetPresent = false;
+    bool inputTypesPresent = false, resetPresent = false;
     std::vector<std::pair<std::string, std::string>> inputOptions;
-    std::vector<std::string> enabledTypes;
     std::string resetType;
     bool prismSet = false, prismsRefSet = false, prismsListSet = false;
     std::string prismName, prismsRef;
@@ -108,7 +107,6 @@ bool fakeHasMap(const std::string& path) {
 std::vector<std::string> fakeMapKeys(const std::string& path) {
     if (path == "input_types") {
         std::vector<std::string> keys{"options"};
-        if (f.enabledPresent) keys.emplace_back("enabled");
         if (f.resetPresent) keys.emplace_back("reset");
         return keys;
     }
@@ -133,7 +131,6 @@ std::vector<std::string> fakeMapKeys(const std::string& path) {
 }
 bool fakeHasList(const std::string& path) {
     return (path == "input_types/options" && f.inputTypesPresent) ||
-           (path == "input_types/enabled" && f.enabledPresent) ||
            (path == "translator/prisms" && f.prismsListSet);
 }
 void notifyOptionIfRequested(int& count) {
@@ -171,9 +168,6 @@ RimeApi api() {
         if (!std::strcmp(key, "_no_learning")) f.noLearning = value;
         else {
             if (!std::strcmp(key, "ascii_mode")) f.ascii = value;
-            if (std::find(f.enabledTypes.begin(), f.enabledTypes.end(), key) != f.enabledTypes.end() && value) {
-                for (const auto& option : f.enabledTypes) f.inputTypeOptions[option] = option == key;
-            }
             if (f.callback) f.callback(f.context, 7, "option", key);
         }
     };
@@ -248,14 +242,6 @@ RimeApi api() {
         if (name == "input_types/reset" && f.resetPresent) {
             std::snprintf(value, size, "%s", f.resetType.c_str()); return true;
         }
-        const std::string enabledPrefix = "input_types/enabled/@";
-        if (name.compare(0, enabledPrefix.size(), enabledPrefix) == 0) {
-            const auto index = std::strtoul(name.c_str() + enabledPrefix.size(), nullptr, 10);
-            if (index < f.enabledTypes.size()) {
-                std::snprintf(value, size, "%s", f.enabledTypes[index].c_str()); return true;
-            }
-            return false;
-        }
         const std::string prismPrefix = "translator/prisms/@";
         if (name.compare(0, prismPrefix.size(), prismPrefix) == 0) {
             const size_t slash = name.find('/', prismPrefix.size());
@@ -294,7 +280,6 @@ RimeApi api() {
         const std::string name(key);
         if (name == "switcher/save_options") return f.saveOptions.size();
         if (name == "input_types/options") return f.inputOptions.size();
-        if (name == "input_types/enabled") return f.enabledTypes.size();
         if (name == "translator/prisms") return f.prismsList.size();
         return 0;
     };
@@ -337,6 +322,22 @@ RimeApi api() {
         list->list = items.data(); list->size = f.hasSchema ? items.size() : 0; return true;
     };
     a.free_schema_list = [](RimeSchemaList*) {};
+#ifdef RIME_EVO_TYPE_GROUPS
+    a.get_type_option = [](RimeSessionId, const char* schema, const char* group, char* option, size_t size) -> Bool {
+        if (std::strcmp(schema, "test") || std::strcmp(group, "input_types")) return false;
+        const auto selected = f.schemaValues.find("type_choice");
+        const auto& choice = selected == f.schemaValues.end() ? f.inputOptions.front().first : selected->second;
+        if (choice.size() >= size) return false;
+        std::snprintf(option, size, "%s", choice.c_str()); return true;
+    };
+    a.select_type_option = [](RimeSessionId, const char* schema, const char* group, const char* option) -> Bool {
+        if (std::strcmp(schema, "test") || std::strcmp(group, "input_types")) return false;
+        if (std::none_of(f.inputOptions.begin(), f.inputOptions.end(),
+                         [&](const auto& item) { return item.first == option; })) return false;
+        f.schemaValues["type_choice"] = option;
+        return true;
+    };
+#endif
 #ifdef RIME_EVO_CODE_CHOICES
     a.get_code_choices = [](RimeSessionId, RimeCodeChoice** choices, size_t* count) -> Bool {
         notifyOptionIfRequested(f.tabsNotifications);
@@ -1029,7 +1030,7 @@ void testUsableDeploymentWarning() {
     f = {}; auto g = api(); Engine typed(&g); f.failDeploy = true;
     f.prismsRefSet = true; f.prismsRef = "input_types";
     f.inputTypesPresent = true; f.inputOptions = {{"zrm", "zrm"}};
-    f.enabledPresent = true; f.enabledTypes = {"zrm"};
+    
     f.resetPresent = true; f.resetType = "zrm";
     const fs::path typedUser = root / "typed", typedBuild = typedUser / "build";
     fs::create_directories(typedBuild);
@@ -1044,7 +1045,7 @@ void testUsableDeploymentWarning() {
     f = {}; auto enabled = api(); Engine enabledEngine(&enabled); f.failDeploy = true;
     f.prismsRefSet = true; f.prismsRef = "input_types";
     f.inputTypesPresent = true; f.inputOptions = {{"zrm", "zrm"}};
-    f.enabledPresent = true; f.enabledTypes = {"zrm"};
+
     const fs::path enabledUser = root / "enabled", enabledBuild = enabledUser / "build";
     fs::create_directories(enabledBuild);
     std::ofstream(enabledBuild / "default.yaml") << "keep data";
@@ -1109,7 +1110,7 @@ void testEvoPrismResolution() {
     // input_types contributes the primary selection only through translator/prisms: input_types.
     f = {}; f.prismsRefSet = true; f.prismsRef = "input_types";
     f.inputTypesPresent = true; f.inputOptions = {{"zrm", "zrm_prism"}};
-    f.enabledPresent = true; f.enabledTypes = {"zrm"}; f.resetPresent = true; f.resetType = "zrm";
+    f.resetPresent = true; f.resetType = "zrm";
     CHECK(accepted(workspace("input-types-alias", {"zrm_prism.prism.bin"})));
     // Without an explicit prism the dictionary name and the algebra map's first key are used.
     f = {}; f.algebraKeys = {"zrm"};
@@ -1118,34 +1119,26 @@ void testEvoPrismResolution() {
     f = {}; f.prismSet = true; f.prismName = "named"; f.prismsRefSet = true; f.prismsRef = "input_types";
     f.inputTypesPresent = true; f.inputOptions = {{"zrm", "zrm"}};
     CHECK(rejected(workspace("prism-conflict", {"named.prism.bin", "zrm.prism.bin"})));
-    // reset must name an enabled option.
+    // An obsolete reset is ignored; the first declared option is the default.
     f = {}; f.prismsRefSet = true; f.prismsRef = "input_types";
     f.inputTypesPresent = true; f.inputOptions = {{"zrm", "zrm"}, {"flypy", "flypy"}};
-    f.enabledPresent = true; f.enabledTypes = {"zrm"}; f.resetPresent = true; f.resetType = "flypy";
-    CHECK(rejected(workspace("bad-reset", {"zrm.prism.bin", "flypy.prism.bin"})));
+    f.resetPresent = true; f.resetType = "removed";
+    CHECK(accepted(workspace("old-reset", {"zrm.prism.bin", "flypy.prism.bin"})));
 }
-void testRuntimeInputTypes() {
-    f = {}; f.inputTypesPresent = true; f.enabledPresent = true; f.resetPresent = true;
-    f.inputOptions = {{"zrm", ""}, {"pinyin", ""}, {"flypy", ""}};
-    f.enabledTypes = {"zrm", "pinyin"}; f.resetType = "zrm";
+void testRuntimeTypeGroups() {
+#ifdef RIME_EVO_TYPE_GROUPS
+    f = {}; f.inputTypesPresent = true;
+    f.inputOptions = {{"zrm", ""}, {"pinyin", ""}};
     auto a = api(); Engine engine(&a); engine.start("shared", "user");
-    CHECK((engine.inputTypeState("test") == std::vector<std::string>{"zrm", "zrm", "pinyin"}));
-    CHECK(!engine.selectInputType("test", "flypy"));
-    CHECK(!engine.selectInputType("other", "pinyin"));
-    CHECK(engine.selectInputType("test", "pinyin"));
+    CHECK((engine.typeGroupState("test", "input_types") ==
+           std::vector<std::string>{"zrm", "zrm", "zrm", "pinyin", "pinyin"}));
+    CHECK(engine.selectTypeOption("test", "input_types", "pinyin"));
+    CHECK(engine.typeGroupState("test", "input_types").front() == "pinyin");
+    CHECK(!engine.selectTypeOption("test", "input_types", "missing"));
     CHECK(f.created == 0);
-    auto snapshot = engine.begin(1, "app");
-    CHECK(snapshot.gate == Ready);
-    CHECK(f.inputTypeOptions["pinyin"] && !f.inputTypeOptions["zrm"]);
-    CHECK(engine.selectInputType("test", "zrm"));
-    CHECK(f.inputTypeOptions["zrm"] && !f.inputTypeOptions["pinyin"]);
-    CHECK(engine.inputTypeState("test").front() == "zrm");
-    engine.end(1);
-    engine.begin(2, "another-app");
-    CHECK(f.inputTypeOptions["zrm"]);
     CHECK(f.userConfigOpens == 0);
-    CHECK(f.initialized == 1);
     engine.stop();
+#endif
 }
 void testCurrentSchemaPreference() {
     namespace fs = std::filesystem;
@@ -1176,7 +1169,7 @@ int main(int argc, char** argv) {
             return 0;
         }
         if (argc != 1) { std::cerr << "usage: engine-test [--statistics]\n"; return 2; }
-        testInputContract(); testEngineLogLevel(); testMaintenanceAndAbi(); testFrontendExtensions(); testCandidateSequence(); testReadOnlyRefresh(); testOptionalInputStatistics(); testInputStatisticsUnicodeAndPresentationReuse(); testSyncCompletion(); testPresentationReuse(); testUnicode(); testOptionInvalidation(); testStatusCache(); testCandidateIteratorFailureDoesNotReclosePartialApiState(); testFrontendWritesOnlySaveableOptions(); testAsciiToggleSharesSavedOptionRule(); testSessionReuseAndEditorIsolation(); testGeneratedConfigInvalidation(); testUsableDeploymentWarning(); testEvoPrismResolution(); testRuntimeInputTypes(); testCurrentSchemaPreference(); std::cout << "engine contract: passed\n";
+        testInputContract(); testEngineLogLevel(); testMaintenanceAndAbi(); testFrontendExtensions(); testCandidateSequence(); testReadOnlyRefresh(); testOptionalInputStatistics(); testInputStatisticsUnicodeAndPresentationReuse(); testSyncCompletion(); testPresentationReuse(); testUnicode(); testOptionInvalidation(); testStatusCache(); testCandidateIteratorFailureDoesNotReclosePartialApiState(); testFrontendWritesOnlySaveableOptions(); testAsciiToggleSharesSavedOptionRule(); testSessionReuseAndEditorIsolation(); testGeneratedConfigInvalidation(); testUsableDeploymentWarning(); testEvoPrismResolution(); testRuntimeTypeGroups(); testCurrentSchemaPreference(); std::cout << "engine contract: passed\n";
     }
     catch (const std::exception& e) { std::cerr << e.what() << '\n'; return 1; }
 }

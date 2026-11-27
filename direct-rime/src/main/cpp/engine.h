@@ -60,8 +60,6 @@ public:
     // Runtime-only schema input type selection, independent of deployment configuration.
     std::vector<std::string> typeGroupState(const std::string& schema, const std::string& group);
     bool selectTypeOption(const std::string& schema, const std::string& group, const std::string& option);
-    std::vector<std::string> inputTypeState(const std::string& schema);
-    bool selectInputType(const std::string& schema, const std::string& option);
     std::vector<std::string> prewarmAssets();
     // Manual candidate ordering keys of the current schema (Wanxiang super_sequence):
     // up, down, reset, pin. Empty when the schema does not load such a processor.
@@ -103,7 +101,6 @@ private:
     // directly, so mirror that rule; otherwise every new native session (another
     // app's editor) reverts the user's switch to the schema default.
     void setOption(const std::string& option, bool value);
-    void applyInputTypeChoice();
     bool saveableOption(const std::string& option);
     void rememberOption(const std::string& option, bool value);
     static void notification(void* context, RimeSessionId, const char* type, const char* value);
@@ -123,7 +120,6 @@ private:
     int64_t sessionsCreated_ = 0, sessionsReused_ = 0, sessionsEnded_ = 0;
     std::string sessionProgram_;
     std::string shared_, user_, version_;
-    std::map<std::string, std::string> inputTypeChoices_;
     int minLogLevel_ = 2;
     std::vector<Tab> tabs_;
     std::optional<StatusCache> statusCache_;
