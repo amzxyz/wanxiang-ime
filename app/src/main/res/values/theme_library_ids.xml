@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <item name="theme_library_style_list" type="id" />
+    <item name="theme_library_icon_container" type="id" />
+    <item name="icon_theme_library_list" type="id" />
+</resources>

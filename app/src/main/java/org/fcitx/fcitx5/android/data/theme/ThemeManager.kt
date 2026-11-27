@@ -45,18 +45,19 @@ object ThemeManager {
     }
 
     val BuiltinThemes = listOf(
+        ThemePreset.Pulan,
+        ThemePreset.Watercolor,
         ThemePreset.MaterialLight,
         ThemePreset.MaterialDark,
         ThemePreset.PixelLight,
         ThemePreset.PixelDark,
         ThemePreset.NordLight,
         ThemePreset.NordDark,
-        ThemePreset.DeepBlue,
         ThemePreset.Monokai,
         ThemePreset.AMOLEDBlack,
     )
 
-    val DefaultTheme = ThemePreset.PixelDark
+    val DefaultTheme = ThemePreset.Pulan
 
     private var monetThemes = defaultMonetThemes()
 
@@ -106,9 +107,20 @@ object ThemeManager {
      * [ManagedThemePreference.getValue] 会静默回落到默认主题——用户会以为自己的主题被换掉了。
      * 主题列表刷新后把旧名迁到新名上，选择状态才不会失联。
      */
-    private val legacyThemeNames = mapOf("水彩（浅色）" to "水彩", "蓝狐狸" to "普蓝")
+    private val legacyThemeNames = mapOf(
+        "水彩（浅色）" to ThemePreset.Watercolor.name,
+        "蓝狐狸" to DefaultTheme.name,
+        "普蓝" to DefaultTheme.name
+    )
 
     private fun migrateLegacyThemeNames() {
+        // The retired blue preset no longer has a card. Preserve any user-created
+        // theme of the same name; otherwise persist each preference's own fallback.
+        if (getTheme("DeepBlue") == null) {
+            arrayOf(prefs.normalModeTheme, prefs.lightModeTheme, prefs.darkModeTheme).forEach { pref ->
+                if (pref.storedName() == "DeepBlue") pref.setValue(pref.getValue())
+            }
+        }
         legacyThemeNames.forEach { (oldName, newName) ->
             // 旧文件还在（用户改过，BundledPresets 因此保留）时不迁移：用户特意留下的
             // 自定义主题不该被改名逻辑从选择里踢掉，而且这个函数每次刷新主题列表都会跑。
@@ -323,8 +335,8 @@ object ThemeManager {
         randomThemeOrNull()?.let(::add)
         addAll(customThemes)
         addAll(monetThemes)
-        addAll(BuiltinThemes)
-    }
+        addAll(BuiltinThemes.filter { builtin -> customThemes.none { it.name == builtin.name } })
+    }.let(::orderThemeLibrary)
 
     /**
      * Rescan the theme directory and publish the result.

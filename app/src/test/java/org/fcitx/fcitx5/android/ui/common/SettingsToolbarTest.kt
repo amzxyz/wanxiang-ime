@@ -59,7 +59,7 @@ class SettingsToolbarTest {
         val controller = Robolectric.buildActivity(EditorActivity::class.java).setup()
         try {
             val activity = controller.get()
-            if (subtitle) activity.supportActionBar!!.subtitle = "Sandy · rime"
+            if (subtitle) activity.supportActionBar!!.subtitle = "万象 · rime"
             shadowOf(android.os.Looper.getMainLooper()).idle()
             val toolbar = activity.toolbar
             // Includes repeated delivery and returning from a tall caption/status area to fullscreen.

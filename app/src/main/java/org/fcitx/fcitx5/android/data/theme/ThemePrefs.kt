@@ -41,7 +41,7 @@ class ThemePrefs(sharedPreferences: SharedPreferences) :
         enableUiOn = { keyBorder.getValue() }
     )
 
-    val specialKeyOvalShape = switch(R.string.special_key_oval_shape, "special_key_oval_shape", true)
+    val specialKeyOvalShape = switch(R.string.special_key_oval_shape, "special_key_oval_shape", false)
 
     val keyRippleEffect = switch(R.string.key_ripple_effect, "key_ripple_effect", false)
 
@@ -207,14 +207,14 @@ class ThemePrefs(sharedPreferences: SharedPreferences) :
     val followSystemDayNightTheme = switch(
         R.string.follow_system_day_night_theme,
         "follow_system_dark_mode",
-        true,
+        false,
         summary = R.string.follow_system_day_night_theme_summary
     )
 
     val lightModeTheme = themePreference(
         R.string.light_mode_theme,
         "light_mode_theme",
-        if (BuildConfig.DEBUG) ThemePreset.MaterialLight else ThemePreset.PixelLight,
+        ThemeManager.DefaultTheme,
         enableUiOn = {
             followSystemDayNightTheme.getValue()
         })

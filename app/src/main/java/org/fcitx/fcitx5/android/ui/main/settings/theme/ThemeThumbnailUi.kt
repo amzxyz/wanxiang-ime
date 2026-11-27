@@ -32,6 +32,7 @@ import org.fcitx.fcitx5.android.data.theme.Theme
 import org.fcitx.fcitx5.android.data.theme.ThemeKits
 import org.fcitx.fcitx5.android.data.theme.ThemeMonet
 import org.fcitx.fcitx5.android.data.theme.ThemeManager
+import org.fcitx.fcitx5.android.data.theme.ThemeLibraryNames
 import org.fcitx.fcitx5.android.utils.rippleDrawable
 import org.fcitx.fcitx5.android.utils.settingsColor
 import splitties.dimensions.dp
@@ -56,7 +57,7 @@ import splitties.views.imageDrawable
 import splitties.views.imageResource
 import splitties.views.setPaddingDp
 
-class ThemeThumbnailUi(override val ctx: Context) : Ui {
+class ThemeThumbnailUi(override val ctx: Context, private val compact: Boolean = false) : Ui {
 
     enum class State { Normal, Selected, LightMode, DarkMode }
     private val keyBorder by ThemeManager.prefs.keyBorder
@@ -76,11 +77,12 @@ class ThemeThumbnailUi(override val ctx: Context) : Ui {
         minLines = 1
         maxLines = 1
         ellipsize = android.text.TextUtils.TruncateAt.END
-        gravity = Gravity.START or Gravity.CENTER_VERTICAL
+        gravity = Gravity.CENTER
         includeFontPadding = false
         isClickable = false
         isFocusable = false
-        setPaddingDp(12, 0, 12, 0)
+        val inset = if (compact) 6 else 12
+        setPaddingDp(inset, 0, inset, 0)
     }
 
     val spaceBar = view(::View)
@@ -94,8 +96,17 @@ class ThemeThumbnailUi(override val ctx: Context) : Ui {
             val gap = dp(3).toFloat()
             val cellWidth = (width - gap * 7) / 6f
             val cellHeight = (height - gap * 3) / 2f
-            paint.color = theme.keyBackgroundColor
+            val functionalColors = arrayOf(
+                "role.shift.altKeyBackgroundColor",
+                "role.comma.altKeyBackgroundColor",
+                "role.period.altKeyBackgroundColor",
+                "role.delete.altKeyBackgroundColor"
+            )
             for (row in 0..1) for (column in 0..5) {
+                paint.color = if (row == 1 && column in 1..4)
+                    org.fcitx.fcitx5.android.input.keyboard.LayoutKeyColorResolver.resolveThemeTokenColor(
+                        theme, functionalColors[column - 1]) ?: theme.altKeyBackgroundColor
+                else theme.keyBackgroundColor
                 val x = gap + column * (cellWidth + gap)
                 val y = gap + row * (cellHeight + gap)
                 canvas.drawRoundRect(x, y, x + cellWidth, y + cellHeight, gap, gap, paint)
@@ -127,14 +138,14 @@ class ThemeThumbnailUi(override val ctx: Context) : Ui {
     }
 
     val editButton = imageView {
-        setPaddingDp(14, 6, 14, 6)
+        setPaddingDp(if (compact) 10 else 14, 6, if (compact) 10 else 14, 6)
         scaleType = ImageView.ScaleType.FIT_CENTER
         imageResource = R.drawable.ic_baseline_edit_24
         contentDescription = ctx.getString(R.string.edit_theme)
     }
 
     val exportButton = imageView {
-        setPaddingDp(14, 6, 14, 6)
+        setPaddingDp(if (compact) 10 else 14, 6, if (compact) 10 else 14, 6)
         scaleType = ImageView.ScaleType.FIT_CENTER
         imageResource = R.drawable.ic_baseline_share_24
         contentDescription = ctx.getString(R.string.theme_export_this)
@@ -151,7 +162,7 @@ class ThemeThumbnailUi(override val ctx: Context) : Ui {
     }
 
     val randomButton = imageView {
-        setPaddingDp(14, 6, 14, 6)
+        setPaddingDp(if (compact) 10 else 14, 6, if (compact) 10 else 14, 6)
         scaleType = ImageView.ScaleType.FIT_CENTER
         imageResource = R.drawable.ic_random_theme_24
     }
@@ -214,7 +225,7 @@ class ThemeThumbnailUi(override val ctx: Context) : Ui {
         }
     }.apply {
         clipToOutline = true
-        radius = dp(20).toFloat()
+        radius = dp(12).toFloat()
         cardElevation = 0f
         strokeWidth = dp(1)
         strokeColor = ctx.settingsColor(com.google.android.material.R.attr.colorOutlineVariant)
@@ -227,9 +238,9 @@ class ThemeThumbnailUi(override val ctx: Context) : Ui {
                 addView(LinearLayout(ctx).apply {
                     gravity = Gravity.END or Gravity.CENTER_VERTICAL
                     setPaddingDp(4, 0, 4, 0)
-                    addView(randomButton, LinearLayout.LayoutParams(dp(48), dp(32)))
-                    addView(exportButton, LinearLayout.LayoutParams(dp(48), dp(32)))
-                    addView(editButton, LinearLayout.LayoutParams(dp(48), dp(32)))
+                    addView(randomButton, LinearLayout.LayoutParams(dp(if (compact) 40 else 48), dp(32)))
+                    addView(exportButton, LinearLayout.LayoutParams(dp(if (compact) 40 else 48), dp(32)))
+                    addView(editButton, LinearLayout.LayoutParams(dp(if (compact) 40 else 48), dp(32)))
                 }, LinearLayout.LayoutParams(-1, dp(32)))
             }, LinearLayout.LayoutParams(-1, -2))
         }, android.widget.FrameLayout.LayoutParams(-1, -2))
@@ -239,16 +250,20 @@ class ThemeThumbnailUi(override val ctx: Context) : Ui {
         swatchTheme = theme
         swatches.invalidate()
         bkg.setBackgroundColor(theme.backgroundColor)
-        root.apply {
-            foreground = rippleDrawable(ctx.settingsColor(com.google.android.material.R.attr.colorOutlineVariant))
-        }
-        
+        // MaterialCardView draws its stroke in its own foreground. Updating
+        // only the ripple color preserves both the border and the click effect.
+        root.rippleColor = ColorStateList.valueOf(
+            ctx.settingsColor(com.google.android.material.R.attr.colorOutlineVariant)
+        )
+
         // Set other non-time-consuming UI elements
         bar.backgroundColor = theme.barColor
         themeNameText.apply {
-            text = formatThemeName(theme.name)
+            val displayName = ThemeLibraryNames.displayName(theme.name)
+            text = if (theme == ThemeManager.DefaultTheme)
+                ctx.getString(R.string.default_) else formatThemeName(displayName)
             setTextColor(ctx.settingsColor(com.google.android.material.R.attr.colorOnSurface))
-            TooltipCompat.setTooltipText(this, theme.name)
+            TooltipCompat.setTooltipText(this, displayName)
         }
         scoreText.apply {
             val score = if (ThemeManager.isRandomTheme(theme)) ThemeManager.randomThemeScore else null
@@ -260,10 +275,12 @@ class ThemeThumbnailUi(override val ctx: Context) : Ui {
         spaceBar.background = GradientDrawable().apply {
             shape = GradientDrawable.RECTANGLE
             cornerRadius = ctx.dp(2f)
-            setColor(theme.spaceBarColor)
+            setColor(org.fcitx.fcitx5.android.input.keyboard.LayoutKeyColorResolver.resolveThemeTokenColor(
+                theme, "role.space.spaceBarColor") ?: theme.spaceBarColor)
         }
         returnKey.background = ShapeDrawable(OvalShape()).apply {
-            paint.color = theme.accentKeyBackgroundColor
+            paint.color = org.fcitx.fcitx5.android.input.keyboard.LayoutKeyColorResolver.resolveThemeTokenColor(
+                theme, "role.return.accentKeyBackgroundColor") ?: theme.accentKeyBackgroundColor
         }
         val foregroundTint = ColorStateList.valueOf(ctx.settingsColor(androidx.appcompat.R.attr.colorPrimary))
         val supportsMonetMapping = theme is Theme.Monet && ThemeMonet.supportsCustomMappingEditor(ctx)
@@ -282,7 +299,7 @@ class ThemeThumbnailUi(override val ctx: Context) : Ui {
             TooltipCompat.setTooltipText(this, contentDescription)
         }
         // 星标 = 「这套主题不只是配色」：莫奈主题随壁纸动态生成，成套主题自带配套的
-        // 键盘布局与图标主题。两者角标位置、尺寸、着色完全一致，用户一眼能看出同类。
+        // 键盘布局。两者角标位置、尺寸、着色完全一致，用户一眼能看出同类。
         dynamicIcon.apply {
             isVisible = supportsMonetMapping || ThemeKits.kitOf(theme) != null
             imageTintList = ColorStateList.valueOf(theme.altKeyTextColor)

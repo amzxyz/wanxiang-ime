@@ -21,22 +21,15 @@ import com.google.android.material.tabs.TabLayoutMediator
 import kotlinx.coroutines.launch
 import org.fcitx.fcitx5.android.R
 import org.fcitx.fcitx5.android.data.theme.ThemeManager
+import org.fcitx.fcitx5.android.input.font.FontProviders
 import org.fcitx.fcitx5.android.ui.main.MainViewModel
 import org.fcitx.fcitx5.android.ui.main.withSettingsPage
 import splitties.dimensions.dp
 import org.fcitx.fcitx5.android.utils.settingsColor
-import splitties.views.backgroundColor
-import splitties.views.dsl.constraintlayout.below
-import splitties.views.dsl.constraintlayout.bottomOfParent
-import splitties.views.dsl.constraintlayout.centerHorizontally
-import splitties.views.dsl.constraintlayout.constraintLayout
-import splitties.views.dsl.constraintlayout.endOfParent
-import splitties.views.dsl.constraintlayout.lParams
-import splitties.views.dsl.constraintlayout.startOfParent
-import splitties.views.dsl.constraintlayout.topOfParent
-import splitties.views.dsl.core.add
-import splitties.views.dsl.core.matchParent
-import splitties.views.dsl.core.wrapContent
+import android.widget.LinearLayout
+import android.widget.TextView
+import android.graphics.Typeface
+import android.view.Gravity
 
 class ThemeFragment : Fragment() {
 
@@ -61,8 +54,6 @@ class ThemeFragment : Fragment() {
             this@ThemeFragment.previewUi = it
         }
         val preview = previewUi.root.apply {
-            scaleX = 0.5f
-            scaleY = 0.5f
             outlineProvider = ViewOutlineProvider.BOUNDS
             elevation = 0f
             tag = "theme_preview_capture"
@@ -89,32 +80,34 @@ class ThemeFragment : Fragment() {
             )
         }.attach()
 
-        val previewWrapper = constraintLayout {
-            add(preview, lParams(wrapContent, wrapContent) {
-                topOfParent(dp(-52))
-                startOfParent()
-                endOfParent()
+        val heading = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER_VERTICAL
+            addView(TextView(context).apply {
+                setText(R.string.theme)
+                textSize = 28f
+                setTypeface(null, Typeface.BOLD)
+                setTextColor(context.settingsColor(android.R.attr.textColorPrimary))
             })
-            add(tabLayout, lParams(matchParent, wrapContent) {
-                centerHorizontally()
-                bottomOfParent()
+            addView(TextView(context).apply {
+                setText(R.string.theme_library_subtitle)
+                textSize = 12f
+                setTextColor(context.settingsColor(android.R.attr.textColorSecondary))
+                setPadding(0, dp(6), 0, 0)
             })
-            backgroundColor = settingsColor(com.google.android.material.R.attr.colorSurfaceContainer)
-            elevation = 0f
         }
-
-        constraintLayout {
-            add(previewWrapper, lParams(height = wrapContent) {
-                topOfParent()
-                startOfParent()
-                endOfParent()
-            })
-            add(viewPager, lParams {
-                below(previewWrapper)
-                startOfParent()
-                endOfParent()
-                bottomOfParent()
-            })
+        val hero = ThemePreviewHero(this, heading, preview) {
+            previewUi.intrinsicWidth to previewUi.intrinsicHeight
+        }.apply {
+            setBackgroundColor(settingsColor(com.google.android.material.R.attr.colorSurfaceContainer))
+        }
+        previewUi.onSizeMeasured = { _, _ -> hero.requestLayout() }
+        LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setBackgroundColor(settingsColor(com.google.android.material.R.attr.colorSurface))
+            addView(hero, LinearLayout.LayoutParams(-1, -2))
+            addView(tabLayout, LinearLayout.LayoutParams(-1, -2))
+            addView(viewPager, LinearLayout.LayoutParams(-1, 0, 1f))
         }
     })
 
@@ -136,6 +129,17 @@ class ThemeFragment : Fragment() {
         maybeOpenConfigTab()
     }
 
+    internal fun refreshKeyboardFonts() {
+        val preview = previewUi ?: return
+        FontProviders.preloadFontsAsync {
+            preview.root.post {
+                if (previewUi === preview) {
+                    preview.setTheme(ThemeManager.activeTheme, forceRefresh = true)
+                }
+            }
+        }
+    }
+
     /**
      * 搜索跳转过来的目标项若属于「配置」tab，先把 ViewPager 切过去。
      *
@@ -148,7 +152,7 @@ class ThemeFragment : Fragment() {
      */
     private fun maybeOpenConfigTab() {
         val key = viewModel.peekPendingPreferenceScrollKey() ?: return
-        if (ThemeManager.prefs.managedPreferences.containsKey(key)) {
+        if (ThemeManager.prefs.managedPreferences.containsKey(key) || KeyboardFontSettings.isPreferenceKey(key)) {
             viewPager?.setCurrentItem(CONFIG_TAB_INDEX, false)
         }
     }

@@ -1,6 +1,8 @@
 /* SPDX-License-Identifier: LGPL-2.1-or-later */
 package org.fcitx.fcitx5.android.ui.main.settings.preview
 
+import android.view.View
+import android.widget.TextView
 import androidx.core.view.allViews
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
@@ -13,6 +15,9 @@ import org.fcitx.fcitx5.android.input.keyboard.TextKeyView
 import org.fcitx.fcitx5.android.ui.main.settings.behavior.editor.EditorApplicationShadow
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
+import org.fcitx.fcitx5.android.ui.main.settings.theme.ThemePreviewHero
+import kotlin.math.roundToInt
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -56,6 +61,39 @@ class ThemePreviewLayoutTest {
         return TextKeyboard(context, ThemePreset.PixelLight, initialIme = ime, isPreview = true).apply {
             onInputMethodUpdate(ime)
         }
+    }
+
+    @Test fun heroEnlargesTheLivePreviewWithoutGrowingTheOuterFrame() {
+        val context = RuntimeEnvironment.getApplication()
+        fun dp(value: Int) = (value * context.resources.displayMetrics.density).roundToInt()
+        val width = dp(360)
+        val nativeWidth = dp(360)
+        val nativeHeight = dp(230)
+        val heading = TextView(context).apply {
+            text = "Theme"
+            textSize = 16f
+        }
+        val preview = View(context)
+        val hero = ThemePreviewHero(context, heading, preview) { nativeWidth to nativeHeight }
+        val oldAvailable = width - dp(20) - dp(16) - dp(12)
+        val oldPreviewWidth = oldAvailable - (oldAvailable / 2.65f).toInt()
+        val oldScale = minOf(1f, oldPreviewWidth.toFloat() / nativeWidth,
+            dp(144).toFloat() / nativeHeight)
+        val oldHeight = (nativeHeight * oldScale).roundToInt() + dp(14) * 2
+
+        hero.measure(View.MeasureSpec.makeMeasureSpec(width, View.MeasureSpec.EXACTLY),
+            View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED))
+        hero.layout(0, 0, width, hero.measuredHeight)
+
+        assertEquals(oldHeight, hero.measuredHeight)
+        assertEquals(preview.scaleX, preview.scaleY, 0f)
+        assertTrue(preview.scaleX > oldScale)
+        assertEquals(nativeWidth, preview.measuredWidth)
+        assertEquals(nativeHeight, preview.measuredHeight)
+        assertEquals((width - dp(16)).toFloat(), preview.left + nativeWidth * preview.scaleX, 1f)
+        assertTrue(preview.left >= heading.right + dp(8) - 1)
+        assertTrue(preview.top >= dp(6) - 1)
+        assertTrue(preview.top + nativeHeight * preview.scaleY <= hero.height - dp(6) + 1)
     }
 
     @Test fun themePreviewLayoutNameFollowsRealInputMethod() {

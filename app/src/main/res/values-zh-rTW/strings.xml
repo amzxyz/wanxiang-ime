@@ -416,7 +416,7 @@
     <string name="clipboard_return_after_paste">貼上後返回</string>
     <string name="theme_message_follow_system_day_night_mode_enabled">已設定「依據系統設定主題色調」，無法手動切換主題。</string>
     <string name="theme_kit_title">套用成套主題？</string>
-    <string name="theme_kit_message">這套主題還帶有配套的鍵盤配置、圖示主題、按鍵副字型與鍵帽風格，是否與「%1$s」一併套用？</string>
+    <string name="theme_kit_message">這套主題還帶有配套的鍵盤配置與鍵帽風格，是否與「%1$s」一併套用？</string>
     <string name="theme_kit_apply_all">一併套用</string>
     <string name="theme_kit_theme_only">僅套用配色</string>
     <string name="disable_it">停用此項</string>
@@ -1095,7 +1095,7 @@
     <string name="text_keyboard_layout_move_row_up">上移該列</string>
     <string name="text_keyboard_layout_move_row_down">下移該列</string>
     <string name="text_keyboard_layout_customized_key">%1$s（已自訂屬性）</string>
-    <string name="settings_ui_appearance">設定介面外觀</string>
+    <string name="settings_ui_appearance">設定介面</string>
     <string name="settings_ui_appearance_summary">明暗模式、動態取色、手動配色和對比度</string>
     <string name="settings_section_settings_ui">設定介面</string>
     <string name="settings_section_keyboard_appearance">鍵盤外觀</string>
@@ -1273,4 +1273,5 @@
     <string name="edit_button_icon_ascii">ASCII 模式圖示</string>
     <string name="text_keyboard_layout_space_label">空白鍵標籤</string>
     <string name="text_keyboard_layout_space_label_hint">留空時自動顯示目前的方案名稱（或中文／ASCII 狀態）。</string>
+    <string name="theme_library_subtitle">管理鍵盤主題\n與外觀細節</string>
 </resources>

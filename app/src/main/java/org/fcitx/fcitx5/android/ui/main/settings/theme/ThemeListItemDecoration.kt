@@ -10,7 +10,10 @@ import androidx.recyclerview.widget.RecyclerView
 import androidx.recyclerview.widget.GridLayoutManager
 import kotlin.math.ceil
 
-class ThemeListItemDecoration(val itemWidth: Int, val spanCount: Int, val verticalSpacing: Int) :
+class ThemeListItemDecoration(
+    val itemWidth: Int, val spanCount: Int, val verticalSpacing: Int,
+    private val stretchColumns: Boolean = false
+) :
     RecyclerView.ItemDecoration() {
     override fun getItemOffsets(
         outRect: Rect,
@@ -28,6 +31,22 @@ class ThemeListItemDecoration(val itemWidth: Int, val spanCount: Int, val vertic
         if (position == RecyclerView.NO_POSITION) { outRect.setEmpty(); return }
         val rowCount = parent.adapter?.run { ceil(itemCount / spanCount.toFloat()).toInt() } ?: -1
         val n = position % spanCount
+
+        if (stretchColumns) {
+            // Distribute one equal gutter between cards and at the outer edges.
+            // The column content uses MATCH_PARENT; never use negative offsets.
+            val gap = verticalSpacing / 2
+            val start = gap - n * gap / spanCount
+            val end = (n + 1) * gap / spanCount
+            val top = if (position < spanCount) verticalSpacing else halfSpacing
+            val bottom = if (position / spanCount == rowCount - 1) verticalSpacing else verticalSpacing - halfSpacing
+            if (parent.layoutDirection == View.LAYOUT_DIRECTION_RTL) {
+                outRect.set(end, top, start, bottom)
+            } else {
+                outRect.set(start, top, end, bottom)
+            }
+            return
+        }
 
         when (parent.layoutDirection) {
             View.LAYOUT_DIRECTION_LTR -> {

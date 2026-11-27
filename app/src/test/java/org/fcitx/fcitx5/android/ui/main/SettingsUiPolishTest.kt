@@ -26,6 +26,7 @@ import org.fcitx.fcitx5.android.ui.main.settings.behavior.editor.EditorApplicati
 import org.fcitx.fcitx5.android.ui.main.settings.theme.ResponsiveThemeListView
 import org.fcitx.fcitx5.android.ui.main.settings.theme.SimpleThemeListAdapter
 import org.fcitx.fcitx5.android.ui.main.settings.theme.ThemeListAdapter
+import org.fcitx.fcitx5.android.ui.main.settings.theme.ThemeLibraryColumns
 import org.fcitx.fcitx5.android.ui.main.settings.theme.ThemeThumbnailUi
 import org.fcitx.fcitx5.android.ui.main.update.AssetStatus
 import org.fcitx.fcitx5.android.ui.main.update.AssetUiState
@@ -86,7 +87,6 @@ class SettingsUiPolishTest {
     }
 
     private class Themes(val events: MutableList<String> = mutableListOf()) : ThemeListAdapter() {
-        override fun onAddNewTheme() = Unit
         override fun onSelectTheme(theme: Theme) { events += "select" }
         override fun onEditTheme(theme: Theme.Custom) { events += "edit" }
         override fun onEditMonetTheme(theme: Theme.Monet) = Unit
@@ -129,17 +129,97 @@ class SettingsUiPolishTest {
                     assertTrue(action.top >= name.bottom)
                     assertTrue("No blank row between the name and actions", action.top - name.bottom <= 1)
                     assertTrue("Action $action exceeds card height ${ui.root.height} at font scale $scale", action.bottom <= ui.root.height)
-                    assertTrue(button.width >= 48 && button.height >= 32)
+                    assertTrue("Compact action must remain at least 40×32 dp", button.width >= 40 && button.height >= 32)
                 }
             }
         }
     }
 
+    @Test fun libraryAddButtonsLiveInCollapsibleSectionHeaders() {
+        val (activity, context) = host()
+        var styleAdds = 0
+        var iconAdds = 0
+        val style = org.fcitx.fcitx5.android.ui.main.settings.theme.themeLibraryPanel(
+            context, R.string.theme_library_styles, R.string.new_theme, View(context)
+        ) { styleAdds++ }
+        val icons = org.fcitx.fcitx5.android.ui.main.settings.theme.themeLibraryPanel(
+            context, R.string.theme_library_icons, R.string.icon_theme_new, View(context)
+        ) { iconAdds++ }
+        val root = ThemeLibraryColumns(context).apply {
+            addView(style, LinearLayout.LayoutParams(0, -1, 2f).apply { marginEnd = 10 })
+            addView(icons, LinearLayout.LayoutParams(0, -1, 1f))
+        }
+        capture(activity, root, "theme-library-section-headers", height = 200)
+        for (panel in listOf(style, icons)) {
+            assertNull("Library columns must not have enclosing frames", panel.background)
+            assertEquals("Only header and list, without horizontal separator", 2, panel.childCount)
+            val header = (panel.getChildAt(0) as FrameLayout).getChildAt(0) as LinearLayout
+            val add = header.getChildAt(1)
+            assertTrue(add.width >= 48)
+            assertTrue(add.left >= header.getChildAt(0).right)
+            assertTrue(add.performClick())
+        }
+        assertEquals(1, styleAdds)
+        assertEquals(1, iconAdds)
+        val bitmap = Bitmap.createBitmap(root.width, root.height, Bitmap.Config.ARGB_8888)
+        val surface = context.settingsColor(com.google.android.material.R.attr.colorSurface)
+        root.draw(Canvas(bitmap).apply { drawColor(surface) })
+        val x = (style.right + icons.left) / 2
+        // Check the dashed line itself, including the empty segments.
+        assertTrue((4..7).any { bitmap.getPixel(x, it) != surface })
+        assertTrue((8..11).any { bitmap.getPixel(x, it) == surface })
+        assertEquals(surface, bitmap.getPixel(x - 3, 5))
+        assertEquals(surface, bitmap.getPixel(x + 3, 5))
+        bitmap.recycle()
+    }
+
+    @Test fun themeCardsKeepTheirOwnOutlineAfterBindingAndSelecting() {
+        val (activity, context) = host()
+        val theme = ThemePreset.Pulan
+        val adapter = Themes().apply { setThemes(listOf(theme)) }
+        val holder = adapter.onCreateViewHolder(FrameLayout(context), 0)
+        adapter.onBindViewHolder(holder, 0)
+        val ui = holder.ui as ThemeThumbnailUi
+        capture(activity, ui.root, "theme-card-outline", width = 152, height = 140)
+        fun assertDrawnStroke(state: ThemeThumbnailUi.State, expectedColor: Int, expectedWidth: Int) {
+            ui.setChecked(state)
+            assertEquals(expectedColor, ui.root.strokeColor)
+            assertEquals(expectedWidth, ui.root.strokeWidth)
+            val bitmap = Bitmap.createBitmap(ui.root.width, ui.root.height, Bitmap.Config.ARGB_8888)
+            ui.root.draw(Canvas(bitmap))
+            assertTrue("The actual card foreground must draw the stroke for $state",
+                (0 until expectedWidth).any { bitmap.getPixel(bitmap.width / 2, it) == expectedColor })
+            bitmap.recycle()
+        }
+        assertDrawnStroke(ThemeThumbnailUi.State.Normal,
+            context.settingsColor(com.google.android.material.R.attr.colorOutlineVariant), 1)
+        assertDrawnStroke(ThemeThumbnailUi.State.Selected,
+            context.settingsColor(androidx.appcompat.R.attr.colorPrimary), 2)
+        ui.cleanup()
+    }
+
+    @Test fun splitThemeLibraryKeepsTwoStyleColumnsAtPhoneWidth() {
+        val (activity, context) = host()
+        val grid = ResponsiveThemeListView(context).apply {
+            compactLibrary = true
+            fixedSpanCount = 2
+            minMargin = 8
+            adapter = Themes().apply {
+                setThemes(listOf(ThemePreset.Pulan, ThemePreset.MaterialDark))
+            }
+        }
+        capture(activity, grid, "theme-library-two-columns", width = 240, height = 560)
+        assertEquals(2, (grid.layoutManager as androidx.recyclerview.widget.GridLayoutManager).spanCount)
+        assertEquals(2, grid.adapter!!.itemCount)
+        val defaultCard = checkNotNull(grid.findViewHolderForAdapterPosition(0)) as ThemeListAdapter.ViewHolder
+        assertEquals(context.getString(R.string.default_), (defaultCard.ui as ThemeThumbnailUi).themeNameText.text.toString())
+    }
+
     @Test fun themeNameAndActionsUseTwoCompactRowsWithoutSelectingTheTheme() {
         val (activity, context) = host()
         val adapter = Themes().apply { setThemes(listOf(ThemePreset.PixelLight.deriveCustomNoBackground("海盐"))) }
-        val holder = adapter.onCreateViewHolder(FrameLayout(context), adapter.getItemViewType(1))
-        adapter.onBindViewHolder(holder, 1)
+        val holder = adapter.onCreateViewHolder(FrameLayout(context), adapter.getItemViewType(0))
+        adapter.onBindViewHolder(holder, 0)
         val ui = holder.ui as ThemeThumbnailUi
         capture(activity, ui.root, "theme-compact", width = 152, height = 140)
         ui.editButton.performClick()
@@ -168,8 +248,8 @@ class SettingsUiPolishTest {
         val (activity, context) = host()
         val random = ThemePreset.MaterialDark.deriveCustomNoBackground(org.fcitx.fcitx5.android.data.theme.ThemeManager.RANDOM_THEME_NAME)
         val adapter = Themes().apply { setThemes(listOf(random)) }
-        val holder = adapter.onCreateViewHolder(FrameLayout(context), adapter.getItemViewType(1))
-        adapter.onBindViewHolder(holder, 1)
+        val holder = adapter.onCreateViewHolder(FrameLayout(context), adapter.getItemViewType(0))
+        adapter.onBindViewHolder(holder, 0)
         val ui = holder.ui as ThemeThumbnailUi
         capture(activity, ui.root, "theme-random", width = 152, height = 140)
         assertSame(ui.editButton.parent, ui.randomButton.parent)
@@ -191,7 +271,7 @@ class SettingsUiPolishTest {
                     setThemes(listOf(lightTheme, darkTheme))
                     setSelectedThemes(lightTheme, lightTheme, darkTheme)
                 }
-                for (position in 1..2) {
+                for (position in 0..1) {
                     val holder = adapter.onCreateViewHolder(FrameLayout(context), adapter.getItemViewType(position))
                     adapter.onBindViewHolder(holder, position)
                     val ui = holder.ui as ThemeThumbnailUi
@@ -228,18 +308,22 @@ class SettingsUiPolishTest {
     @Test fun recyclingMonetCardsClearsTheMarkerForStaticAndRandomThemes() {
         val (activity, context) = host()
         val random = ThemePreset.MaterialDark.deriveCustomNoBackground(org.fcitx.fcitx5.android.data.theme.ThemeManager.RANDOM_THEME_NAME)
-        val adapter = Themes().apply {
-            setThemes(listOf(ThemeMonet.getLight(), ThemePreset.PixelLight.deriveCustomNoBackground("静态主题"),
-                ThemeMonet.getDark(), random, ThemePreset.MaterialDark))
-        }
-        val holder = adapter.onCreateViewHolder(FrameLayout(context), adapter.getItemViewType(1))
+        val light = ThemeMonet.getLight()
+        val dark = ThemeMonet.getDark()
+        val static = ThemePreset.PixelLight.deriveCustomNoBackground("静态主题")
+        val themes = listOf(light, static, dark, random, ThemePreset.MaterialDark)
+        val adapter = Themes().apply { setThemes(themes) }
+        val holder = adapter.onCreateViewHolder(FrameLayout(context), adapter.getItemViewType(0))
         val ui = holder.ui as ThemeThumbnailUi
         try {
-            for (position in listOf(1, 2, 3, 4, 5, 1)) {
+            for (theme in themes + light) {
+                val index = adapter.entries.indexOf(theme)
+                assertTrue("Theme must exist in the sorted library", index >= 0)
+                val position = index
                 adapter.onBindViewHolder(holder, position)
                 capture(activity, ui.root, "monet-recycled-$position", width = 152)
                 assertEquals("A recycled card must show only its own theme marker",
-                    if (position == 1 || position == 3) View.VISIBLE else View.GONE, ui.dynamicIcon.visibility)
+                    if (theme is Theme.Monet) View.VISIBLE else View.GONE, ui.dynamicIcon.visibility)
             }
         } finally { ui.cleanup() }
     }
@@ -300,7 +384,7 @@ class SettingsUiPolishTest {
             setSelectedThemes(b, null, c)
         }
         fun state(name: String): String {
-            val position = adapter.entries.indexOfFirst { it.name == name } + 1
+            val position = adapter.entries.indexOfFirst { it.name == name }
             val holder = adapter.onCreateViewHolder(FrameLayout(context), adapter.getItemViewType(position))
             adapter.onBindViewHolder(holder, position)
             val ui = holder.ui as ThemeThumbnailUi

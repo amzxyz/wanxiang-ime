@@ -62,7 +62,8 @@ internal fun Fragment.withSettingsPage(content: View): View {
                 AppBarLayout.LayoutParams.SCROLL_FLAG_EXIT_UNTIL_COLLAPSED
         }
     } else {
-        page.toolbar.title = title
+        // The theme page already has its own large heading beside the keyboard preview.
+        page.toolbar.title = if (this is ThemeFragment) null else title
     }
     page.toolbar.setNavigationOnClickListener { host.onSupportNavigateUp() }
     KeyboardTestMenu.attach(page.toolbar, host)

@@ -70,6 +70,8 @@ sealed class Theme : Parcelable {
     abstract val keyPressHighlightColor: Int
     abstract val keyShadowColor: Int
     open val waterRippleColor: Int? get() = null
+    /** Optional functional-key palette. Absent roles inherit the theme's common colors. */
+    open val keyRoleColors: Map<String, Int> get() = emptyMap()
 
     abstract val popupBackgroundColor: Int
     abstract val popupTextColor: Int
@@ -115,7 +117,8 @@ sealed class Theme : Parcelable {
         override val clipboardEntryColor: Int,
         override val genericActiveBackgroundColor: Int,
         override val genericActiveForegroundColor: Int,
-        override val waterRippleColor: Int? = null
+        override val waterRippleColor: Int? = null,
+        override val keyRoleColors: Map<String, Int> = emptyMap()
     ) : Theme() {
         @Parcelize
         @Serializable
@@ -272,7 +275,8 @@ sealed class Theme : Parcelable {
         override val clipboardEntryColor: Int,
         override val genericActiveBackgroundColor: Int,
         override val genericActiveForegroundColor: Int,
-        override val waterRippleColor: Int? = null
+        override val waterRippleColor: Int? = null,
+        override val keyRoleColors: Map<String, Int> = emptyMap()
     ) : Theme() {
 
         // an alias to use 0xAARRGGBB color literal in code
@@ -301,7 +305,8 @@ sealed class Theme : Parcelable {
             clipboardEntryColor: Number,
             genericActiveBackgroundColor: Number,
             genericActiveForegroundColor: Number,
-            waterRippleColor: Number? = null
+            waterRippleColor: Number? = null,
+            keyRoleColors: Map<String, Int> = emptyMap()
         ) : this(
             name,
             isDark,
@@ -326,7 +331,8 @@ sealed class Theme : Parcelable {
             clipboardEntryColor.toInt(),
             genericActiveBackgroundColor.toInt(),
             genericActiveForegroundColor.toInt(),
-            waterRippleColor?.toInt()
+            waterRippleColor?.toInt(),
+            keyRoleColors
         )
 
         fun deriveCustomNoBackground(name: String) = Custom(
@@ -354,7 +360,8 @@ sealed class Theme : Parcelable {
             clipboardEntryColor,
             genericActiveBackgroundColor,
             genericActiveForegroundColor,
-            waterRippleColor
+            waterRippleColor,
+            keyRoleColors
         )
 
         fun deriveCustomBackground(
@@ -397,7 +404,8 @@ sealed class Theme : Parcelable {
             clipboardEntryColor,
             genericActiveBackgroundColor,
             genericActiveForegroundColor,
-            waterRippleColor
+            waterRippleColor,
+            keyRoleColors
         )
     }
 

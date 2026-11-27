@@ -202,18 +202,42 @@ class IconThemeManagerCacheSelectionTest {
         assertEquals(theme.name, savedName())
     }
 
-    /** 「蓝狐狸」旧名只在原文件退役后迁移到「普蓝」；这里验证迁移这一半。 */
     @Test
-    fun retiredLegacyNameRestoresTheRenamedTheme() {
-        val pulan = installTheme("普蓝")
-        val snapshot = IconThemeManager.beginScan { "蓝狐狸" }
+    fun retiredLegacyNamesRestoreTheBundledDefault() {
+        val other = installTheme("other icon theme")
+        for (name in listOf("蓝狐狸", "普蓝")) {
+            IconThemeManager.selectTheme(other)
+            val snapshot = IconThemeManager.beginScan { name }
+            IconThemeManager.applyScannedThemes(IconThemeManager.iconThemes.drop(1), snapshot)
+            assertEquals("Default", IconThemeManager.activeTheme.name)
+            assertEquals("Default", savedName())
+            assertTrue(IconThemeManager.activeTheme.icons.containsKey("keys.backspace"))
+        }
+    }
 
+    @Test
+    fun restoredWatercolorAndClassicCanBeSelectedAndRestored() {
+        val watercolor = installTheme("水彩")
+        val classic = IconTheme.default().copy(name = "经典")
+        IconThemeManager.saveTheme(classic)
+        savedNames += classic.name
+        for (theme in listOf(watercolor, classic)) {
+            IconThemeManager.selectTheme(IconThemeManager.iconThemes.first())
+            val snapshot = IconThemeManager.beginScan { theme.name }
+            IconThemeManager.applyScannedThemes(IconThemeManager.iconThemes.drop(1), snapshot)
+            assertEquals(theme.name, IconThemeManager.activeTheme.name)
+            assertEquals(theme.name, savedName())
+            assertEquals(theme.icons, IconThemeManager.activeTheme.icons)
+        }
+        assertTrue(themesOnDisk().single { it.name == "经典" }.icons.isEmpty())
+    }
+
+    @Test
+    fun userEditedLegacyIconThemeKeepsItsSelection() {
+        val theme = installTheme("普蓝")
+        val snapshot = IconThemeManager.beginScan { theme.name }
         IconThemeManager.applyScannedThemes(IconThemeManager.iconThemes.drop(1), snapshot)
-
-        assertEquals("普蓝", IconThemeManager.activeTheme.name)
-        assertEquals("普蓝", savedName())
-        IconThemeManager.deleteTheme(pulan.name)
-        savedNames.remove(pulan.name)
+        assertEquals(theme.name, IconThemeManager.activeTheme.name)
     }
 
     /**

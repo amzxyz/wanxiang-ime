@@ -10,6 +10,10 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.LinearLayout
+import androidx.fragment.app.FragmentContainerView
+import org.fcitx.fcitx5.android.ui.main.settings.icon.IconThemeListFragment
+import splitties.dimensions.dp
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.Keep
@@ -21,25 +25,19 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.fcitx.fcitx5.android.R
 import org.fcitx.fcitx5.android.data.prefs.AppPrefs
-import org.fcitx.fcitx5.android.data.theme.IconThemeManager
 import org.fcitx.fcitx5.android.data.theme.Theme
 import org.fcitx.fcitx5.android.data.theme.ThemeFilesManager
 import org.fcitx.fcitx5.android.data.theme.ThemeKits
 import org.fcitx.fcitx5.android.data.theme.ThemeManager
 import org.fcitx.fcitx5.android.data.theme.ThemeMonet
-import org.fcitx.fcitx5.android.input.config.ConfigProviders
 import org.fcitx.fcitx5.android.input.config.UserConfigFiles
-import org.fcitx.fcitx5.android.input.config.UserJsonConfigStore
-import org.fcitx.fcitx5.android.input.font.FontProviders
 import org.fcitx.fcitx5.android.ui.common.withLoadingDialog
 import org.fcitx.fcitx5.android.utils.applyNavBarInsetsBottomPadding
 import org.fcitx.fcitx5.android.utils.importErrorDialog
 import org.fcitx.fcitx5.android.utils.parcelable
 import org.fcitx.fcitx5.android.utils.queryFileName
 import org.fcitx.fcitx5.android.utils.toast
-import timber.log.Timber
 import java.io.ByteArrayInputStream
-import java.io.File
 import java.util.UUID
 
 class ThemeListFragment : Fragment() {
@@ -162,7 +160,6 @@ class ThemeListFragment : Fragment() {
         savedInstanceState: Bundle?
     ): View {
         themeListAdapter = object : ThemeListAdapter() {
-            override fun onAddNewTheme() = addTheme()
             override fun onSelectTheme(theme: Theme) = selectTheme(theme)
             override fun onEditTheme(theme: Theme.Custom) = editTheme(theme)
             override fun onEditMonetTheme(theme: Theme.Monet) = editMonetTheme(theme)
@@ -180,9 +177,33 @@ class ThemeListFragment : Fragment() {
             }
             ThemeManager.refreshThemes(themes)
         }
-        return ResponsiveThemeListView(requireContext()).apply {
+        val ctx = requireContext()
+        val themeList = ResponsiveThemeListView(ctx).apply {
+            compactLibrary = true
+            fixedSpanCount = 2
+            minMargin = dp(8)
+            id = R.id.theme_library_style_list
             adapter = themeListAdapter
             applyNavBarInsetsBottomPadding()
+        }
+        val iconContainer = FragmentContainerView(ctx).apply { id = R.id.theme_library_icon_container }
+        return ThemeLibraryColumns(ctx).apply {
+            setPadding(dp(4), dp(8), dp(4), 0)
+            addView(themeLibraryPanel(ctx, R.string.theme_library_styles, R.string.new_theme, themeList, ::addTheme),
+                LinearLayout.LayoutParams(0, -1, 2f).apply { marginEnd = dp(10) })
+            addView(themeLibraryPanel(ctx, R.string.theme_library_icons, R.string.icon_theme_new, iconContainer) {
+                (childFragmentManager.findFragmentById(R.id.theme_library_icon_container) as? IconThemeListFragment)
+                    ?.showCreateThemeMenu()
+            }, LinearLayout.LayoutParams(0, -1, 1f))
+        }
+    }
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        if (childFragmentManager.findFragmentById(R.id.theme_library_icon_container) == null) {
+            childFragmentManager.beginTransaction()
+                .replace(R.id.theme_library_icon_container, IconThemeListFragment())
+                .commitNow()
         }
     }
 
@@ -272,7 +293,7 @@ class ThemeListFragment : Fragment() {
                 .setNegativeButton(R.string.disable_it) { _, _ ->
                     followSystemDayNightTheme = false
                     updateSelectedThemes()
-                    // 关掉跟随系统只是选择的前提；成套主题是否一并应用仍然要问一次。
+                    // 关掉跟随系统只是选择的前提；配套布局是否一并应用仍然要问一次。
                     continueSelectTheme(theme)
                 }
                 .show()
@@ -281,7 +302,7 @@ class ThemeListFragment : Fragment() {
         continueSelectTheme(theme)
     }
 
-    /** 主题选择的后半段：成套主题先问一次，避免只换了配色、布局与图标还停在上一套。 */
+    /** 主题选择的后半段：成套主题先问一次，是否同时应用配套布局；图标和字体保持独立。 */
     private fun continueSelectTheme(theme: Theme) {
         val kit = ThemeKits.kitOf(theme)
         if (kit != null && !isKitApplied(kit)) {
@@ -291,25 +312,9 @@ class ThemeListFragment : Fragment() {
         ThemeManager.setNormalModeTheme(theme)
     }
 
-    /** 布局、图标主题与副字体都已经是这一套时不必再问——答案已经定了。 */
+    /** 只检查配套布局，字体及图标属于独立的全局设置。 */
     private fun isKitApplied(kit: ThemeKits.Kit): Boolean =
-        AppPrefs.getInstance().keyboard.textKeyboardLayoutProfile.getValue() == kit.layoutProfile &&
-                IconThemeManager.activeTheme.name == kit.iconTheme &&
-                isKeyAltFontApplied(kit.keyAltFont)
-
-    /**
-     * 套装字体是否已经就是「按键副字体」。
-     *
-     * 字体文件还没落到 `fonts/` 时视为已应用：没有可应用的对象，反复弹框只会挡住主题切换
-     * （首次启动的释放是异步的，用户可能先点到了主题卡片）。
-     */
-    private fun isKeyAltFontApplied(fontName: String?): Boolean {
-        if (fontName == null) return true
-        val file = UserConfigFiles.fontsDir()?.let { File(it, fontName) }
-        if (file?.isFile != true) return true
-        val current = ConfigProviders.readFontsetPathMapSnapshot().getOrNull()?.value
-        return current?.get(KEY_ALT_FONT) == listOf(fontName)
-    }
+        AppPrefs.getInstance().keyboard.textKeyboardLayoutProfile.getValue() == kit.layoutProfile
 
     private fun promptApplyKit(theme: Theme, kit: ThemeKits.Kit) {
         MaterialAlertDialogBuilder(requireContext())
@@ -324,46 +329,21 @@ class ThemeListFragment : Fragment() {
     }
 
     /**
-     * 成套应用：布局、图标主题、副字体与操作键形状先就位，主题最后切。
+     * 成套应用：布局与操作键形状先就位，主题最后切。
      *
      * 主题变更会触发键盘整体重绘，放在最后只需一次刷新就能看到成套结果，
      * 不会先出现「新布局配旧配色」的中间态。资源缺失时跳过对应一项，
      * 避免把选择指向不存在的布局或字体。
      */
     private fun applyKit(theme: Theme, kit: ThemeKits.Kit) {
-        if (UserConfigFiles.textKeyboardLayoutJson(kit.layoutProfile)?.isFile == true) {
+        if (kit.layoutProfile == UserConfigFiles.DEFAULT_TEXT_KEYBOARD_LAYOUT_PROFILE ||
+            UserConfigFiles.textKeyboardLayoutJson(kit.layoutProfile)?.isFile == true
+        ) {
             AppPrefs.getInstance().keyboard.textKeyboardLayoutProfile.setValue(kit.layoutProfile)
         }
-        IconThemeManager.iconThemes.find { it.name == kit.iconTheme }?.let {
-            IconThemeManager.selectTheme(it)
-        }
-        kit.keyAltFont?.let(::applyKeyAltFont)
         // 只覆盖偏好本身：用户之后仍可以在「键盘」里改回来，换主题不会反复重置。
         kit.specialKeyOvalShape?.let { ThemeManager.prefs.specialKeyOvalShape.setValue(it) }
         ThemeManager.setNormalModeTheme(theme)
-    }
-
-    /**
-     * 把「按键副字体」指向套装自带字体。
-     *
-     * 只改这一项：用户在「字体设定」里配过的其它字体、字号原样保留，字体文件缺失时
-     * 直接跳过（写进去只会得到一条指向不存在文件的配置）。写完标记字体需要刷新，
-     * 键盘下次显示时按新字体重建，不必等用户手动去字体设定里点一次保存。
-     */
-    private fun applyKeyAltFont(fontName: String) {
-        val fontFile = UserConfigFiles.fontsDir()?.let { File(it, fontName) }
-        if (fontFile?.isFile != true) return
-        val snapshot = ConfigProviders.readFontsetPathMapSnapshot()
-        if (snapshot.isFailure) {
-            // 配置损坏时保持原样：拿空配置去写，会把用户其它字体设置一起抹掉。
-            Timber.w(snapshot.exceptionOrNull(), "Skip theme kit font: failed to read fontset config")
-            return
-        }
-        val current = snapshot.getOrNull()?.value.orEmpty()
-        if (current[KEY_ALT_FONT] == listOf(fontName)) return
-        UserJsonConfigStore.writeFontsetPathMap(current + (KEY_ALT_FONT to listOf(fontName)))
-            .onSuccess { FontProviders.markNeedsRefresh() }
-            .onFailure { Timber.w(it, "Failed to apply theme kit font") }
     }
 
     private fun editTheme(theme: Theme.Custom) {
@@ -417,9 +397,6 @@ class ThemeListFragment : Fragment() {
     }
 
     companion object {
-        /** 「字体设定」里按键副字体的键名，与 FontsetEditorActivity 的 FontEntry 一致。 */
-        private const val KEY_ALT_FONT = "key_alt_font"
-
         const val REQUEST_THEME_IMPORTED = "theme_list_request_imported"
         const val BUNDLE_THEME = "theme_list_bundle_theme"
         const val BUNDLE_NEW_CREATED = "theme_list_bundle_new_created"

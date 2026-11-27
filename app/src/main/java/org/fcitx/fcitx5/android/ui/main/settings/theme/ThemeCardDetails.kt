@@ -8,7 +8,7 @@ import android.view.TouchDelegate
 import android.view.View
 import android.widget.LinearLayout
 
-/** Compact visual rows, with each icon still receiving a 48 dp touch target. */
+/** Compact visual rows, with each icon receiving an extended 48 dp vertical touch target. */
 internal class ThemeCardDetails(context: Context, private val actions: List<View>) : LinearLayout(context) {
     private var activeDelegate: TouchDelegate? = null
     init { orientation = VERTICAL }

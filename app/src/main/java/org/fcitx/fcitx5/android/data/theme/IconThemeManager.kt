@@ -86,7 +86,14 @@ object IconThemeManager {
         if (extDir != null) File(extDir, "icon_themes").also { it.mkdirs() } else null
     }
 
-    private val builtinDefault: IconTheme = IconTheme.default()
+    private val builtinDefault: IconTheme = runCatching {
+        appContext.assets.open("bundled/default_icon_theme.json").bufferedReader().use {
+            json.decodeFromString<IconTheme>(it.readText()).copy(name = IconTheme.default().name)
+        }
+    }.getOrElse {
+        Timber.w(it, "Failed to load default icon theme")
+        IconTheme.default()
+    }
 
     private val mainHandler = Handler(Looper.getMainLooper())
 
@@ -229,7 +236,7 @@ object IconThemeManager {
     )
 
     /**
-     * The currently active icon theme. Defaults to builtin (all slots empty).
+     * The currently active icon theme. Defaults to the bundled keyboard icons.
      *
      * Volatile because [initAsync] assigns it from an IO coroutine while the main thread reads
      * it on every icon lookup.
@@ -303,8 +310,7 @@ object IconThemeManager {
      * This used to run in `init { refresh() }`, so merely *touching* the object from the main
      * thread (first keyboard show, via IdleUi / ButtonsBarUi) did listFiles + readText + JSON
      * parsing + SVG parsing for every icon, and could write thumbnail backfills to disk. Until
-     * this completes, resolveIcon* fall back to the builtin default, which resolves to no
-     * custom icon rather than a wrong one.
+     * this completes, resolveIcon* use the bundled default icons.
      */
     fun initAsync() {
         if (!initStarted.compareAndSet(false, true)) return
@@ -438,21 +444,19 @@ object IconThemeManager {
         if (savedName == null) return
         val restoredName = migratedThemeName(savedName)
         if (restoredName != savedName) activeThemeName = restoredName
-        val saved = installedThemes.find { it.name == restoredName }
-        if (saved != null && saved !== builtinDefault) {
-            activeTheme = saved
-        }
+        val saved = if (restoredName == builtinDefault.name) builtinDefault
+        else installedThemes.find { it.name == restoredName }
+        if (saved != null) activeTheme = saved
     }
 
     /**
-     * 「蓝狐狸」图标主题改名为「普蓝」：选择里存的旧名要落到新主题上。
-     * 旧主题文件还在（用户改过、安装器因此保留）时不迁移，选择仍指向用户那一份。
+     * 退役的普蓝别名合并为默认；仍存在的用户修改版本保持原选择。
+     * 水彩已恢复独立套装，首次扫描未安装时也保留名称，供安装后的刷新恢复。
      */
     private fun migratedThemeName(name: String): String =
-        if (name == "蓝狐狸" &&
-            installedThemes.none { it.name == "蓝狐狸" } &&
-            installedThemes.any { it.name == "普蓝" }
-        ) "普蓝" else name
+        if (name in setOf("蓝狐狸", "普蓝") &&
+            installedThemes.none { it.name == name }
+        ) builtinDefault.name else name
 
     private fun registerUserUnlockReceiver() {
         val filter = IntentFilter(Intent.ACTION_USER_UNLOCKED)

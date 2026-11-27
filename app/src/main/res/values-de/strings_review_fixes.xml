@@ -4,6 +4,6 @@
     <string name="theme_unsaved_message">Speichern Sie Ihre Änderungen vor dem Verlassen des Editors oder verwerfen Sie sie.</string>
     <string name="theme_discard">Verwerfen</string>
     <string name="theme_library">Designsammlung</string>
-    <string name="keyboard_style">Tastaturstil</string>
+    <string name="keyboard_style">Darstellungsdetails</string>
     <string name="theme_global_settings_summary">Diese Einstellungen gelten für alle Tastaturdesigns, einschließlich Kandidatenmarkierung, Textbearbeitung und Zwischenablagekarten.</string>
 </resources>

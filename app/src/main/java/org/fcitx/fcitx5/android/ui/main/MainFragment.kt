@@ -176,9 +176,9 @@ class MainFragment : PaddingPreferenceFragment() {
                 // 键盘直接复用既有的「虚拟键盘」页——那边已是五个子分组的列表，
                 // 再套一层分组页只会多一次点击、多一个重复入口。
                 addDestinationPreference(
-                    R.string.settings_group_appearance,
+                    R.string.theme,
                     R.drawable.ic_baseline_palette_24,
-                    SettingsRoute.SettingsGroup(SettingsGroupSpecs.ID_APPEARANCE),
+                    SettingsRoute.Theme,
                     R.string.settings_group_appearance_summary
                 )
                 addDestinationPreference(
@@ -196,6 +196,12 @@ class MainFragment : PaddingPreferenceFragment() {
             }
 
             addCategory(getString(R.string.settings_home_category_more)) {
+                addDestinationPreference(
+                    R.string.settings_ui_appearance,
+                    R.drawable.ic_baseline_palette_24,
+                    SettingsRoute.SettingsUiAppearance,
+                    R.string.settings_ui_appearance_summary
+                )
                 // 数据与备份从「高级」拆出：导入导出是用户主动执行的独立任务，
                 // 与「兼容性开关」这种一次性配置混在一页里互相干扰。
                 addDestinationPreference(

@@ -61,4 +61,28 @@ class ThemeGridResizeTest {
             }
         }
     }
+
+    @Test fun mainThemeGalleryFitsThreeCardsAcrossAPhone() {
+        val gallery = ResponsiveThemeListView(RuntimeEnvironment.getApplication()).apply {
+            compactLibrary = true
+            adapter = object : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
+                override fun getItemCount() = 9
+                override fun onCreateViewHolder(parent: ViewGroup, type: Int) = object : RecyclerView.ViewHolder(
+                    View(parent.context)) {}
+                override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) = Unit
+            }
+        }
+        for (width in listOf(320, 360, 800, 320)) {
+            layout(gallery, width)
+            assertTrue((gallery.layoutManager as GridLayoutManager).spanCount >= 3)
+            val first = checkNotNull(gallery.findViewHolderForAdapterPosition(0)).itemView
+            val second = checkNotNull(gallery.findViewHolderForAdapterPosition(1)).itemView
+            val third = checkNotNull(gallery.findViewHolderForAdapterPosition(2)).itemView
+            assertEquals(first.top, second.top)
+            assertEquals(first.top, third.top)
+            assertTrue(first.right < second.left)
+            assertTrue(second.right < third.left)
+            assertTrue(third.right <= width)
+        }
+    }
 }

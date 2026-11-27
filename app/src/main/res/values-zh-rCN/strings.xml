@@ -410,7 +410,7 @@
     <string name="edit_color">编辑颜色</string>
     <string name="theme_color_editor_argb_label">ARGB</string>
     <string name="show_voice_input_button">显示语音输入按钮</string>
-    <string name="edit_fontset">字体设定</string>
+    <string name="edit_fontset">键盘字体</string>
     <string name="edit_popup_preset">弹出字符设定</string>
     <string name="edit_buttons">编辑按钮</string>
     <string name="edit_buttons_summary">自定义 Kawaii Bar 和 Status Area 中的按钮</string>
@@ -488,7 +488,7 @@
     <string name="clipboard_return_after_paste">粘贴后返回</string>
     <string name="theme_message_follow_system_day_night_mode_enabled">“跟随系统夜间模式”已启用，不能手动更换主题。</string>
     <string name="theme_kit_title">应用成套主题？</string>
-    <string name="theme_kit_message">这套主题还带有配套的键盘布局、图标主题、按键副字体与键帽风格，是否与“%1$s”一并应用？</string>
+    <string name="theme_kit_message">这套主题还带有配套的键盘布局与键帽风格，是否与“%1$s”一并应用？</string>
     <string name="theme_kit_apply_all">一并应用</string>
     <string name="theme_kit_theme_only">仅应用配色</string>
     <string name="disable_it">禁用它</string>
@@ -1134,7 +1134,7 @@
     <string name="text_keyboard_layout_move_row_up">上移该行</string>
     <string name="text_keyboard_layout_move_row_down">下移该行</string>
     <string name="text_keyboard_layout_customized_key">%1$s（已定制属性）</string>
-    <string name="settings_ui_appearance">设置界面外观</string>
+    <string name="settings_ui_appearance">设置界面</string>
     <string name="settings_ui_appearance_summary">明暗模式、动态取色、手动配色和对比度</string>
     <string name="settings_section_settings_ui">设置界面</string>
     <string name="settings_section_keyboard_appearance">键盘外观</string>
@@ -1305,4 +1305,8 @@
     <string name="rime_engine_version_value">librime 版本：%1$s</string>
     <string name="rime_engine_api_size_value">RimeApi 数据大小：%1$d 字节</string>
     <string name="rime_engine_capabilities_value">检测到的能力：%1$s</string>
+    <string name="theme_library_styles">风格</string>
+    <string name="theme_library_icons">图标</string>
+    <string name="theme_library_subtitle">管理键盘主题\n与外观细节</string>
+    <string name="keyboard_font_choose_type">选择字体</string>
 </resources>

@@ -25,8 +25,6 @@ import org.fcitx.fcitx5.android.data.prefs.SettingsUiMotionPreferences
 import org.fcitx.fcitx5.android.data.theme.ThemeManager
 import org.fcitx.fcitx5.android.data.theme.ThemePreset
 import org.fcitx.fcitx5.android.ui.main.settings.SettingsRoute
-import org.fcitx.fcitx5.android.ui.main.settings.group.SettingsGroupFragment
-import org.fcitx.fcitx5.android.ui.main.settings.group.SettingsGroupSpecs
 import org.fcitx.fcitx5.android.ui.main.settings.theme.CustomThemeActivity
 import org.fcitx.fcitx5.android.ui.main.settings.theme.SettingsUiAppearanceFragment
 import org.fcitx.fcitx5.android.ui.main.settings.theme.SettingsUiMotionFragment
@@ -145,16 +143,16 @@ class SettingsNavigationGesturesTest {
                 SettingsUiMotionPreferences.Style.FADE)) {
                 SettingsUiMotionPreferences.save(context, old.copy(enter = style,
                     returning = SettingsUiMotionPreferences.Style.FOLLOW, predictiveBack = true))
-                val activity = launchMain(SettingsRoute.SettingsGroup(SettingsGroupSpecs.ID_APPEARANCE))
+                val activity = launchMain()
                 try {
-                    awaitPage(activity, SettingsGroupFragment::class.java)
+                    awaitPage(activity, MainFragment::class.java)
                     navigate(activity, SettingsRoute.SettingsUiAppearance)
                     awaitPage(activity, SettingsUiAppearanceFragment::class.java)
                     swipeBack(activity, cancel = true, right = false, name = style.value + "-cancel")
                     awaitPage(activity, SettingsUiAppearanceFragment::class.java)
                     capture("${style.value}-cancelled")
                     swipeBack(activity, cancel = false, right = true, name = style.value + "-commit")
-                    awaitPage(activity, SettingsGroupFragment::class.java)
+                    awaitPage(activity, MainFragment::class.java)
                     navigate(activity, SettingsRoute.Theme)
                     awaitPage(activity, ThemeFragment::class.java)
                     capture("theme-${style.value}")
@@ -163,9 +161,9 @@ class SettingsNavigationGesturesTest {
     }
 
     @Test fun repeatedBackGesturesReturnThroughEachDestination() = gestures {
-        val activity = launchMain(SettingsRoute.SettingsGroup(SettingsGroupSpecs.ID_APPEARANCE))
+        val activity = launchMain()
         try {
-            awaitPage(activity, SettingsGroupFragment::class.java)
+            awaitPage(activity, MainFragment::class.java)
             navigate(activity, SettingsRoute.SettingsUiAppearance)
             awaitPage(activity, SettingsUiAppearanceFragment::class.java)
             navigate(activity, SettingsRoute.SettingsUiMotion)
@@ -173,8 +171,6 @@ class SettingsNavigationGesturesTest {
             swipeBack(activity, cancel = false, right = true, name = "repeated-first")
             awaitPage(activity, SettingsUiAppearanceFragment::class.java)
             swipeBack(activity, cancel = false, right = false, name = "repeated-second")
-            awaitPage(activity, SettingsGroupFragment::class.java)
-            swipeBack(activity, cancel = false, right = true, name = "repeated-third")
             awaitPage(activity, MainFragment::class.java)
             onMain { assertFalse(activity.isFinishing) }
             capture("repeated-home")
@@ -183,7 +179,7 @@ class SettingsNavigationGesturesTest {
 
     @Test fun searchQuerySurvivesChildReturnAndCancelledBackThenClearsOnCommit() = gestures {
         val activity = launchMain()
-        val query = context.getString(R.string.settings_group_appearance)
+        val query = context.getString(R.string.settings_ui_appearance)
         fun search() = activity.findViewById<EditText>(R.id.settings_search_input)
         try {
             awaitPage(activity, MainFragment::class.java)
@@ -345,9 +341,9 @@ class SettingsNavigationGesturesTest {
     }
 
     @Test fun themePagerSwipesRemainSeparateFromCancelledAndCompletedSystemBack() = gestures {
-        val activity = launchMain(SettingsRoute.SettingsGroup(SettingsGroupSpecs.ID_APPEARANCE))
+        val activity = launchMain()
         try {
-            awaitPage(activity, SettingsGroupFragment::class.java)
+            awaitPage(activity, MainFragment::class.java)
             navigate(activity, SettingsRoute.Theme)
             awaitPage(activity, ThemeFragment::class.java)
             lateinit var pager: ViewPager2
@@ -363,7 +359,7 @@ class SettingsNavigationGesturesTest {
             awaitPage(activity, ThemeFragment::class.java)
             onMain { assertEquals(1, pager.currentItem) }
             swipeBack(activity, cancel = false, right = true, name = "theme-page-commit")
-            awaitPage(activity, SettingsGroupFragment::class.java)
+            awaitPage(activity, MainFragment::class.java)
         } finally { finish(activity) }
     }
 }

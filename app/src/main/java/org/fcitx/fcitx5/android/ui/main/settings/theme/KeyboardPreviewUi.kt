@@ -545,7 +545,6 @@ class KeyboardPreviewUi(override val ctx: Context, val theme: Theme) : Ui {
             super.onAttachedToWindow()
             rebuildToolbarPreview(currentTheme ?: theme)
             recalculateSize()
-            onSizeMeasured?.invoke(intrinsicWidth, intrinsicHeight)
             navbarBackground.registerOnChangeListener(navbarBkgChangeListener)
             keyboardPrefs.toolbarHeightPercent.registerOnChangeListener(toolbarHeightChangeListener)
             ConfigProviders.addButtonsLayoutListener(buttonsLayoutChangeListener)
@@ -627,6 +626,8 @@ class KeyboardPreviewUi(override val ctx: Context, val theme: Theme) : Ui {
             width = intrinsicWidth
             height = intrinsicHeight
         }
+        root.requestLayout()
+        onSizeMeasured?.invoke(intrinsicWidth, intrinsicHeight)
         blurMaskView.markKeyRegionsDirty()
         blurMaskView.invalidate()
     }

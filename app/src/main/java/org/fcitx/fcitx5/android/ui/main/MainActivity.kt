@@ -46,6 +46,9 @@ class MainActivity : SettingsUiActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // The ViewModel owns the engine connection until this activity is destroyed.
+        // Start it on the landing page, not on the first engine settings navigation.
+        viewModel.fcitx
         val binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
         navController = binding.navHostFragment.getFragment<NavHostFragment>().navController
@@ -100,6 +103,7 @@ class MainActivity : SettingsUiActivity() {
                 // Intent should replay the shortcut that originally opened this activity.
                 if (savedInstanceState != null) return
                 val route = intent.parcelable<SettingsRoute>(EXTRA_SETTINGS_ROUTE) ?: return
+                intent.getStringExtra(EXTRA_SETTINGS_PREFERENCE)?.let(viewModel::requestPreferenceScroll)
                 navController.popBackStack(SettingsRoute.Index, false)
                 navController.navigateWithAnim(route)
             }
@@ -157,6 +161,7 @@ class MainActivity : SettingsUiActivity() {
 
     companion object {
         const val EXTRA_SETTINGS_ROUTE = "${BuildConfig.APPLICATION_ID}.EXTRA_SETTINGS_ROUTE"
+        const val EXTRA_SETTINGS_PREFERENCE = "${BuildConfig.APPLICATION_ID}.EXTRA_SETTINGS_PREFERENCE"
     }
 
 }

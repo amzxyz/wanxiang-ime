@@ -18,8 +18,6 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
 import android.view.Gravity
-import android.view.Menu
-import android.view.MenuItem
 import android.widget.FrameLayout
 import android.view.ViewGroup
 import android.widget.ImageView
@@ -27,13 +25,10 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
-import org.fcitx.fcitx5.android.ui.common.SettingsUiActivity
-import androidx.appcompat.content.res.AppCompatResources
-import com.google.android.material.appbar.MaterialToolbar as Toolbar
+import androidx.fragment.app.Fragment
+import android.view.LayoutInflater
+import android.view.View
 import androidx.core.content.ContextCompat
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
-import androidx.core.view.updatePadding
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -47,6 +42,7 @@ import org.fcitx.fcitx5.android.BuildConfig
 import org.fcitx.fcitx5.android.data.theme.IconTheme
 import org.fcitx.fcitx5.android.data.theme.IconThemeManager
 import org.fcitx.fcitx5.android.data.theme.ThemeManager
+import org.fcitx.fcitx5.android.input.config.ButtonIconFile
 import org.fcitx.fcitx5.android.ui.main.settings.behavior.share.JsonFileQrShareManager
 import org.fcitx.fcitx5.android.ui.main.settings.behavior.share.LayoutQrBitmapUtil
 import org.fcitx.fcitx5.android.ui.main.settings.behavior.share.LayoutQrTransferCodec
@@ -54,14 +50,10 @@ import org.fcitx.fcitx5.android.ui.common.withProgressLoadingDialog
 import org.fcitx.fcitx5.android.ui.main.settings.behavior.share.QrScanOptions
 import splitties.dimensions.dp
 import org.fcitx.fcitx5.android.utils.settingsColor
+import org.fcitx.fcitx5.android.utils.applyNavBarInsetsBottomPadding
 
-class IconThemeListActivity : SettingsUiActivity() {
+class IconThemeListFragment : Fragment() {
     private companion object {
-        private const val MENU_IMPORT_JSON = 2
-        private const val MENU_IMPORT_QR_IMAGE = 3
-        private const val MENU_SHARE_ICON_THEME = 4
-        private const val MENU_IMPORT_QR_SCAN = 5
-        private const val MENU_IMPORT_ZIP = 6
         private const val QR_PREVIEW_ICON_SIZE = 96
 
         /**
@@ -98,7 +90,7 @@ class IconThemeListActivity : SettingsUiActivity() {
         if (granted) {
             cameraScanLauncher.launch(QrScanOptions.forPrompt(getString(R.string.text_keyboard_layout_qr_scan_prompt)))
         } else {
-            Toast.makeText(this, getString(R.string.text_keyboard_layout_qr_camera_permission_denied), Toast.LENGTH_SHORT).show()
+            Toast.makeText(requireContext(), getString(R.string.text_keyboard_layout_qr_camera_permission_denied), Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -111,68 +103,37 @@ class IconThemeListActivity : SettingsUiActivity() {
         ActivityResultContracts.GetContent()
     ) { uri -> uri?.let { importIconThemeZip(it) } }
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
+    private var recycler: RecyclerView? = null
+
+    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View =
+        RecyclerView(requireContext()).apply {
+            layoutManager = GridLayoutManager(context, 1)
+            adapter = this@IconThemeListFragment.adapter
+            applyNavBarInsetsBottomPadding()
+            id = R.id.icon_theme_library_list
+            recycler = this
+        }
+
+    override fun onStart() {
+        super.onStart()
         IconThemeManager.addOnListChangeListener(onListChangeListener)
         IconThemeManager.addOnChangedListener(onThemeChangeListener)
         ThemeManager.addOnChangedListener(onKeyboardThemeChangeListener)
-        // Scanning is no longer done in the object initializer (see D6), so make sure it has
-        // been kicked off; the list listener above refreshes this screen when it completes.
         IconThemeManager.initAsync()
-
-        val root = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-
-        val toolbar = Toolbar(this).apply {
-            title = getString(R.string.icon_theme)
-            setBackgroundColor(settingsColor(com.google.android.material.R.attr.colorSurfaceContainer))
-        }
-        setSupportActionBar(toolbar)
-        supportActionBar?.setDisplayHomeAsUpEnabled(true)
-        root.addView(toolbar)
-
-        val recyclerView = RecyclerView(this).apply {
-            layoutManager = GridLayoutManager(this@IconThemeListActivity, 3)
-            adapter = this@IconThemeListActivity.adapter
-        }
-        root.addView(recyclerView, LinearLayout.LayoutParams(matchParent, 0, 1f))
-
-        setContentView(root)
-
+        refreshThemes()
     }
 
-    override fun onSupportNavigateUp(): Boolean {
-        finish()
-        return true
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
+    override fun onStop() {
         IconThemeManager.removeOnListChangeListener(onListChangeListener)
         IconThemeManager.removeOnChangedListener(onThemeChangeListener)
         ThemeManager.removeOnChangedListener(onKeyboardThemeChangeListener)
+        super.onStop()
     }
 
-    override fun onCreateOptionsMenu(menu: Menu): Boolean {
-        menu.add(Menu.NONE, MENU_IMPORT_JSON, Menu.NONE, getString(R.string.icon_theme_import_json))
-            .setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
-        menu.add(Menu.NONE, MENU_IMPORT_QR_SCAN, Menu.NONE, getString(R.string.text_keyboard_layout_qr_import_scan))
-            .setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
-        menu.add(Menu.NONE, MENU_IMPORT_QR_IMAGE, Menu.NONE, getString(R.string.icon_theme_import_qr_image))
-            .setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
-        menu.add(Menu.NONE, MENU_IMPORT_ZIP, Menu.NONE, getString(R.string.icon_theme_import_zip))
-            .setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
-        menu.add(Menu.NONE, MENU_SHARE_ICON_THEME, Menu.NONE, getString(R.string.icon_theme_share_title))
-            .setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
-        return true
-    }
-
-    override fun onOptionsItemSelected(item: MenuItem): Boolean = when (item.itemId) {
-        MENU_IMPORT_JSON -> { jsonImportLauncher.launch("application/json"); true }
-        MENU_IMPORT_QR_SCAN -> { startCameraScanImport(); true }
-        MENU_IMPORT_QR_IMAGE -> { qrImageImportLauncher.launch("image/*"); true }
-        MENU_IMPORT_ZIP -> { zipImportLauncher.launch("application/zip"); true }
-        MENU_SHARE_ICON_THEME -> { promptShareTheme(); true }
-        else -> super.onOptionsItemSelected(item)
+    override fun onDestroyView() {
+        recycler?.adapter = null
+        recycler = null
+        super.onDestroyView()
     }
 
     /**
@@ -183,10 +144,10 @@ class IconThemeListActivity : SettingsUiActivity() {
      * document, so anything larger is not one.
      */
     private fun importJson(uri: Uri) {
-        lifecycleScope.launch {
+        viewLifecycleOwner.lifecycleScope.launch {
             val theme = withContext(Dispatchers.IO) {
                 runCatching {
-                    val json = contentResolver.openInputStream(uri)?.use { input ->
+                    val json = requireContext().contentResolver.openInputStream(uri)?.use { input ->
                         val limited = ByteArray(MAX_IMPORT_JSON_BYTES + 1)
                         var read = 0
                         while (read < limited.size) {
@@ -203,21 +164,21 @@ class IconThemeListActivity : SettingsUiActivity() {
                 }
             }
             theme.onSuccess {
-                Toast.makeText(this@IconThemeListActivity,
+                Toast.makeText(requireContext(),
                     getString(R.string.icon_theme_imported, it.name), Toast.LENGTH_SHORT).show()
                 refreshThemes()
             }.onFailure {
-                Toast.makeText(this@IconThemeListActivity,
+                Toast.makeText(requireContext(),
                     getString(R.string.icon_theme_import_json_failed), Toast.LENGTH_SHORT).show()
             }
         }
     }
 
     private fun importFromQrImage(uri: Uri) {
-        lifecycleScope.withProgressLoadingDialog(this) { updateProgress ->
+        viewLifecycleOwner.lifecycleScope.withProgressLoadingDialog(requireContext()) { updateProgress ->
             val chunks = try {
                 withContext(Dispatchers.Default) {
-                    JsonFileQrShareManager.decodeQrChunksFromImage(this@IconThemeListActivity, uri) { current, total ->
+                    JsonFileQrShareManager.decodeQrChunksFromImage(requireContext(), uri) { current, total ->
                         updateProgress(getString(R.string.qr_image_decode_progress, current, total))
                     }
                 }
@@ -225,7 +186,7 @@ class IconThemeListActivity : SettingsUiActivity() {
                 throw e
             } catch (_: Exception) {
                 Toast.makeText(
-                    this@IconThemeListActivity,
+                    requireContext(),
                     getString(R.string.icon_theme_decode_qr_failed),
                     Toast.LENGTH_SHORT
                 ).show()
@@ -233,7 +194,7 @@ class IconThemeListActivity : SettingsUiActivity() {
             }
             if (chunks.isEmpty()) {
                 Toast.makeText(
-                    this@IconThemeListActivity,
+                    requireContext(),
                     getString(R.string.icon_theme_no_qr_found),
                     Toast.LENGTH_SHORT
                 ).show()
@@ -245,20 +206,20 @@ class IconThemeListActivity : SettingsUiActivity() {
             } catch (e: CancellationException) {
                 throw e
             } catch (_: Exception) {
-                Toast.makeText(this@IconThemeListActivity,
+                Toast.makeText(requireContext(),
                     getString(R.string.icon_theme_decode_qr_failed), Toast.LENGTH_SHORT).show()
             }
         }
     }
 
     private fun showImportedTheme(theme: IconTheme) {
-        if (isFinishing || isDestroyed) return
-        Toast.makeText(this, getString(R.string.icon_theme_imported, theme.name), Toast.LENGTH_SHORT).show()
+        if (!isAdded || activity?.isFinishing == true || activity?.isDestroyed == true) return
+        Toast.makeText(requireContext(), getString(R.string.icon_theme_imported, theme.name), Toast.LENGTH_SHORT).show()
         refreshThemes()
     }
 
     private fun startCameraScanImport() {
-        val granted = ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) ==
+        val granted = ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.CAMERA) ==
             PackageManager.PERMISSION_GRANTED
         if (granted) {
             cameraScanLauncher.launch(QrScanOptions.forPrompt(getString(R.string.text_keyboard_layout_qr_scan_prompt)))
@@ -268,21 +229,21 @@ class IconThemeListActivity : SettingsUiActivity() {
     }
 
     private fun addImportedChunkFromText(raw: String) {
-        lifecycleScope.withProgressLoadingDialog(this) {
+        viewLifecycleOwner.lifecycleScope.withProgressLoadingDialog(requireContext()) {
             val result = try {
                 qrImporter.addScan(raw)
             } catch (e: CancellationException) {
                 throw e
             } catch (_: Exception) {
-                Toast.makeText(this@IconThemeListActivity,
+                Toast.makeText(requireContext(),
                     getString(R.string.icon_theme_decode_qr_failed), Toast.LENGTH_SHORT).show()
                 return@withProgressLoadingDialog
             }
-            if (isFinishing || isDestroyed) return@withProgressLoadingDialog
+            if (!isAdded || activity?.isFinishing == true || activity?.isDestroyed == true) return@withProgressLoadingDialog
             when (result) {
-                IconThemeQrImporter.ScanResult.Invalid -> Toast.makeText(this@IconThemeListActivity,
+                IconThemeQrImporter.ScanResult.Invalid -> Toast.makeText(requireContext(),
                     getString(R.string.text_keyboard_layout_qr_invalid_payload), Toast.LENGTH_SHORT).show()
-                is IconThemeQrImporter.ScanResult.WrongType -> Toast.makeText(this@IconThemeListActivity,
+                is IconThemeQrImporter.ScanResult.WrongType -> Toast.makeText(requireContext(),
                     getString(R.string.text_keyboard_layout_qr_type_mismatch,
                         getString(R.string.qr_payload_type_icon_theme), when (result.type) {
                             LayoutQrTransferCodec.TRANSFER_TYPE_THEME -> getString(R.string.qr_payload_type_theme)
@@ -292,9 +253,9 @@ class IconThemeListActivity : SettingsUiActivity() {
                         }), Toast.LENGTH_SHORT).show()
                 is IconThemeQrImporter.ScanResult.Progress -> {
                     val progress = result.progress
-                    if (progress.duplicate) Toast.makeText(this@IconThemeListActivity,
+                    if (progress.duplicate) Toast.makeText(requireContext(),
                         getString(R.string.text_keyboard_layout_qr_duplicate_chunk), Toast.LENGTH_SHORT).show()
-                    Toast.makeText(this@IconThemeListActivity,
+                    Toast.makeText(requireContext(),
                         getString(R.string.text_keyboard_layout_qr_scan_progress, progress.current, progress.total),
                         Toast.LENGTH_SHORT).show()
                     if (result.theme != null) showImportedTheme(result.theme)
@@ -309,83 +270,71 @@ class IconThemeListActivity : SettingsUiActivity() {
     }
 
     private inner class ThemeAdapter : RecyclerView.Adapter<ThemeAdapter.VH>() {
-        private val NEW_ITEM = 0
-        private val THEME_OFFSET = 1
+        override fun getItemCount() = themes.size
 
-        override fun getItemCount() = themes.size + THEME_OFFSET
-
-        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
-            return VH(ThemeThumbnailUi(parent.context, this@IconThemeListActivity))
-        }
+        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int) =
+            VH(ThemeThumbnailUi(parent.context))
 
         override fun onBindViewHolder(holder: VH, position: Int) {
-            when (position) {
-                NEW_ITEM -> holder.ui.bindNew()
-                else -> {
-                    val theme = themes[position - THEME_OFFSET]
-                    val isActive = theme.name == IconThemeManager.activeTheme.name
-                    val isDefault = theme.name == builtinDefault.name
-                    holder.ui.bind(theme, isActive, isDefault)
-                    holder.ui.setEditAction(
-                        visible = !isDefault,
-                        onClick = {
-                            startActivity(
-                                Intent(this@IconThemeListActivity, IconThemeEditorActivity::class.java)
-                                    .putExtra("icon_theme_name", theme.name)
-                            )
-                        }
-                    )
-                }
+            val theme = themes[position]
+            val isDefault = theme.name == builtinDefault.name
+            holder.ui.bind(theme, theme.name == IconThemeManager.activeTheme.name, isDefault)
+            holder.ui.setEditAction(visible = !isDefault) {
+                startActivity(Intent(requireContext(), IconThemeEditorActivity::class.java)
+                    .putExtra("icon_theme_name", theme.name))
             }
             holder.ui.root.setOnClickListener {
-                when (position) {
-                    NEW_ITEM -> showCreateThemeMenu()
-                    else -> {
-                        val theme = themes[position - THEME_OFFSET]
-                        IconThemeManager.selectTheme(theme)
-                        refreshThemes()
-                    }
+                val current = holder.bindingAdapterPosition
+                if (current != RecyclerView.NO_POSITION) {
+                    themes.getOrNull(current)?.let(IconThemeManager::selectTheme)
                 }
             }
-            holder.ui.root.setOnLongClickListener(null)
         }
 
         inner class VH(val ui: ThemeThumbnailUi) : RecyclerView.ViewHolder(ui.root)
     }
 
-    private fun showCreateThemeMenu() {
+    internal fun showCreateThemeMenu() {
         val actions = arrayOf(
             getString(R.string.new_icon_theme),
-            getString(R.string.icon_theme_duplicate)
+            getString(R.string.icon_theme_duplicate),
+            getString(R.string.icon_theme_import_json),
+            getString(R.string.text_keyboard_layout_qr_import_scan),
+            getString(R.string.icon_theme_import_qr_image),
+            getString(R.string.icon_theme_import_zip),
+            getString(R.string.icon_theme_share_title)
         )
-        MaterialAlertDialogBuilder(this)
+        MaterialAlertDialogBuilder(requireContext())
             .setTitle(getString(R.string.icon_theme_new))
             .setItems(actions) { _, which ->
                 when (which) {
-                    0 -> startActivity(Intent(this, IconThemeEditorActivity::class.java))
+                    0 -> startActivity(Intent(requireContext(), IconThemeEditorActivity::class.java))
                     1 -> promptDuplicateTheme()
+                    2 -> jsonImportLauncher.launch("application/json")
+                    3 -> startCameraScanImport()
+                    4 -> qrImageImportLauncher.launch("image/*")
+                    5 -> zipImportLauncher.launch("application/zip")
+                    6 -> promptShareTheme()
                 }
             }
             .show()
     }
 
     private fun promptDuplicateTheme() {
-        val customThemes = themes.drop(1)
-        if (customThemes.isEmpty()) {
-            Toast.makeText(this, getString(R.string.icon_theme_no_custom_theme), Toast.LENGTH_SHORT).show()
-            return
-        }
-        val names = customThemes.map { it.name }.toTypedArray()
-        MaterialAlertDialogBuilder(this)
+        val customThemes = themes
+        val names = customThemes.map {
+            if (it.name == builtinDefault.name) getString(R.string.default_) else it.name
+        }.toTypedArray()
+        MaterialAlertDialogBuilder(requireContext())
             .setTitle(getString(R.string.icon_theme_duplicate))
             .setItems(names) { _, which ->
                 val source = customThemes[which]
                 val duplicated = source.copy(name = generateCopyName(source.name))
                 IconThemeManager.saveTheme(duplicated)
                 refreshThemes()
-                Toast.makeText(this, getString(R.string.icon_theme_duplicated), Toast.LENGTH_SHORT).show()
+                Toast.makeText(requireContext(), getString(R.string.icon_theme_duplicated), Toast.LENGTH_SHORT).show()
                 startActivity(
-                    Intent(this, IconThemeEditorActivity::class.java)
+                    Intent(requireContext(), IconThemeEditorActivity::class.java)
                         .putExtra("icon_theme_name", duplicated.name)
                 )
             }
@@ -395,11 +344,11 @@ class IconThemeListActivity : SettingsUiActivity() {
     private fun promptShareTheme() {
         val customThemes = themes.drop(1)
         if (customThemes.isEmpty()) {
-            Toast.makeText(this, getString(R.string.icon_theme_no_custom_theme), Toast.LENGTH_SHORT).show()
+            Toast.makeText(requireContext(), getString(R.string.icon_theme_no_custom_theme), Toast.LENGTH_SHORT).show()
             return
         }
         val names = customThemes.map { it.name }.toTypedArray()
-        MaterialAlertDialogBuilder(this)
+        MaterialAlertDialogBuilder(requireContext())
             .setTitle(getString(R.string.icon_theme_share_title))
             .setItems(names) { _, which ->
                 val theme = customThemes[which]
@@ -414,16 +363,16 @@ class IconThemeListActivity : SettingsUiActivity() {
     }
 
     private fun shareThemeAsZip(theme: IconTheme) {
-        lifecycleScope.launch {
+        viewLifecycleOwner.lifecycleScope.launch {
             try {
                 val uri = withContext(Dispatchers.Default) {
-                    val dir = java.io.File(cacheDir, "shared").also { it.mkdirs() }
+                    val dir = java.io.File(requireContext().cacheDir, "shared").also { it.mkdirs() }
                     val zipFile = java.io.File(dir, "icon_theme_${theme.name.replace(Regex("[/\\\\:*?\"<>|]"), "_")}.zip")
                     java.io.FileOutputStream(zipFile).use { out ->
                         IconThemeManager.exportThemeToZip(theme, out).getOrThrow()
                     }
                     androidx.core.content.FileProvider.getUriForFile(
-                        this@IconThemeListActivity,
+                        requireContext(),
                         "${BuildConfig.APPLICATION_ID}.share.fileprovider",
                         zipFile
                     )
@@ -435,21 +384,21 @@ class IconThemeListActivity : SettingsUiActivity() {
                 }
                 startActivity(Intent.createChooser(intent, getString(R.string.icon_theme_share_title)))
             } catch (e: Exception) {
-                Toast.makeText(this@IconThemeListActivity,
+                Toast.makeText(requireContext(),
                     getString(R.string.icon_theme_export_zip_failed, e.message ?: ""), Toast.LENGTH_SHORT).show()
             }
         }
     }
 
     private fun importIconThemeZip(uri: Uri) {
-        lifecycleScope.launch {
+        viewLifecycleOwner.lifecycleScope.launch {
             try {
                 val theme = withContext(Dispatchers.IO) {
-                    contentResolver.openInputStream(uri)?.use { input ->
+                    requireContext().contentResolver.openInputStream(uri)?.use { input ->
                         IconThemeManager.importThemeFromZip(input).getOrThrow()
                     } ?: throw IllegalStateException("Cannot open ZIP")
                 }
-                Toast.makeText(this@IconThemeListActivity,
+                Toast.makeText(requireContext(),
                     getString(R.string.icon_theme_imported, theme.name), Toast.LENGTH_SHORT).show()
                 refreshThemes()
             } catch (e: CancellationException) {
@@ -457,7 +406,7 @@ class IconThemeListActivity : SettingsUiActivity() {
             } catch (t: Throwable) {
                 // Throwable, not Exception: a malformed archive could previously surface as an
                 // OutOfMemoryError, which is an Error and escaped as a process crash (see A6).
-                Toast.makeText(this@IconThemeListActivity,
+                Toast.makeText(requireContext(),
                     getString(R.string.icon_theme_import_zip_failed, t.message ?: ""), Toast.LENGTH_SHORT).show()
             }
         }
@@ -476,7 +425,7 @@ class IconThemeListActivity : SettingsUiActivity() {
     }
 
     private fun exportAsQrLongImage(theme: IconTheme) {
-        lifecycleScope.launch {
+        viewLifecycleOwner.lifecycleScope.launch {
             try {
                 val bundle = withContext(Dispatchers.Default) { IconThemeQrTransferCodec.encodeIconThemeToChunks(theme) }
                 val labels = JsonFileQrShareManager.buildChunkLabels(bundle, getString(R.string.qr_payload_type_icon_theme), theme.name)
@@ -495,7 +444,7 @@ class IconThemeListActivity : SettingsUiActivity() {
                 // saveLongImageToShareCache now suspends (PNG encode is on IO) and sanitizes
                 // the prefix itself, so a theme name with path characters is safe here.
                 val uri = JsonFileQrShareManager.saveLongImageToShareCache(
-                    this@IconThemeListActivity, image, "icon_theme_${theme.name}")
+                    requireContext(), image, "icon_theme_${theme.name}")
                 if (!image.isRecycled) image.recycle()
                 val intent = Intent(Intent.ACTION_SEND).apply {
                     type = "image/png"
@@ -504,7 +453,7 @@ class IconThemeListActivity : SettingsUiActivity() {
                 }
                 startActivity(Intent.createChooser(intent, getString(R.string.icon_theme_share_title)))
             } catch (e: Exception) {
-                Toast.makeText(this@IconThemeListActivity,
+                Toast.makeText(requireContext(),
                     getString(R.string.icon_theme_export_qr_failed, e.message ?: ""), Toast.LENGTH_SHORT).show()
             }
         }
@@ -518,28 +467,49 @@ class IconThemeListActivity : SettingsUiActivity() {
         return "$base $i"
     }
 
-    private val matchParent = ViewGroup.LayoutParams.MATCH_PARENT
 }
 
-class ThemeThumbnailUi(private val context: android.content.Context, private val activity: IconThemeListActivity) {
+class ThemeThumbnailUi(private val context: android.content.Context) {
     val root: FrameLayout = FrameLayout(context).apply {
         setPadding(context.dp(6), context.dp(6), context.dp(6), context.dp(6))
+        layoutParams = RecyclerView.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
         minimumHeight = context.dp(88)
     }
 
     private val content = LinearLayout(context).apply {
         orientation = LinearLayout.VERTICAL
         gravity = Gravity.CENTER
-        setPadding(context.dp(8), context.dp(12), context.dp(8), context.dp(12))
+        setPadding(context.dp(5), context.dp(22), context.dp(5), context.dp(10))
         layoutParams = FrameLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT,
-            ViewGroup.LayoutParams.MATCH_PARENT
+            ViewGroup.LayoutParams.WRAP_CONTENT
         )
     }
 
-    private val previewIcon = ImageView(context).apply {
-        layoutParams = LinearLayout.LayoutParams(context.dp(36), context.dp(36))
-        scaleType = ImageView.ScaleType.FIT_CENTER
+    private val previewSlots = listOf(
+        "keys.capslock.none" to R.drawable.ic_capslock_none,
+        "keys.backspace" to R.drawable.ic_baseline_backspace_24,
+        "keys.language" to R.drawable.ic_baseline_language_24,
+        "keys.return.default" to R.drawable.ic_baseline_keyboard_return_24
+    )
+    private val previews = previewSlots.map {
+        ImageView(context).apply {
+            scaleType = ImageView.ScaleType.FIT_CENTER
+            setPadding(context.dp(3), context.dp(3), context.dp(3), context.dp(3))
+            background = GradientDrawable().apply {
+                cornerRadius = context.dp(5).toFloat()
+                setColor(context.settingsColor(com.google.android.material.R.attr.colorSurfaceContainer))
+            }
+        }
+    }
+    private val previewRow = LinearLayout(context).apply {
+        orientation = LinearLayout.HORIZONTAL
+        gravity = Gravity.CENTER
+        previews.forEachIndexed { index, view ->
+            addView(view, LinearLayout.LayoutParams(0, context.dp(25), 1f).apply {
+                if (index > 0) marginStart = context.dp(2)
+            })
+        }
     }
 
     private val nameText = TextView(context).apply {
@@ -563,18 +533,18 @@ class ThemeThumbnailUi(private val context: android.content.Context, private val
         scaleType = ImageView.ScaleType.FIT_CENTER
         setImageResource(R.drawable.ic_baseline_edit_24)
         imageTintList = ColorStateList.valueOf(context.settingsColor(android.R.attr.textColorSecondary))
-        contentDescription = activity.getString(R.string.edit_icon_theme)
+        contentDescription = context.getString(R.string.edit_icon_theme)
     }
 
     private val checkMark = ImageView(context).apply {
-        layoutParams = FrameLayout.LayoutParams(context.dp(52), context.dp(52), Gravity.CENTER)
+        layoutParams = FrameLayout.LayoutParams(context.dp(22), context.dp(22), Gravity.TOP or Gravity.START)
         scaleType = ImageView.ScaleType.FIT_CENTER
-        setImageResource(R.drawable.ic_baseline_check_24)
+        setImageResource(R.drawable.ic_baseline_check_circle_24)
         visibility = android.view.View.GONE
     }
 
     init {
-        content.addView(previewIcon)
+        content.addView(previewRow, LinearLayout.LayoutParams(-1, -2))
         content.addView(nameText)
         content.addView(activeIndicator)
         root.addView(content)
@@ -587,49 +557,36 @@ class ThemeThumbnailUi(private val context: android.content.Context, private val
         val background = GradientDrawable().apply {
             shape = GradientDrawable.RECTANGLE
             cornerRadius = context.dp(12f)
-            if (isActive) {
-                setColor((0x22 shl 24) or (accent and 0x00FFFFFF))
-            } else {
-                setColor(0x00000000)
-            }
+            setColor(context.settingsColor(com.google.android.material.R.attr.colorSurfaceBright))
+            setStroke(context.dp(if (isActive) 2 else 1), if (isActive) accent
+                else context.settingsColor(com.google.android.material.R.attr.colorOutlineVariant))
         }
         content.background = background
         checkMark.visibility = if (isActive) android.view.View.VISIBLE else android.view.View.GONE
         checkMark.imageTintList = ColorStateList.valueOf(accent)
     }
 
-    fun bindNew() {
-        val accent = context.settingsColor(android.R.attr.colorAccent)
-        previewIcon.setImageResource(android.R.drawable.ic_input_add)
-        previewIcon.imageTintList = android.content.res.ColorStateList.valueOf(accent)
-        nameText.text = activity.getString(R.string.icon_theme_new)
-        nameText.setTextColor(accent)
-        activeIndicator.visibility = android.view.View.GONE
-        applySelectionBackground(isActive = false)
-        setEditAction(visible = false, onClick = null)
-    }
-
     fun bind(theme: IconTheme, isActive: Boolean, isDefault: Boolean) {
         val accent = context.settingsColor(android.R.attr.colorAccent)
         val primary = context.settingsColor(android.R.attr.textColorPrimary)
-        val thumbnailSvg = theme.thumbnailSvg
-            ?.takeIf { it.isNotBlank() }
-            ?: IconThemeManager.buildThemeThumbnailSvg(theme.icons)
-        val thumbnailDrawable = thumbnailSvg
-            ?.let { SlotRowUi.renderSvgPreview(context, it, 36) }
-        if (thumbnailDrawable != null) {
-            previewIcon.setImageDrawable(thumbnailDrawable)
-            previewIcon.imageTintList = ColorStateList.valueOf(if (isActive) accent else primary)
-        } else {
-            val fallback = AppCompatResources.getDrawable(context, R.drawable.ic_icon_theme_24)?.mutate()
-            val fallbackSize = context.dp(36)
-            fallback?.setBounds(0, 0, fallbackSize, fallbackSize)
-            previewIcon.setImageDrawable(fallback)
-            previewIcon.imageTintList = android.content.res.ColorStateList.valueOf(
-                if (isActive) accent else primary
-            )
+        previews.forEachIndexed { index, preview ->
+            val (slot, fallback) = previewSlots[index]
+            val value = theme.icons[slot]
+            val drawable = when {
+                ButtonIconFile.isFileIcon(value) -> value?.let(ButtonIconFile::loadDrawable)
+                value != null -> SlotRowUi.renderSvgPreview(context, value, 24)
+                else -> null
+            }
+            if (drawable != null) {
+                preview.setImageDrawable(drawable)
+                preview.imageTintList = if (ButtonIconFile.isFileIcon(value) && value != null &&
+                    ButtonIconFile.shouldTintIcon(value)) ColorStateList.valueOf(primary) else null
+            } else {
+                preview.setImageResource(fallback)
+                preview.imageTintList = ColorStateList.valueOf(primary)
+            }
         }
-        nameText.text = if (isDefault) activity.getString(R.string.default_) else theme.name
+        nameText.text = if (isDefault) context.getString(R.string.default_) else theme.name
         nameText.setTextColor(if (isActive) accent else primary)
         activeIndicator.visibility = android.view.View.GONE
         applySelectionBackground(isActive)

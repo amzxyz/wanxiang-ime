@@ -31,6 +31,17 @@ class ThemeSerializationTest {
     }
 
     @Test
+    fun functionalKeyPaletteRoundTrips() {
+        val custom = ThemePreset.Watercolor.deriveCustomNoBackground("palette")
+        val (decoded, migrated) = custom.toJson().toCustomTheme()
+        Assert.assertFalse(migrated)
+        Assert.assertEquals(custom, decoded)
+        Assert.assertEquals(0xfff5dfe4.toInt(),
+            decoded.keyRoleColors["role.delete.altKeyBackgroundColor"])
+        Assert.assertTrue(ThemePreset.MaterialDark.deriveCustomNoBackground("dark").keyRoleColors.isEmpty())
+    }
+
+    @Test
     fun version1() {
         // Version 1.0, outdated
         val raw = """
