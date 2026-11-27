@@ -214,6 +214,10 @@ abstract class BaseKeyboard(
         }
     }
 
+    // Last resolved, unmodified first row (before split-key duplication).
+    internal var firstRowKeyDefs: List<KeyDef> = emptyList()
+        private set
+
     private val keyLayout: List<List<KeyDef>>
         get() = layoutProvider(currentLayoutVariant)
     private val auxBarConfig: AuxBarConfig?
@@ -670,6 +674,7 @@ abstract class BaseKeyboard(
         currentLayoutVariant = layoutVariantOverride ?: LayoutVariant.of(splitKeyboard)
         val splitLayout = currentLayoutVariant.isSplit
         val rows = keyLayout
+        firstRowKeyDefs = rows.firstOrNull().orEmpty()
         val auxBarConfig = auxBarConfig
         val splitKeyAreaScale = auxBarConfig?.resolveKeyAreaScale(currentLayoutVariant, splitGapPercent()) ?: 1f
         // 分体时对奇数字符行复制中间键，让左右两半对称可触达（见 splitRowsForLayout）。

@@ -1123,8 +1123,12 @@ class KawaiiBarComponent : UniqueViewComponent<KawaiiBarComponent, FrameLayout>(
         _idleUi?.buttonsUi?.updateButtonsState(service)
     }
 
-    fun onKeyboardLayoutSwitched(isNumber: Boolean) {
+    fun onKeyboardLayoutSwitched(
+        isNumber: Boolean,
+        firstRow: List<org.fcitx.fcitx5.android.input.keyboard.KeyDef> = emptyList()
+    ) {
         isKeyboardLayoutNumber = isNumber
+        if (!isNumber) idleUi.numberRow.setSourceRow(firstRow)
         evalIdleUiState()
     }
 

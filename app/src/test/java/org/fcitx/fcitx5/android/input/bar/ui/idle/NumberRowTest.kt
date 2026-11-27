@@ -11,6 +11,61 @@ import org.junit.Test
 class NumberRowTest {
 
     @Test
+    fun inheritsFirstRowStyleWithoutCopyingActions() {
+        val source = (0..9).map { index ->
+            KeyDef(
+                KeyDef.Appearance.Text(
+                    displayText = "letter",
+                    textSize = 19f + index,
+                    textStyle = android.graphics.Typeface.BOLD,
+                    variant = KeyDef.Appearance.Variant.Alternative,
+                    border = KeyDef.Appearance.Border.On,
+                    margin = true,
+                    viewId = 123,
+                    textColor = index,
+                    backgroundColorMonet = "accent1_100",
+                    shadowColor = 1234
+                ),
+                emptySet()
+            )
+        }
+        val digits = NumberRow.layoutFrom(source).single()
+        assertEquals("1234567890", digits.joinToString("") {
+            (it.appearance as KeyDef.Appearance.ToolbarText).displayText
+        })
+        digits.forEachIndexed { index, key ->
+            val style = key.appearance as KeyDef.Appearance.ToolbarText
+            assertEquals(19f + index, style.textSize, 0f)
+            assertEquals(android.graphics.Typeface.BOLD, style.textStyle)
+            assertEquals(KeyDef.Appearance.Variant.Alternative, style.variant)
+            assertEquals(KeyDef.Appearance.Border.On, style.border)
+            assertEquals(true, style.margin)
+            assertEquals(index, style.textColor)
+            assertEquals("accent1_100", style.backgroundColorMonet)
+            assertEquals(1234, style.shadowColor)
+            assertEquals(-1, style.viewId)
+            assertEquals(0.1f, style.percentWidth, 0f)
+            assertEquals(1, key.behaviors.size)
+            assertEquals(true, key.behaviors.single() is KeyDef.Behavior.Press)
+        }
+    }
+
+    @Test
+    fun nonTenKeyRowUsesNormalTextStyleForAllDigits() {
+        val source = listOf(
+            KeyDef(KeyDef.Appearance.Text("x", 18f, variant = KeyDef.Appearance.Variant.Accent), emptySet()),
+            KeyDef(KeyDef.Appearance.Text("y", 22f), emptySet())
+        )
+        val digits = NumberRow.layoutFrom(source).single()
+        assertEquals(10, digits.size)
+        digits.forEach {
+            val style = it.appearance as KeyDef.Appearance.ToolbarText
+            assertEquals(KeyDef.Appearance.Variant.Normal, style.variant)
+            assertEquals(22f, style.textSize, 0f)
+        }
+    }
+
+    @Test
     fun numberRowUsesToolbarRendererWithKeyFont() {
         val appearances = NumberRow.Layout
             .single()

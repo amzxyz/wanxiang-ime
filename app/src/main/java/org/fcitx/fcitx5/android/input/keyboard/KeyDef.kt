@@ -176,14 +176,28 @@ open class KeyDef(
             percentWidth: Float = 0.1f,
             variant: Variant = Variant.Normal,
             border: Border = Border.Off,
-            margin: Boolean = false
+            margin: Boolean = false,
+            textStyle: Int = Typeface.NORMAL,
+            textColor: Int? = null,
+            textColorMonet: String? = null,
+            backgroundColor: Int? = null,
+            backgroundColorMonet: String? = null,
+            shadowColor: Int? = null,
+            shadowColorMonet: String? = null
         ) : Text(
             displayText = displayText,
             textSize = textSize,
+            textStyle = textStyle,
             percentWidth = percentWidth,
             variant = variant,
             border = border,
-            margin = margin
+            margin = margin,
+            textColor = textColor,
+            textColorMonet = textColorMonet,
+            backgroundColor = backgroundColor,
+            backgroundColorMonet = backgroundColorMonet,
+            shadowColor = shadowColor,
+            shadowColorMonet = shadowColorMonet
         )
 
         class AltText(

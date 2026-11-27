@@ -216,6 +216,7 @@ class KeyboardWindow : InputWindow.SimpleInputWindow<KeyboardWindow>(KeyboardWin
         TextKeyboard.handleLayoutSourceChanged()
         keyboards.values.forEach { it.refreshStyle() }
         reapplyReturnKeyDrawable()
+        if (windowManager.isAttached(this)) notifyBarLayoutChanged()
     }
 
     /**
@@ -226,6 +227,7 @@ class KeyboardWindow : InputWindow.SimpleInputWindow<KeyboardWindow>(KeyboardWin
     fun refreshCurrentKeyboard() {
         currentKeyboard?.refreshStyle()
         reapplyReturnKeyDrawable()
+        if (windowManager.isAttached(this)) notifyBarLayoutChanged()
     }
 
     /**
@@ -433,6 +435,7 @@ class KeyboardWindow : InputWindow.SimpleInputWindow<KeyboardWindow>(KeyboardWin
                         currentKeyboard?.onInputMethodUpdate(reaffirmedIme)
                         updateCompositionState()
                     }
+                    if (windowManager.isAttached(this)) notifyBarLayoutChanged()
                     applyAuxActions(lastAuxActions)
                     if (notifyHeightChange) {
                         service.inputView?.onKeyboardHeightSourceChanged()
@@ -773,6 +776,7 @@ class KeyboardWindow : InputWindow.SimpleInputWindow<KeyboardWindow>(KeyboardWin
         // relies on currentLayoutHeightPercentOverride() seeing the updated entry.
         syncCurrentInputMethod(ime)
         currentKeyboard?.onInputMethodUpdate(ime)
+        if (windowManager.isAttached(this)) notifyBarLayoutChanged()
         val heightAfter = TextKeyboard.currentLayoutHeightPercentOverride()
         // Avoid the IME-window height update path when the resolved keyboard height did not
         // actually change. This runs on every input method/sub-mode update (e.g. pressing
@@ -858,7 +862,10 @@ class KeyboardWindow : InputWindow.SimpleInputWindow<KeyboardWindow>(KeyboardWin
     // 1) the keyboard window was newly attached
     // 2) currently keyboard window is attached and switchLayout was used
     private fun notifyBarLayoutChanged() {
-        bar.onKeyboardLayoutSwitched(numericLayoutShowing())
+        bar.onKeyboardLayoutSwitched(
+            numericLayoutShowing(),
+            currentKeyboard?.firstRowKeyDefs.orEmpty()
+        )
     }
 
     fun updateBounds() {

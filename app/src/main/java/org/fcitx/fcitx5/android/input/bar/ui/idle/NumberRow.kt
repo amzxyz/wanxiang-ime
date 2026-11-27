@@ -17,7 +17,27 @@ import timber.log.Timber
 import kotlin.math.abs
 
 @SuppressLint("ViewConstructor")
-class NumberRow(ctx: Context, theme: Theme) : BaseKeyboard(ctx, theme, { Layout }, { null }) {
+class NumberRow private constructor(
+    ctx: Context,
+    theme: Theme,
+    private val rowState: RowState
+) : BaseKeyboard(ctx, theme, { rowState.layout }, { null }) {
+
+    constructor(ctx: Context, theme: Theme) : this(ctx, theme, RowState())
+
+    // BaseKeyboard builds its first rows during construction, so keep the provider state
+    // outside the subclass's initialization order.
+    private class RowState {
+        var source: List<KeyDef> = emptyList()
+        var layout: List<List<KeyDef>> = Layout
+    }
+
+    fun setSourceRow(source: List<KeyDef>) {
+        if (rowState.source == source) return
+        rowState.source = source
+        rowState.layout = layoutFrom(source)
+        refreshStyle()
+    }
 
     override fun currentLayoutSignature(): String = "NumberRow"
 
@@ -80,21 +100,41 @@ class NumberRow(ctx: Context, theme: Theme) : BaseKeyboard(ctx, theme, { Layout 
     }
 
     companion object {
-        val Layout = listOf(
-            listOf("1", "2", "3", "4", "5", "6", "7", "8", "9", "0").map { digit ->
-                KeyDef(
-                    KeyDef.Appearance.ToolbarText(
-                        displayText = digit,
-                        textSize = 21f,
-                        border = KeyDef.Appearance.Border.Off,
-                        margin = false
-                    ),
-                    setOf(
-                        KeyDef.Behavior.Press(KeyAction.SymAction(KeySym(digit.codePointAt(0))))
-                    ),
-                    arrayOf(KeyDef.Popup.Preview(digit))
-                )
-            }
-        )
+        val Layout = layoutFrom(emptyList())
+
+        // Copy appearance only: a password digit must never inherit a letter's action,
+        // macro, alternate label, icon, ID or popup. Keep ten equal-width digit targets.
+        internal fun layoutFrom(source: List<KeyDef>): List<List<KeyDef>> {
+            val styles = source.map { it.appearance }.filterIsInstance<KeyDef.Appearance.Text>()
+                .filterNot { it.staticDisplay || it.transparentBackground }
+            val commonStyle = styles.firstOrNull { it.variant == KeyDef.Appearance.Variant.Normal }
+                ?: styles.firstOrNull()
+            return listOf(
+                "1234567890".mapIndexed { index, char ->
+                    val digit = char.toString()
+                    val style = if (styles.size == 10) styles[index] else commonStyle
+                    KeyDef(
+                        KeyDef.Appearance.ToolbarText(
+                            displayText = digit,
+                            textSize = style?.textSize ?: 21f,
+                            variant = style?.variant ?: KeyDef.Appearance.Variant.Normal,
+                            border = style?.border ?: KeyDef.Appearance.Border.Off,
+                            margin = style?.margin ?: false,
+                            textStyle = style?.textStyle ?: android.graphics.Typeface.NORMAL,
+                            textColor = style?.textColor,
+                            textColorMonet = style?.textColorMonet,
+                            backgroundColor = style?.backgroundColor,
+                            backgroundColorMonet = style?.backgroundColorMonet,
+                            shadowColor = style?.shadowColor,
+                            shadowColorMonet = style?.shadowColorMonet
+                        ),
+                        setOf(
+                            KeyDef.Behavior.Press(KeyAction.SymAction(KeySym(digit.codePointAt(0))))
+                        ),
+                        arrayOf(KeyDef.Popup.Preview(digit))
+                    )
+                }
+            )
+        }
     }
 }
