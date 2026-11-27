@@ -6,7 +6,7 @@ internal object DirectRimeStatusMenu {
     const val ROOT_ID = 1
     const val SEPARATOR_ID = 9
     const val MODE_ID = 10
-    // Reserved for legacy action callers; no longer shown in the scheme menu.
+    // Reserved for legacy action callers; maintenance now lives in the expanded toolbar.
     const val DEPLOY_ID = 11
     const val SYNC_ID = 12
 
@@ -43,7 +43,6 @@ internal object DirectRimeStatusMenu {
         schemas.forEachIndexed { index, (id, name) ->
             menu += action(SCHEMA_ID_BASE + index, id, name, id == state.schema)
         }
-        menu += action(SEPARATOR_ID, "separator", separator = true)
 
         val options = buildList {
             val groups = mutableSetOf<String>()
@@ -62,7 +61,6 @@ internal object DirectRimeStatusMenu {
             }
         }
 
-        menu += action(SYNC_ID, "sync", "同步用户词典")
         val label = if (state.ascii) labels.asciiMode else state.schemaName.ifEmpty { "Rime" }
         return arrayOf(action(ROOT_ID, "rime", label, menu = menu.toTypedArray()), *options.toTypedArray())
     }

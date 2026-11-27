@@ -656,7 +656,8 @@ class IconThemeEditorActivity : SettingsUiActivity() {
         "toolbar.input_method_options" -> R.drawable.ic_baseline_language_24
         "toolbar.switch_input_method" -> R.drawable.ic_baseline_keyboard_24
         "toolbar.rime_schema_menu" -> R.drawable.ic_baseline_library_books_24
-        "toolbar.reload_config" -> R.drawable.ic_baseline_sync_24
+        "toolbar.rime_sync" -> R.drawable.ic_baseline_sync_24
+        "toolbar.reload_config" -> R.drawable.ic_log_refresh_24
         "toolbar.virtual_keyboard" -> R.drawable.ic_baseline_keyboard_24
         "toolbar.one_handed_keyboard" -> R.drawable.ic_baseline_keyboard_tab_24
         "toolbar.browse_user_data" -> R.drawable.ic_baseline_more_horiz_24

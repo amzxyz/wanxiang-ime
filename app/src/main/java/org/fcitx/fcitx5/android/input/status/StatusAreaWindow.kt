@@ -24,6 +24,7 @@ import org.fcitx.fcitx5.android.input.config.ButtonsLayoutConfig
 import org.fcitx.fcitx5.android.input.config.ConfigChangeListener
 import org.fcitx.fcitx5.android.input.config.ConfigProviders
 import org.fcitx.fcitx5.android.input.config.ConfigurableButton
+import org.fcitx.fcitx5.android.input.config.displayedStatusAreaButtons
 import org.fcitx.fcitx5.android.input.dependency.fcitx
 import org.fcitx.fcitx5.android.input.dependency.inputMethodService
 import org.fcitx.fcitx5.android.input.dependency.theme
@@ -60,9 +61,9 @@ class StatusAreaWindow : InputWindow.ExtendedInputWindow<StatusAreaWindow>(Statu
         return try {
             val snapshot = ConfigProviders.readButtonsLayoutConfig<ButtonsLayoutConfig>()
             val config = snapshot?.value ?: ButtonsLayoutConfig.default()
-            config.statusAreaButtons
+            config.displayedStatusAreaButtons()
         } catch (e: Exception) {
-            ButtonsLayoutConfig.default().statusAreaButtons
+            ButtonsLayoutConfig.default().displayedStatusAreaButtons()
         }
     }
 
@@ -79,12 +80,7 @@ class StatusAreaWindow : InputWindow.ExtendedInputWindow<StatusAreaWindow>(Statu
     }
 
     private fun staticEntries(): Array<StatusAreaEntry> {
-        val config = currentButtonsConfig
-        // Filter out input_method_options as it's always added automatically at the end
-        val configurableEntries = config
-            .filter { it.id != "input_method_options" }
-            .distinctBy { it.id }
-            .mapNotNull { button ->
+        val configurableEntries = currentButtonsConfig.mapNotNull { button ->
             // Handle custom action buttons
             if (button.macroSteps != null) {
                 val label = button.label ?: button.id
@@ -121,16 +117,7 @@ class StatusAreaWindow : InputWindow.ExtendedInputWindow<StatusAreaWindow>(Statu
             )
         }
 
-        // Always add input_method_options at the end (fixed, not configurable)
-        val inputMethodOptionsAction = ButtonAction.allActions.find { it.id == "input_method_options" }!!
-        val inputMethodOptionsEntry = StatusAreaEntry.ActionEntry(
-            inputMethodOptionsAction,
-            context.getString(inputMethodOptionsAction.defaultLabelRes),
-            inputMethodOptionsAction.defaultIcon,
-            active = false
-        )
-
-        return (configurableEntries + inputMethodOptionsEntry).toTypedArray()
+        return configurableEntries.toTypedArray()
     }
 
     private fun renderEntries(actions: Array<Action>) {

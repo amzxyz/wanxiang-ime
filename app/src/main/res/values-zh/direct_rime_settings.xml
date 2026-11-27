@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="direct_rime_chinese_mode">中文模式</string>
+    <string name="rime_sync_user_dictionary">同步用户词典</string>
     <string name="direct_rime_config_unavailable">暂时无法读取 Rime 设置，请等待初始化完成后重试。</string>
     <string name="direct_rime_restart_engine">重启输入引擎</string>
     <string name="direct_rime_restart_engine_confirm">重新启动 Rime 输入引擎？重启期间暂时无法输入。</string>

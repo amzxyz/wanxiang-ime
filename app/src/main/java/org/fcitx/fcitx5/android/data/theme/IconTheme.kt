@@ -144,6 +144,7 @@ data class IconTheme(
             "toolbar.input_method_options",
             "toolbar.switch_input_method",
             "toolbar.rime_schema_menu",
+            "toolbar.rime_sync",
             "toolbar.reload_config",
             "toolbar.virtual_keyboard",
             "toolbar.one_handed_keyboard",

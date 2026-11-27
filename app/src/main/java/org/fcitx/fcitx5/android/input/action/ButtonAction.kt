@@ -155,6 +155,7 @@ sealed class ButtonAction {
                 ThemeAction,
                 IconThemeAction,
                 InputMethodOptionsAction,
+                SyncRimeAction,
                 RedeployRimeAction,
                 VirtualKeyboardAction,
                 OneHandedKeyboardAction,
@@ -206,14 +207,12 @@ sealed class ButtonAction {
          */
         val statusAreaActions by lazy {
             listOf(
-                LanguageSwitchAction,
                 ThemeAction,
-                RandomThemeAction,
-                IconThemeAction,
-                InputMethodOptionsAction,
+                OneHandedKeyboardAction,
+                SyncRimeAction,
                 RedeployRimeAction,
-                VirtualKeyboardAction,
-                OneHandedKeyboardAction
+                LanguageSwitchAction,
+                RandomThemeAction
             )
         }
 
@@ -629,10 +628,28 @@ data object RimeSchemaMenuAction : ButtonAction() {
     }
 }
 
+data object SyncRimeAction : ButtonAction() {
+    override val id = "rime_sync"
+    override val defaultIcon = R.drawable.ic_baseline_sync_24
+    override val defaultLabelRes = R.string.rime_sync_user_dictionary
+    override val iconSlot = "toolbar.rime_sync"
+
+    override fun execute(
+        context: Context,
+        service: FcitxInputMethodService,
+        fcitx: FcitxConnection,
+        windowManager: InputWindowManager,
+        view: View?,
+        onActionComplete: (() -> Unit)?
+    ) {
+        service.requestRimeSync()
+    }
+}
+
 data object RedeployRimeAction : ButtonAction() {
     // Persisted button/macro IDs and icon slots are a user configuration contract.
     override val id = "reload_config"
-    override val defaultIcon = R.drawable.ic_baseline_sync_24
+    override val defaultIcon = R.drawable.ic_log_refresh_24
     override val defaultLabelRes = R.string.reload_config
     override val iconSlot = "toolbar.reload_config"
 

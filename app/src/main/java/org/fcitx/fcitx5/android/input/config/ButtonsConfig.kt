@@ -88,7 +88,7 @@ data class ButtonsLayoutConfig(
     /**
      * List of buttons to display in Status Area, in order.
      * Displayed in a 4-column grid layout.
-     * Note: 'input_method_options' button is always added automatically at the end and should not be in this list.
+     * Redundant legacy entries are removed when displaying this list.
      */
     @SerialName("statusAreaButtons")
     val statusAreaButtons: List<ConfigurableButton>,
@@ -107,9 +107,14 @@ data class ButtonsLayoutConfig(
      * Supports custom icon, text, and label.
      */
     @SerialName("hideKeyboardButton")
-    val hideKeyboardButton: ConfigurableButton = ConfigurableButton("hide_keyboard")
+    val hideKeyboardButton: ConfigurableButton = ConfigurableButton("hide_keyboard"),
+
+    /** Absent in older layouts, where synchronization was always in the scheme menu. */
+    val statusAreaVersion: Int = 0
 ) {
     companion object {
+        const val STATUS_AREA_VERSION = 1
+
         /**
          * Default unified button configuration.
          */
@@ -122,14 +127,13 @@ data class ButtonsLayoutConfig(
                 ConfigurableButton("clipboard"),
                 ConfigurableButton("theme_toggle")
             ),
-            // Note: input_method_options is always added automatically at the end of Status Area
             statusAreaButtons = listOf(
                 ConfigurableButton("theme"),
-                ConfigurableButton("icon_theme"),
-                ConfigurableButton("reload_config"),
-                ConfigurableButton("virtual_keyboard"),
-                ConfigurableButton("one_handed_keyboard")
-            )
+                ConfigurableButton("one_handed_keyboard"),
+                ConfigurableButton("rime_sync"),
+                ConfigurableButton("reload_config")
+            ),
+            statusAreaVersion = STATUS_AREA_VERSION
         )
     }
 }
@@ -140,6 +144,32 @@ data class ButtonsLayoutConfig(
  */
 fun ButtonsLayoutConfig.displayedKawaiiBarButtons(): List<ConfigurableButton> =
     kawaiiBarButtons.filter { it.id != "more" }
+
+/** Removed from the expanded menu, but their old action IDs remain executable by saved macros. */
+internal val retiredStatusAreaButtonIds = setOf("input_method_options", "virtual_keyboard", "icon_theme")
+
+/**
+ * Migrate the old menu on read, including layouts saved before synchronization became a button.
+ * Reorder only the former default layout; preserve custom order, labels, icons and extra buttons.
+ * The editor writes the current version, so explicitly removing synchronization stays respected.
+ */
+fun ButtonsLayoutConfig.displayedStatusAreaButtons(): List<ConfigurableButton> {
+    val buttons = statusAreaButtons.filterNot { it.id in retiredStatusAreaButtonIds }.distinctBy { it.id }
+    if (statusAreaVersion >= ButtonsLayoutConfig.STATUS_AREA_VERSION) return buttons
+
+    val hasSync = (kawaiiBarButtons + buttons).any { it.id == "rime_sync" }
+    val previousDefault = statusAreaButtons.filterNot { it.id == "input_method_options" }.map { it.id }
+    if (!hasSync && (previousDefault == listOf("theme", "icon_theme", "reload_config", "virtual_keyboard", "one_handed_keyboard") ||
+            previousDefault == listOf("theme", "reload_config", "virtual_keyboard", "one_handed_keyboard"))) {
+        val byId = buttons.associateBy { it.id }
+        return ButtonsLayoutConfig.default().statusAreaButtons.map { byId[it.id] ?: it }
+    }
+    if (hasSync) return buttons
+    val deployIndex = buttons.indexOfFirst { it.id == "reload_config" }
+    return buttons.toMutableList().apply {
+        add(if (deployIndex >= 0) deployIndex else size, ConfigurableButton("rime_sync"))
+    }
+}
 
 /**
  * Configuration for Kawaii Bar buttons layout.
@@ -195,13 +225,7 @@ data class StatusAreaButtonsConfig(
         @Deprecated("Use ButtonsLayoutConfig.default() instead")
         @Suppress("DEPRECATION")
         fun default(): StatusAreaButtonsConfig = StatusAreaButtonsConfig(
-            // Note: input_method_options is always added automatically at the end of Status Area
-            buttons = listOf(
-                ConfigurableButton("theme"),
-                ConfigurableButton("reload_config"),
-                ConfigurableButton("virtual_keyboard"),
-                ConfigurableButton("one_handed_keyboard")
-            )
+            buttons = ButtonsLayoutConfig.default().statusAreaButtons
         )
     }
 }

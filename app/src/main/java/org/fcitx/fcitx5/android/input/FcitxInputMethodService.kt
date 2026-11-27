@@ -574,20 +574,28 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
 
     fun postFcitxJob(block: suspend FcitxAPI.() -> Unit): Job = postFcitxJob("operation", block = block)
 
-    private var redeployJob: Job? = null
+    private val rimeMaintenanceJobs = mutableMapOf<String, Job>()
 
-    /** All keyboard deployment buttons share the ordered input queue and one pending request. */
+    internal fun requestRimeRedeploy() = requestRimeMaintenance("rime-redeploy", R.string.done) {
+        redeployRime()
+    }
+
+    internal fun requestRimeSync() = requestRimeMaintenance("rime-sync", R.string.synced) {
+        setAddonSubConfig("rime", "sync", org.fcitx.fcitx5.android.core.RawConfig())
+    }
+
+    /** Serialize maintenance with input and coalesce repeated requests of the same kind. */
     @Synchronized
-    internal fun requestRimeRedeploy() {
+    private fun requestRimeMaintenance(category: String, successMessage: Int, operation: suspend FcitxAPI.() -> Unit) {
         // Lazy queued jobs are not active yet, so isActive is not a sufficient guard.
-        if (redeployJob?.isCompleted == false) return
-        redeployJob = postFcitxJob("rime-redeploy") {
+        if (rimeMaintenanceJobs[category]?.isCompleted == false) return
+        rimeMaintenanceJobs[category] = postFcitxJob(category) {
             try {
-                redeployRime()
+                operation()
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (failure: Exception) {
-                Timber.w(failure, "Rime redeployment failed")
+                Timber.w(failure, "Rime maintenance failed: $category")
                 withContext(Dispatchers.Main.immediate) {
                     android.widget.Toast.makeText(this@FcitxInputMethodService,
                         failure.message ?: getString(R.string.unknown_error),
@@ -597,7 +605,7 @@ class FcitxInputMethodService : LifecycleInputMethodService() {
             }
             withContext(Dispatchers.Main.immediate) {
                 android.widget.Toast.makeText(this@FcitxInputMethodService,
-                    R.string.done, android.widget.Toast.LENGTH_SHORT).show()
+                    successMessage, android.widget.Toast.LENGTH_SHORT).show()
             }
         }
     }

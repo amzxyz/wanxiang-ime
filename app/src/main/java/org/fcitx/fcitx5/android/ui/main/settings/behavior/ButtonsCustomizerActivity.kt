@@ -51,6 +51,8 @@ import org.fcitx.fcitx5.android.input.config.ConfigProviders
 import org.fcitx.fcitx5.android.input.config.ConfigProvider
 import org.fcitx.fcitx5.android.input.config.ConfigurableButton
 import org.fcitx.fcitx5.android.input.config.displayedKawaiiBarButtons
+import org.fcitx.fcitx5.android.input.config.displayedStatusAreaButtons
+import org.fcitx.fcitx5.android.input.config.retiredStatusAreaButtonIds
 import org.fcitx.fcitx5.android.input.keyboard.KeyRef
 import org.fcitx.fcitx5.android.input.keyboard.MacroStep
 import org.fcitx.fcitx5.android.input.voice.js.JsAppButtonBinding
@@ -168,16 +170,15 @@ class ButtonsCustomizerActivity : SettingsUiActivity() {
     private var touchHelper: ItemTouchHelper? = null
 
     // Share the runtime catalog so new actions appear in both settings add controls.
-    // input_method_options remains fixed at the end of Status Area.
     private val availableButtons = ButtonAction.allConfigurableActions
-        .filterNot { it.id == "input_method_options" }
         .map { ButtonDefinition(it.id, it.defaultIcon, it.defaultLabelRes) }
 
     /**
      * Set of built-in button IDs that cannot be deleted or have custom labels.
      * These are the core buttons that are always available in the app.
      */
-    private val builtInButtonIds = (availableButtons.map { it.id } + listOf("toolbar_toggle", "hide_keyboard")).toSet()
+    private val builtInButtonIds = (availableButtons.map { it.id } + retiredStatusAreaButtonIds +
+        listOf("toolbar_toggle", "hide_keyboard")).toSet()
 
     data class ButtonDefinition(
         val id: String,
@@ -1080,7 +1081,7 @@ class ButtonsCustomizerActivity : SettingsUiActivity() {
 
                 val newId = idInput?.text?.toString()?.trim()?.takeIf { it.isNotEmpty() } ?: button.id
                 // Validate ID
-                val reservedIds = setOf("more", "input_method_options")
+                val reservedIds = setOf("more") + retiredStatusAreaButtonIds
                 if (newId.isEmpty()) {
                     Toast.makeText(this@ButtonsCustomizerActivity, R.string.edit_button_id_empty, Toast.LENGTH_SHORT).show()
                     return@setPositiveButton
@@ -1126,7 +1127,8 @@ class ButtonsCustomizerActivity : SettingsUiActivity() {
             toolbarToggleButton = systemItems.find { it.button.id == "toolbar_toggle" }?.button
                 ?: toolbarToggleConfig,
             hideKeyboardButton = systemItems.find { it.button.id == "hide_keyboard" }?.button
-                ?: hideKeyboardConfig
+                ?: hideKeyboardConfig,
+            statusAreaVersion = ButtonsLayoutConfig.STATUS_AREA_VERSION
         )
     }
 
@@ -1143,8 +1145,7 @@ class ButtonsCustomizerActivity : SettingsUiActivity() {
         kawaiiBarButtons.forEach { items.add(ListItem.ButtonItem(it, Section.KawaiiBar)) }
         items.add(ListItem.AddButtonPlaceholder)
         items.add(ListItem.SectionHeader(Section.StatusArea))
-        config.statusAreaButtons
-            .filter { it.id != "input_method_options" }
+        config.displayedStatusAreaButtons()
             .forEach { items.add(ListItem.ButtonItem(it, Section.StatusArea)) }
         items.add(ListItem.StatusAreaAddButtonPlaceholder)
         updateAddButtonsSection()
@@ -1199,7 +1200,8 @@ class ButtonsCustomizerActivity : SettingsUiActivity() {
                     .distinctBy { it.id }
                     .map { it.normalizedIcon() },
                 toolbarToggleButton = toolbarToggleButton.normalizedIcon(),
-                hideKeyboardButton = hideKeyboardButton.normalizedIcon()
+                hideKeyboardButton = hideKeyboardButton.normalizedIcon(),
+                statusAreaVersion = ButtonsLayoutConfig.STATUS_AREA_VERSION
             )
 
             val jsonContent = prettyJson.encodeToString(config) + "\n"

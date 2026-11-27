@@ -90,7 +90,7 @@ class MacroAppActionTest {
         val pickerIds = MacroEditorDialogFragment.APP_ACTION_IDS.toSet()
         val addedIds = listOf("settings_input_stats", "voice_input", "ai_assistant", "split_keyboard",
             "theme_toggle", "random_theme", "text_keyboard_layout_profiles", "settings_js_plugins",
-            "settings_scheme_updates", "settings_data_backup")
+            "settings_scheme_updates", "settings_data_backup", "rime_sync")
         addedIds.forEach { id ->
             assertTrue("The app action picker must offer $id", id in pickerIds)
             assertNotNull("The keyboard executor must recognize $id", ButtonAction.fromId(id))

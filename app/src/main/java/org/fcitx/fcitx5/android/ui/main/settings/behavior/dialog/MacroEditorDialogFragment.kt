@@ -284,6 +284,7 @@ class MacroEditorDialogFragment : DialogFragment() {
             "language_switch",
             "switch_input_method",
             "rime_schema_menu",
+            "rime_sync",
             "reload_config",
             "one_handed_keyboard",
             "input_method_options",
@@ -1693,6 +1694,7 @@ class MacroEditorDialogFragment : DialogFragment() {
                 "language_switch" -> getString(R.string.language_switch)
                 "switch_input_method" -> getString(R.string.switch_input_method)
                 "rime_schema_menu" -> getString(R.string.rime_schema_menu)
+                "rime_sync" -> getString(R.string.rime_sync_user_dictionary)
                 "reload_config" -> getString(R.string.reload_config)
                 "one_handed_keyboard" -> getString(R.string.one_handed_keyboard)
                 "input_method_options" -> getString(R.string.input_method_options)
