@@ -317,6 +317,9 @@ extern "C" JNIEXPORT jobjectArray JNICALL JNI_METHOD(options)(JNIEnv* env, jobje
 extern "C" JNIEXPORT jobjectArray JNICALL JNI_METHOD(prewarmAssets)(JNIEnv* env, jobject) {
     try { return strings(env, instance().prewarmAssets()); } catch (const std::exception& e) { error(env, e); return nullptr; }
 }
+extern "C" JNIEXPORT void JNICALL JNI_METHOD(releasePrewarm)(JNIEnv* env, jobject) {
+    try { instance().releasePrewarm(); } catch (const std::exception& e) { error(env, e); }
+}
 extern "C" JNIEXPORT jboolean JNICALL JNI_METHOD(candidateEditAvailable)(JNIEnv* env, jobject) {
     try { return instance().candidateEditAvailable(); } catch (const std::exception& e) { error(env, e); return false; }
 }

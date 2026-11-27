@@ -50,7 +50,6 @@ class DirectRimeBackend(context: Context) : InputEngine {
         val generation = synchronized(bindingLock) {
             epoch.incrementAndGet().also { binding = null; keyGate.invalidate(it) }
         }
-        assetPrewarmer.invalidate()
         return generation
     }
     override fun prepareInputSession(generation: Long, program: String, flags: CapabilityFlags, needsRime: Boolean) {
@@ -70,9 +69,6 @@ class DirectRimeBackend(context: Context) : InputEngine {
         binding = previous.copy(needsRime = true)
         keyGate.prepare(generation, true)
         true
-    }
-    override fun setKeyboardWindowVisible(visible: Boolean) {
-        if (!directBootMode && assetPrewarmer.setVisible(visible)) engineScope.launch { requestAssetPrewarm() }
     }
     override fun onKeyboardTouchStarted() {
         if (!directBootMode) assetPrewarmer.inputStarted()
@@ -156,7 +152,11 @@ class DirectRimeBackend(context: Context) : InputEngine {
                     next to previous
                 }
             }
-            override fun leaveMaintenance() { maintenance = false; keyGate.running(started) }
+            override fun leaveMaintenance() {
+                maintenance = false
+                keyGate.running(started)
+                engineScope.launch { requestAssetPrewarm() }
+            }
             override suspend fun onOwner(operation: () -> Unit) = this@DirectRimeBackend.onOwner(operation)
             override fun clearBinding(generation: Long) = this@DirectRimeBackend.clearBinding(generation)
             override fun publishMaintenanceStatus(generation: Long) {
@@ -226,6 +226,7 @@ class DirectRimeBackend(context: Context) : InputEngine {
             // EngineLifecycleController may start this Backend more than once. Never attribute an
             // assets/config failure in this run to the prior run's external selection or guard.
             engineOperations.resetStartupState()
+            assetPrewarmer.invalidate()
             try {
                 startupStage("assets") { DataManager.sync() }
                 showUnavailable("正在准备方案文件…")
@@ -255,6 +256,7 @@ class DirectRimeBackend(context: Context) : InputEngine {
             events.offer(listOf(FcitxEvent.ReadyEvent()))
             engineScope.launch {
                 if (started && startupError.isEmpty() && registry.currentState == FcitxLifecycle.State.READY) {
+                    requestAssetPrewarm()
                     val generation = inputSession
                     if (binding?.let { it.generation == generation && it.needsRime } == true &&
                         !hasUsableBinding(generation)
@@ -264,6 +266,7 @@ class DirectRimeBackend(context: Context) : InputEngine {
             }
         },
         onStopping = {
+            assetPrewarmer.invalidate()
             invalidateInputSession()
             keyGate.stop()
         },
@@ -371,7 +374,6 @@ class DirectRimeBackend(context: Context) : InputEngine {
         begin(generation)
     }
     private fun clearBinding(generation: Long) {
-        assetPrewarmer.invalidate()
         snapshot?.let { if (started) Native.end(it.generation) }
         snapshot = null
         appliedNoLearning = null
@@ -450,21 +452,20 @@ class DirectRimeBackend(context: Context) : InputEngine {
             forceCandidates, statistics, statisticsKey,
         )
         if (batch.isNotEmpty()) events.offer(batch)
-        if (previous == null || previous.ready != value.ready || previous.schema != value.schema || previous.ascii != value.ascii) {
-            assetPrewarmer.invalidate()
-            requestAssetPrewarm()
-        }
     }
 
     private fun requestAssetPrewarm() {
         if (directBootMode) return
-        assetPrewarmer.request {
-            val value = snapshot
-            if (!started || maintenance || value?.ready != true || value.generation != inputSession ||
-                value.ascii || value.preedit.isNotEmpty() || forwardsKeysDirectly() ||
+        assetPrewarmer.request(target = {
+            // If an editor is already waiting, prioritize its real session. Native
+            // preparation is owner-serialized; file page reads run on background IO.
+            if (!started || maintenance || binding?.needsRime == true ||
+                snapshot?.ready == true ||
                 flags.flags and CapabilityFlag.PasswordOrSensitive.flag != 0UL) null
             else DirectRimeAssetPrewarmer.Assets(config.user, shared, Native.prewarmAssets())
-        }
+        }, release = {
+            if (started && !maintenance) Native.releasePrewarm()
+        })
     }
 
     private fun buildStatusActions(value: Snapshot): Array<Action> = DirectRimeStatusMenu.build(
@@ -691,7 +692,7 @@ class DirectRimeBackend(context: Context) : InputEngine {
     override suspend fun setCapFlags(flags: CapabilityFlags) { onOwner {
         this.flags = flags
         val noLearning = directBootMode || flags.flags and CapabilityFlag.PasswordOrSensitive.flag != 0UL
-        if (noLearning) assetPrewarmer.invalidate()
+        if (noLearning) assetPrewarmer.inputStarted()
         if (snapshot?.ready == true && appliedNoLearning != noLearning) {
             if (act(8, if (noLearning) 1 else 0, "_no_learning")?.ready == true) appliedNoLearning = noLearning
         }

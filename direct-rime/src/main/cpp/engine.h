@@ -61,6 +61,7 @@ public:
     std::vector<std::string> typeGroupState(const std::string& schema, const std::string& group);
     bool selectTypeOption(const std::string& schema, const std::string& group, const std::string& option);
     std::vector<std::string> prewarmAssets();
+    void releasePrewarm();
     // Whether the loaded API exposes native candidate editing.
     bool candidateEditAvailable();
     std::string schemaSelection();
@@ -91,8 +92,7 @@ private:
     int64_t captureInputStatistics(bool requested) const;
     void clearSession();
     void initialize(bool fullCheck);
-    void acceptUsableDeployment();
-    bool deploymentUsable();
+    void acceptPartialDeployment();
     bool fixSchemaListOrder();
     // librime writes var/option/<name> only when its own switcher menu toggles
     // an option listed in switcher/save_options. This frontend sets options

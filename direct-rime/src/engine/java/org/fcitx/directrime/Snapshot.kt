@@ -122,7 +122,9 @@ internal object Native {
     external fun options(): Array<String>
     external fun typeGroupState(schema: String, group: String): Array<String>
     external fun selectTypeOption(schema: String, group: String, option: String): Boolean
+    /** Actual read-only resource paths from the core, before any input session. */
     external fun prewarmAssets(): Array<String>
+    external fun releasePrewarm()
     /** Whether the loaded API provides native candidate editing. */
     external fun candidateEditAvailable(): Boolean
     external fun schemaSelection(): String

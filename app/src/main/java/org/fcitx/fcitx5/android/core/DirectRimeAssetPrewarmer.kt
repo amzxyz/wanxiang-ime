@@ -17,7 +17,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -28,40 +27,34 @@ import kotlin.coroutines.CoroutineContext
 
 /** Warms read-only file pages outside the interpreter and input queues. */
 internal class DirectRimeAssetPrewarmer(private val context: Context, private val scope: CoroutineScope) {
-    data class Assets(val profile: File, val shared: File, val relativePaths: Array<String>)
+    data class Assets(val profile: File, val shared: File, val absolutePaths: Array<String>)
 
     private val io = Dispatchers.IO.limitedParallelism(1)
-    private var visible = false
-    private var typing = false
+    private var blocked = false
     private var task: Job? = null
 
-    @Synchronized fun setVisible(value: Boolean): Boolean {
-        if (visible == value) return false
-        visible = value
-        typing = false
-        invalidate()
-        return value
-    }
-
     @Synchronized fun inputStarted() {
-        if (!visible || typing) return
-        typing = true
-        invalidate()
+        blocked = true
+        task?.cancel()
     }
 
+    /** A new engine initialization/maintenance cycle; never a keyboard focus change. */
     @Synchronized fun invalidate() {
         task?.cancel()
         task = null
+        blocked = false
     }
 
-    @Synchronized fun request(target: () -> Assets?) {
-        if (!visible || typing || task != null) return
-        // Resolve the active schema on the caller's native owner after the triggering publication.
+    @Synchronized fun request(target: () -> Assets?, release: () -> Unit) {
+        if (blocked || task != null) return
         task = scope.launch(start = CoroutineStart.LAZY) {
             try {
-                delay(START_DELAY_MS)
+                // Skip native mapping too on low-memory, power-save or hot devices.
+                if (budget() <= 0) return@launch
+                ensureActive()
                 val assets = target() ?: return@launch
-                withContext(io) { warm(assets, coroutineContext) }
+                val pressure = withContext(io) { warm(assets, coroutineContext) }
+                if (pressure) release()
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -80,12 +73,14 @@ internal class DirectRimeAssetPrewarmer(private val context: Context, private va
         return (memory.availMem - maxOf(memory.threshold, memory.totalMem / 8)).coerceIn(0, MAX_BYTES)
     }
 
-    private fun warm(assets: Assets, jobContext: CoroutineContext) {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O_MR1) return
+    // True means resource pressure: ask the owner to drop optional native pins.
+    private fun warm(assets: Assets, jobContext: CoroutineContext): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O_MR1) return false
         var remaining = budget()
-        if (remaining <= 0) return
+        if (remaining <= 0) return true
         val pageSize = Os.sysconf(OsConstants._SC_PAGESIZE).toInt()
-        if (pageSize <= 0) return
+        if (pageSize <= 0) return false
+        val roots = listOf(assets.profile.canonicalFile, assets.shared.canonicalFile)
         val buffer by lazy { ByteArray(CHUNK_BYTES) }
         var read = 0L
         val priority = runCatching { Process.getThreadPriority(Process.myTid()) }.getOrNull()
@@ -93,11 +88,13 @@ internal class DirectRimeAssetPrewarmer(private val context: Context, private va
             runCatching { Process.setThreadPriority(Process.THREAD_PRIORITY_BACKGROUND) }
         }
         try {
-            for (path in assets.relativePaths) {
+            for (path in assets.absolutePaths.distinct()) {
                 jobContext.ensureActive()
-                val local = assets.profile.resolve(path)
-                val file = if (local.exists()) local else assets.shared.resolve(path)
                 try {
+                    val raw = File(path)
+                    if (!raw.isAbsolute) continue
+                    val file = raw.canonicalFile
+                    if (roots.none { file.path.startsWith(it.path + File.separator) }) continue
                     val fd = Os.open(file.path, OsConstants.O_RDONLY or OsConstants.O_CLOEXEC or
                         OsConstants.O_NOFOLLOW or OsConstants.O_NONBLOCK, 0)
                     try {
@@ -125,7 +122,7 @@ internal class DirectRimeAssetPrewarmer(private val context: Context, private va
                             remaining -= countRead
                             if (countRead != count) break
                             // Check device pressure periodically without a memory service call per chunk.
-                            if (read % PRESSURE_CHECK_BYTES < countRead && budget() < pageSize) return
+                            if (read % PRESSURE_CHECK_BYTES < countRead && budget() < pageSize) return true
                         }
                     } finally { Os.close(fd) }
                 } catch (_: ErrnoException) {
@@ -140,10 +137,10 @@ internal class DirectRimeAssetPrewarmer(private val context: Context, private va
             }
             if (read > 0) Logx.i(LogTag.RimeAssetPrewarm, "bytes=$read cancelled=${!jobContext.isActive}")
         }
+        return false
     }
 
     private companion object {
-        const val START_DELAY_MS = 200L
         const val MAX_BYTES = 512L * 1024 * 1024
         const val CHUNK_BYTES = 1024 * 1024
         const val PRESSURE_CHECK_BYTES = 32L * 1024 * 1024
