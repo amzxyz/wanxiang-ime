@@ -14,7 +14,7 @@ import time
 
 from pilot import adb, selected_ime, HOST
 
-PACKAGES = {'foxy': 'com.fxliang.foxy', 'direct': 'com.amzxyz.wanxiang.pinyin.ime'}
+PACKAGES = {'foxy': 'com.fxliang.foxy', 'direct': 'wanxiang.pinyin.ime'}
 CASES = {'ni': ('ni', '你'), 'phrase': ('zaoshanghao', '早上好')}
 
 
@@ -62,7 +62,7 @@ def main():
     parser.add_argument('--points', type=Path, required=True)
     parser.add_argument('--trials', type=int, default=6)
     parser.add_argument('--rounds', type=int, default=8)
-    parser.add_argument("--direct-package", choices=["com.amzxyz.wanxiang.pinyin.ime", "com.amzxyz.wanxiang.ime", "io.github.sandyyur.rime.direct"], default="com.amzxyz.wanxiang.pinyin.ime")
+    parser.add_argument("--direct-package", choices=["wanxiang.pinyin.ime", "com.amzxyz.wanxiang.ime", "io.github.sandyyur.rime.direct"], default="wanxiang.pinyin.ime")
     a = parser.parse_args()
     PACKAGES["direct"] = a.direct_package
     assert adb('get-serialno').startswith('emulator-'), 'Disposable emulator only'

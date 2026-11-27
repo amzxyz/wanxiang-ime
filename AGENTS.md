@@ -4,7 +4,7 @@
 
 ## 项目与入口
 
-架构为 Kotlin → 单一 owner → JNI → librime-evo，仅 debug/release 两种构建类型，无产品 flavor。正式应用 ID 为 `com.amzxyz.wanxiang.pinyin.ime`，Debug 为 `com.amzxyz.wanxiang.pinyin.ime.debug`。现有 Java/Kotlin 命名空间、JNI、AIDL、兼容类名与布局字段保留；不得将这些接口标识当作应用 ID 批量替换。不恢复旧 Fcitx 原生后端或后端开关。
+架构为 Kotlin → 单一 owner → JNI → librime-evo，仅 debug/release 两种构建类型，无产品 flavor。正式应用 ID 为 `wanxiang.pinyin.ime`，Debug 为 `wanxiang.pinyin.ime.debug`。现有 Java/Kotlin 命名空间、JNI、AIDL、兼容类名与布局字段保留；不得将这些接口标识当作应用 ID 批量替换。不恢复旧 Fcitx 原生后端或后端开关。
 
 | 位置 | 内容 |
 | --- | --- |

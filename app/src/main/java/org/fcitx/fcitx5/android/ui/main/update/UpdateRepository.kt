@@ -57,7 +57,7 @@ object UpdateRepository {
             val request = Request.Builder()
                 .url(apiUrl)
                 .addHeader("Accept", "application/vnd.github+json")
-                .addHeader("User-Agent", "wanxiang-pinyin-ime-update")
+                .addHeader("User-Agent", "wanxiang.pinyin.ime-update")
                 .build()
             val mapping = if (hosts.enabled) hosts.mapping else emptyMap()
             try {
@@ -127,7 +127,7 @@ object UpdateRepository {
         }
         val request = Request.Builder()
             .url(config.sourceUrl.trim())
-            .addHeader("User-Agent", "wanxiang-pinyin-ime-update")
+            .addHeader("User-Agent", "wanxiang.pinyin.ime-update")
             .build()
         sharedClient.newCall(request).execute().use { response ->
             if (!response.isSuccessful) {

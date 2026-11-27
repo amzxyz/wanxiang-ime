@@ -9,7 +9,7 @@ gradle.beforeProject { project ->
         def components = project.extensions.getByName('androidComponents')
         components.finalizeDsl { android ->
             if (android.namespace != 'org.fcitx.fcitx5.android' ||
-                    android.defaultConfig.applicationId != 'com.amzxyz.wanxiang.pinyin.ime' ||
+                    android.defaultConfig.applicationId != 'wanxiang.pinyin.ime' ||
                     android.buildTypes.getByName('debug').applicationIdSuffix != '.debug') {
                 throw new GradleException('Unexpected original package identity; inspect before building.')
             }

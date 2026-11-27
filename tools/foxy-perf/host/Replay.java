@@ -73,7 +73,7 @@ public class Replay extends Instrumentation {
     }
     long awaitSessionReady() throws Exception {
         if (!imePackage.equals("com.fxliang.foxy") && !imePackage.equals("io.github.sandyyur.rime.direct")
-                && !imePackage.equals("com.amzxyz.wanxiang.pinyin.ime")
+                && !imePackage.equals("wanxiang.pinyin.ime")
                 && !imePackage.equals("com.amzxyz.wanxiang.ime"))
             throw new IllegalArgumentException("Unexpected IME");
         long deadline = now()+240_000_000_000L;

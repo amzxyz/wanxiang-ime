@@ -19,10 +19,10 @@ data_sources {
       atrace_categories: "view"
       atrace_categories: "dalvik"
       atrace_apps: "com.amzxyz.wanxiang.ime.debug"
-      atrace_apps: "com.amzxyz.wanxiang.pinyin.ime.debug"
+      atrace_apps: "wanxiang.pinyin.ime.debug"
       atrace_apps: "io.github.sandyyur.rime.direct"
       atrace_apps: "com.amzxyz.wanxiang.ime"
-      atrace_apps: "com.amzxyz.wanxiang.pinyin.ime"
+      atrace_apps: "wanxiang.pinyin.ime"
     }
   }
 }
