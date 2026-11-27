@@ -1,7 +1,9 @@
 /* SPDX-License-Identifier: LGPL-2.1-or-later */
 package org.fcitx.fcitx5.android.core
 
+import android.content.ComponentCallbacks2
 import android.content.Context
+import android.content.res.Configuration
 import android.os.Build
 import android.os.SystemClock
 import androidx.tracing.trace
@@ -37,6 +39,36 @@ class DirectRimeBackend(context: Context) : InputEngine {
     private val interactivePriority = InteractiveThreadPriority()
     private val engineScope = CoroutineScope(SupervisorJob() + owner)
     private val assetPrewarmer = DirectRimeAssetPrewarmer(this.context, engineScope)
+    private var memoryCallbacksRegistered = false
+    private val memoryCallbacks = object : ComponentCallbacks2 {
+        override fun onConfigurationChanged(newConfig: Configuration) = Unit
+        override fun onLowMemory() = dropOptionalPrewarm()
+        override fun onTrimMemory(level: Int) {
+            // Hiding the keyboard is not memory pressure. Preserve idle warmup.
+            if (level == ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW ||
+                level == ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL ||
+                level >= ComponentCallbacks2.TRIM_MEMORY_MODERATE) dropOptionalPrewarm()
+        }
+    }
+    private fun dropOptionalPrewarm() {
+        assetPrewarmer.inputStarted()
+        engineScope.launch {
+            if (started && !maintenance) Native.releasePrewarm()
+        }
+    }
+    private fun registerMemoryCallbacks() {
+        if (!memoryCallbacksRegistered && !directBootMode) {
+            runCatching { context.registerComponentCallbacks(memoryCallbacks) }
+                .onSuccess { memoryCallbacksRegistered = true }
+                .onFailure { Timber.w(it, "Optional prewarm memory callback unavailable") }
+        }
+    }
+    private fun unregisterMemoryCallbacks() {
+        if (memoryCallbacksRegistered) {
+            runCatching { context.unregisterComponentCallbacks(memoryCallbacks) }
+            memoryCallbacksRegistered = false
+        }
+    }
     private val registry = FcitxLifecycleRegistry()
     override val lifecycle: FcitxLifecycle get() = registry
     override val isReady get() = registry.currentState == FcitxLifecycle.State.READY && started
@@ -237,6 +269,7 @@ class DirectRimeBackend(context: Context) : InputEngine {
                     fullCheck = bundledInstalled || engineOperations.newActivation || WanxiangAdvancedFiles.needsDeploymentRepair(config.user),
                     minLogLevel = DirectRimeEngineLog.minLevel()) }
                 started = true
+                registerMemoryCallbacks()
                 startupError = ""
                 refreshSchemas()
                 engineOperations.startupSucceeded()
@@ -271,6 +304,7 @@ class DirectRimeBackend(context: Context) : InputEngine {
             keyGate.stop()
         },
         finalize = {
+            unregisterMemoryCallbacks()
             statusHints.clear()
             try { if (started) Native.stop() }
             finally { started = false; snapshot = null }
@@ -692,7 +726,10 @@ class DirectRimeBackend(context: Context) : InputEngine {
     override suspend fun setCapFlags(flags: CapabilityFlags) { onOwner {
         this.flags = flags
         val noLearning = directBootMode || flags.flags and CapabilityFlag.PasswordOrSensitive.flag != 0UL
-        if (noLearning) assetPrewarmer.inputStarted()
+        if (noLearning) {
+            assetPrewarmer.inputStarted()
+            if (started && !maintenance) Native.releasePrewarm()
+        }
         if (snapshot?.ready == true && appliedNoLearning != noLearning) {
             if (act(8, if (noLearning) 1 else 0, "_no_learning")?.ready == true) appliedNoLearning = noLearning
         }

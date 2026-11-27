@@ -9,7 +9,6 @@ import android.os.Process
 import android.system.ErrnoException
 import android.system.Os
 import android.system.OsConstants
-import android.util.Log
 import kotlinx.coroutines.CancellationException
 import org.fcitx.fcitx5.android.utils.LogTag
 import org.fcitx.fcitx5.android.utils.Logx
@@ -54,6 +53,7 @@ internal class DirectRimeAssetPrewarmer(private val context: Context, private va
                 ensureActive()
                 val assets = target() ?: return@launch
                 val pressure = withContext(io) { warm(assets, coroutineContext) }
+                ensureActive()
                 if (pressure) release()
             } catch (e: CancellationException) {
                 throw e
@@ -81,6 +81,7 @@ internal class DirectRimeAssetPrewarmer(private val context: Context, private va
         val pageSize = Os.sysconf(OsConstants._SC_PAGESIZE).toInt()
         if (pageSize <= 0) return false
         val roots = listOf(assets.profile.canonicalFile, assets.shared.canonicalFile)
+        val scanBytes = maxOf(1L, SCAN_BYTES / pageSize) * pageSize
         val buffer by lazy { ByteArray(CHUNK_BYTES) }
         var read = 0L
         val priority = runCatching { Process.getThreadPriority(Process.myTid()) }.getOrNull()
@@ -100,30 +101,42 @@ internal class DirectRimeAssetPrewarmer(private val context: Context, private va
                     try {
                         val stat = Os.fstat(fd)
                         val size = stat.st_size
-                        if (!OsConstants.S_ISREG(stat.st_mode) || size <= 0 || size > MAX_BYTES) continue
-                        val pages = ByteArray(((size + pageSize - 1) / pageSize).toInt())
-                        val map = Os.mmap(0, size, OsConstants.PROT_NONE, OsConstants.MAP_SHARED, fd, 0)
-                        try { Os.mincore(map, size, pages) } finally { Os.munmap(map, size) }
-                        // A large model has hot ranges throughout the file. Leave the whole file
-                        // alone if there is insufficient headroom to read its missing pages.
-                        val missing = pages.count { it.toInt() and 1 == 0 }.toLong() * pageSize
-                        if (missing == 0L || missing > remaining || missing > budget()) continue
-                        var page = 0
-                        while (page < pages.size) {
+                        if (!OsConstants.S_ISREG(stat.st_mode) || size <= 0) continue
+                        // Scan small aligned windows, not the whole model's virtual address
+                        // range. Even a file larger than the budget can be partly pre-read.
+                        var base = 0L
+                        var shortRead = false
+                        while (base < size && remaining > 0 && !shortRead) {
                             jobContext.ensureActive()
-                            if (pages[page].toInt() and 1 != 0) { page++; continue }
-                            val start = page++
-                            while (page < pages.size && pages[page].toInt() and 1 == 0 &&
-                                (page - start) * pageSize < CHUNK_BYTES) page++
-                            val offset = start.toLong() * pageSize
-                            val count = minOf(size - offset, (page - start).toLong() * pageSize).toInt()
-                            val countRead = Os.pread(fd, buffer, 0, count, offset)
-                            read += countRead
-                            remaining -= countRead
-                            if (countRead != count) break
-                            // Check device pressure periodically without a memory service call per chunk.
-                            if (read % PRESSURE_CHECK_BYTES < countRead && budget() < pageSize) return true
+                            val available = budget()
+                            if (available < pageSize) return true
+                            var quota = minOf(remaining, available)
+                            val length = minOf(size - base, scanBytes)
+                            val pages = ByteArray(((length + pageSize - 1) / pageSize).toInt())
+                            val map = Os.mmap(0, length, OsConstants.PROT_NONE, OsConstants.MAP_SHARED, fd, base)
+                            try { Os.mincore(map, length, pages) } finally { Os.munmap(map, length) }
+                            var page = 0
+                            while (page < pages.size && quota > 0) {
+                                jobContext.ensureActive()
+                                if (pages[page].toInt() and 1 != 0) { page++; continue }
+                                val start = page++
+                                while (page < pages.size && pages[page].toInt() and 1 == 0 &&
+                                    (page - start) * pageSize < CHUNK_BYTES) page++
+                                val offset = base + start.toLong() * pageSize
+                                val count = minOf(size - offset, (page - start).toLong() * pageSize, quota).toInt()
+                                val countRead = Os.pread(fd, buffer, 0, count, offset)
+                                if (countRead > 0) {
+                                    read += countRead
+                                    remaining -= countRead
+                                    quota -= countRead
+                                }
+                                if (countRead != count) { shortRead = true; break }
+                                // Do not skip unread missing pages when the window hits its quota.
+                                if (quota == 0L && remaining > 0) return true
+                            }
+                            base += length
                         }
+                        if (remaining <= 0) return false
                     } finally { Os.close(fd) }
                 } catch (_: ErrnoException) {
                     // A missing, changed, or unsupported file is left to the normal engine path.
@@ -143,6 +156,6 @@ internal class DirectRimeAssetPrewarmer(private val context: Context, private va
     private companion object {
         const val MAX_BYTES = 512L * 1024 * 1024
         const val CHUNK_BYTES = 1024 * 1024
-        const val PRESSURE_CHECK_BYTES = 32L * 1024 * 1024
+        const val SCAN_BYTES = 32L * 1024 * 1024
     }
 }

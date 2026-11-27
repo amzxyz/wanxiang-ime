@@ -64,14 +64,7 @@ struct Fake {
     std::string schema = "test", schemaName = "Test";
     // Ordered regardless of schema_list order: user.yaml restores the previously selected one.
     std::vector<std::pair<std::string, std::string>> schemas{{"test", "Test"}};
-    std::string dictionary = "test";
-    // EVO prism fixture: input_types group, translator prism/prisms and the algebra map.
-    bool inputTypesPresent = false;
     std::vector<std::pair<std::string, std::string>> inputOptions;
-    bool prismSet = false, prismsRefSet = false, prismsListSet = false;
-    std::string prismName, prismsRef;
-    std::vector<std::pair<std::string, std::string>> prismsList;
-    std::vector<std::string> algebraKeys;
     std::string rawInput;
     size_t rawCaret = 0;
     bool syncLaunch = true, syncPending = false, syncThrows = false, userDbHeld = false, failStartup = false;
@@ -91,46 +84,6 @@ struct Fake {
     int warmCalls = 0, freedWarm = 0, releasedWarm = 0;
     std::vector<std::string> warmPaths;
 } f;
-std::string algebraPath() { return "build/dictionaries/" + f.dictionary + "/algebra"; }
-bool fakeHasMap(const std::string& path) {
-    if (path == "translator") return f.prismSet || f.prismsRefSet || f.prismsListSet;
-    if (path == algebraPath()) return !f.algebraKeys.empty();
-    const std::string optionPrefix = "input_types/@";
-    if (path.compare(0, optionPrefix.size(), optionPrefix) == 0) {
-        const auto index = std::strtoul(path.c_str() + optionPrefix.size(), nullptr, 10);
-        return index < f.inputOptions.size();
-    }
-    const std::string prismPrefix = "translator/prisms/@";
-    if (path.compare(0, prismPrefix.size(), prismPrefix) == 0) {
-        const auto index = std::strtoul(path.c_str() + prismPrefix.size(), nullptr, 10);
-        return index < f.prismsList.size();
-    }
-    return false;
-}
-std::vector<std::string> fakeMapKeys(const std::string& path) {
-    if (path == "translator") {
-        std::vector<std::string> keys;
-        if (f.prismSet) keys.emplace_back("prism");
-        if (f.prismsRefSet || f.prismsListSet) keys.emplace_back("prisms");
-        return keys;
-    }
-    if (path == algebraPath()) return f.algebraKeys;
-    const std::string optionPrefix = "input_types/@";
-    if (path.compare(0, optionPrefix.size(), optionPrefix) == 0) {
-        const auto index = std::strtoul(path.c_str() + optionPrefix.size(), nullptr, 10);
-        std::vector<std::string> keys{"option"};
-        if (index < f.inputOptions.size() && !f.inputOptions[index].second.empty())
-            keys.emplace_back("name");
-        return keys;
-    }
-    const std::string prismPrefix = "translator/prisms/@";
-    if (path.compare(0, prismPrefix.size(), prismPrefix) == 0) return {"name", "option"};
-    return {};
-}
-bool fakeHasList(const std::string& path) {
-    return (path == "input_types" && f.inputTypesPresent) ||
-           (path == "translator/prisms" && f.prismsListSet);
-}
 void notifyOptionIfRequested(int& count) {
     if (count <= 0) return;
     --count;
@@ -225,47 +178,6 @@ RimeApi api() {
     };
     a.config_close = [](RimeConfig*) -> Bool { return true; };
     a.schema_open = [](const char*, RimeConfig* config) -> Bool { config->ptr = &f; return true; };
-    a.config_get_string = [](RimeConfig*, const char* key, char* value, size_t size) -> Bool {
-        const std::string name(key);
-        if (name == "translator/dictionary") {
-            std::snprintf(value, size, "%s", f.dictionary.c_str()); return true;
-        }
-        if (name == "translator/prism" && f.prismSet) {
-            std::snprintf(value, size, "%s", f.prismName.c_str()); return true;
-        }
-        if (name == "translator/prisms" && f.prismsRefSet) {
-            std::snprintf(value, size, "%s", f.prismsRef.c_str()); return true;
-        }
-        const std::string prismPrefix = "translator/prisms/@";
-        if (name.compare(0, prismPrefix.size(), prismPrefix) == 0) {
-            const size_t slash = name.find('/', prismPrefix.size());
-            if (slash == std::string::npos) return false;
-            const auto index = std::strtoul(name.substr(prismPrefix.size(), slash - prismPrefix.size()).c_str(), nullptr, 10);
-            if (index >= f.prismsList.size()) return false;
-            const std::string field = name.substr(slash + 1);
-            if (field == "name") {
-                std::snprintf(value, size, "%s", f.prismsList[index].first.c_str()); return true;
-            }
-            if (field == "option") {
-                std::snprintf(value, size, "%s", f.prismsList[index].second.c_str()); return true;
-            }
-        }
-        const std::string optionPrefix = "input_types/@";
-        if (name.compare(0, optionPrefix.size(), optionPrefix) == 0) {
-            const size_t slash = name.find('/', optionPrefix.size());
-            if (slash == std::string::npos) return false;
-            const auto index = std::strtoul(name.substr(optionPrefix.size(), slash - optionPrefix.size()).c_str(), nullptr, 10);
-            if (index >= f.inputOptions.size()) return false;
-            const std::string field = name.substr(slash + 1);
-            if (field == "option") {
-                std::snprintf(value, size, "%s", f.inputOptions[index].first.c_str()); return true;
-            }
-            if (field == "name" && !f.inputOptions[index].second.empty()) {
-                std::snprintf(value, size, "%s", f.inputOptions[index].second.c_str()); return true;
-            }
-        }
-        return false;
-    };
     a.config_get_bool = [](RimeConfig*, const char* key, Bool* value) -> Bool {
         if (std::strcmp(key, "switcher/fix_schema_list_order")) return false;
         *value = f.fixSchemaListOrder; return true;
@@ -273,28 +185,7 @@ RimeApi api() {
     a.config_list_size = [](RimeConfig*, const char* key) -> size_t {
         const std::string name(key);
         if (name == "switcher/save_options") return f.saveOptions.size();
-        if (name == "input_types") return f.inputOptions.size();
-        if (name == "translator/prisms") return f.prismsList.size();
         return 0;
-    };
-    a.config_begin_map = [](RimeConfigIterator* iterator, RimeConfig*, const char* key) -> Bool {
-        if (!fakeHasMap(key)) return false;
-        iterator->map = new std::vector<std::string>(fakeMapKeys(key));
-        iterator->index = 0; iterator->key = nullptr; return true;
-    };
-    a.config_begin_list = [](RimeConfigIterator* iterator, RimeConfig*, const char* key) -> Bool {
-        if (!fakeHasList(key)) return false;
-        iterator->map = new std::vector<std::string>();
-        iterator->index = 0; iterator->key = nullptr; return true;
-    };
-    a.config_next = [](RimeConfigIterator* iterator) -> Bool {
-        auto* keys = static_cast<std::vector<std::string>*>(iterator->map);
-        if (!keys || iterator->index >= static_cast<int>(keys->size())) return false;
-        iterator->key = (*keys)[iterator->index].c_str(); ++iterator->index; return true;
-    };
-    a.config_end = [](RimeConfigIterator* iterator) {
-        delete static_cast<std::vector<std::string>*>(iterator->map);
-        iterator->map = nullptr; iterator->index = 0; iterator->key = nullptr;
     };
     a.config_get_cstring = [](RimeConfig*, const char* key) -> const char* {
         const std::string prefix = "switcher/save_options/@";
@@ -990,15 +881,15 @@ void testUsableDeploymentWarning() {
     CHECK(rejected(true, "missing", {"test"}, {"other"}));
 #endif
     // Old/short APIs never infer success from compiled filenames.
-    f = {}; auto legacy = api(); Engine engine(&legacy);
+    f = {}; auto legacy = api(); Engine legacyEngine(&legacy);
 #ifdef RIME_SCHEMA_PREWARM
     legacy.get_deployment_result = nullptr;
 #endif
     f.failDeploy = true;
-    bool rejected = false;
-    try { engine.start("shared", "user", "development", true); }
-    catch (const std::runtime_error&) { rejected = true; }
-    CHECK(rejected);
+    bool legacyRejected = false;
+    try { legacyEngine.start("shared", "user", "development", true); }
+    catch (const std::runtime_error&) { legacyRejected = true; }
+    CHECK(legacyRejected);
 }
 
 void testNativePrewarm() {
@@ -1020,7 +911,7 @@ void testNativePrewarm() {
 }
 void testRuntimeTypeGroups() {
 #ifdef RIME_EVO_TYPE_OPTIONS
-    f = {}; f.inputTypesPresent = true;
+    f = {};
     f.inputOptions = {{"zrm", ""}, {"pinyin", ""}};
     auto a = api(); Engine engine(&a); engine.start("shared", "user");
     CHECK((engine.typeGroupState("test", "input_types") ==
