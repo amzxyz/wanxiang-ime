@@ -221,12 +221,13 @@ class DirectRimeInteractionContractTest {
         assertEquals(listOf(1 to 3, 11 to 3, 11 to 3), native.actions)
     }
 
-    @Test fun legacyForgetEntrypointsAndCodeChoicesValidateTheirOwnIndices() = runBlocking {
+    @Test fun candidateEditAndCodeChoiceEntrypointsRejectInvalidIndices() = runBlocking {
         backend.triggerCandidateAction(-1, 0)
         backend.triggerGlobalCandidateAction(-1, 0)
         backend.triggerCandidateListTabAction(-2)
         backend.triggerCandidateListTabAction(-1)
-        assertEquals(listOf(5 to -1, 12 to -1), native.actions)
+        // Invalid legacy and current indices are rejected before entering JNI.
+        assertTrue(native.actions.isEmpty())
 
         native.clearCalls()
         assertFalse(backend.triggerCandidateActionIfCurrent(-1, 0, false, backend.candidateActionContext))
