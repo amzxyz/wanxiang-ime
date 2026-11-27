@@ -127,8 +127,8 @@ let lastResult = "";
 
 function dialogSpec(t, title, target, input) {
   return {
-    maxWidth: 340,
-    maxHeight: 240,
+    maxWidth: 380,
+    maxHeight: 440,
     layout: {
       type: "column",
       gap: 6,
