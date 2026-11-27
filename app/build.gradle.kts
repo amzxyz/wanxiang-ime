@@ -48,7 +48,8 @@ android {
             proguardFile("proguard-rules.pro")
         }
         debug {
-            // CI can opt into a stable signing identity without changing the application ID.
+            applicationIdSuffix = ".debug"
+            // CI can opt into a stable signing identity without changing the signing identity.
             if (providers.gradleProperty("signDebugWithRelease").orNull == "true") {
                 signingConfig = signingConfigs.getByName("release")
             }
