@@ -416,7 +416,7 @@ class AppPrefs(private val sharedPreferences: SharedPreferences) {
         val horizontalCandidateStyle = enumList(
             R.string.horizontal_candidate_style,
             "horizontal_candidate_style",
-            HorizontalCandidateMode.AutoFillWidth
+            HorizontalCandidateMode.NeverFillWidth
         )
         val horizontalCandidateOverflowScroll = switch(
             R.string.horizontal_candidate_overflow_scroll,
