@@ -150,11 +150,6 @@ object VoiceInputProviderManager {
         val releaseLikeId = appId.removeSuffix(".debug")
         add(releaseLikeId)
         add("$releaseLikeId.debug")
-        // Keep plugin discovery compatible with the previous host application ID.
-        add("com.amzxyz.wanxiang.ime")
-        add("com.amzxyz.wanxiang.ime.debug")
-        add("org.fcitx.fcitx5.android")
-        add("org.fcitx.fcitx5.android.debug")
     }.map { it + VoiceInputIpc.SERVICE_ACTION_SUFFIX }
 
     private var activeConnection: ServiceConnection? = null
