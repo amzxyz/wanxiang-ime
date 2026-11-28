@@ -1182,8 +1182,6 @@ end
             }
             return visible
         }
-        val shieldField = org.fcitx.fcitx5.android.input.BaseInputView::class.java
-            .getDeclaredField("candidateActionShield").apply { isAccessible = true }
         try {
             shell("input keyevent KEYCODE_WAKEUP")
             shell("settings put secure show_ime_with_hard_keyboard 1")
@@ -1245,22 +1243,23 @@ end
                     target.width / 2f, target.height / 2f, 0)
                 try { target.dispatchTouchEvent(event) } finally { event.recycle() }
             }
-            instrumentation.runOnMainSync {
-                val shield = shieldField.get(inputView()) as? android.widget.PopupWindow
-                assertNotNull("The candidate list must be shielded while its menu is open", shield)
-                assertTrue(requireNotNull(shield).isShowing)
-                assertTrue(shield.isTouchable)
-            }
             delay(800)
             assertTrue("The current candidate menu must stay open", menuVisible())
             instrumentation.runOnMainSync {
-                val shield = requireNotNull(shieldField.get(inputView()) as? android.widget.PopupWindow)
-                assertTrue("An outside tap must be consumed by the candidate shield", shield.contentView.performClick())
+                val menu = WindowInspector.getGlobalWindowViews().asSequence().flatMap(::descendants)
+                    .filterIsInstance<android.widget.TextView>().first { it.isShown && it.text.toString() == "忘记此词" }
+                val flags = (menu.rootView.layoutParams as WindowManager.LayoutParams).flags
+                assertTrue(flags and WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE != 0)
+                assertEquals(0, flags and WindowManager.LayoutParams.FLAG_ALT_FOCUSABLE_IM)
+                assertEquals(
+                    "The menu window must consume outside touches without a separate overlay",
+                    0,
+                    flags and WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL
+                )
             }
-            await("The candidate shield must dismiss the menu without selecting a candidate") { !menuVisible() }
             instrumentation.runOnMainSync { assertEquals("", editor.text.toString()) }
             instrumentation.runOnMainSync { inputView()!!.showCandidateActionMenu(0, "你", requireNotNull(anchor)) }
-            await("The candidate action menu must reopen after the shield is dismissed") { menuVisible() }
+            await("The candidate action menu must reopen after replacement") { menuVisible() }
             instrumentation.runOnMainSync {
                 assertTrue("Candidate actions must keep the editor window focused", activity!!.hasWindowFocus())
                 assertTrue(editor.hasFocus())
@@ -1269,6 +1268,7 @@ end
                 val flags = (menu.rootView.layoutParams as WindowManager.LayoutParams).flags
                 assertTrue(flags and WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE != 0)
                 assertEquals(0, flags and WindowManager.LayoutParams.FLAG_ALT_FOCUSABLE_IM)
+                assertEquals(0, flags and WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL)
             }
             assertEquals("Candidate actions must not rebind the editor", generation,
                 connection.runImmediately { inputSession })
@@ -1278,10 +1278,6 @@ end
                 imm.restartInput(editor)
             }
             await("Changing the editor must dismiss its old candidate actions") { !menuVisible() }
-            instrumentation.runOnMainSync {
-                val shield = shieldField.get(inputView()) as? android.widget.PopupWindow
-                assertTrue("Invalidating the menu must also remove its touch shield", shield == null || !shield.isShowing)
-            }
             shell("screencap -p /data/local/tmp/candidate-menu-invalidated.png")
         } finally {
             activity?.let { instrumentation.runOnMainSync { it.finish() } }

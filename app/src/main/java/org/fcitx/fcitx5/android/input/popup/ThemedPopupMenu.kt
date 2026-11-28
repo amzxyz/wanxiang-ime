@@ -51,6 +51,8 @@ class ThemedPopupMenu(
             anchorView = anchor
             // Candidate actions belong to the current IME editor; taking focus away can
             // finish/rebind that editor while its asynchronous action is still pending.
+            // `isModal` controls focusability only. PopupWindow remains touch-modal by default,
+            // so outside touches are consumed without taking focus from the editor.
             isModal = !preserveEditorFocus
             inputMethodMode = PopupWindow.INPUT_METHOD_NOT_NEEDED
             width = context.dp(196).coerceAtMost(

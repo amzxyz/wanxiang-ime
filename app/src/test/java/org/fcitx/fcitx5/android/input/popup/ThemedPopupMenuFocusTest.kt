@@ -36,6 +36,11 @@ class ThemedPopupMenuFocusTest {
             assertEquals(!preserve, popup.isFocusable)
             assertEquals(PopupWindow.INPUT_METHOD_NOT_NEEDED, popup.inputMethodMode)
             assertTrue(popup.isTouchable)
+            assertTrue(popup.isOutsideTouchable)
+            assertFalse(
+                "A non-focusable popup must still consume touches outside its bounds",
+                ReflectionHelpers.getField<Boolean>(popup, "mNotTouchModal")
+            )
             menu.dismiss()
             assertTrue(dismissed)
         } finally {

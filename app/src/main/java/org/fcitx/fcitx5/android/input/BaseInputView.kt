@@ -5,15 +5,9 @@
 
 package org.fcitx.fcitx5.android.input
 
-import android.graphics.Color
-import android.graphics.drawable.ColorDrawable
-import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
-import android.view.ViewGroup
 import android.view.WindowInsets
-import android.widget.PopupWindow
-import androidx.core.graphics.ColorUtils
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
@@ -137,7 +131,7 @@ abstract class BaseInputView(
      * 达到长按阈值时立即请求候选操作菜单，不需要先抬手。
      * - 阈值后继续向上滑 → 关闭菜单并弹出单字窗，滑到哪个字就高亮哪个，抬手提交该字；
      * - 向下滑 → 保持候选操作菜单（忘记词汇等）。
-     * 菜单期间候选列表显示轻遮罩并拦截额外触摸，避免菜单外的误触提交候选。
+     * 菜单窗口本身拦截窗口外触摸，避免误触提交其他候选；不叠加额外遮罩。
      *
      * 之所以用按住后滑动而不是直接滑动：直接滑动要在按下时就夺走父容器的触摸拦截，
      * 展开候选列表就没法上下滚动翻页了。按住后才接管，未按住时的滑动完全留给父容器。
@@ -267,7 +261,6 @@ abstract class BaseInputView(
     }
 
     private var candidateActionMenu: ThemedPopupMenu? = null
-    private var candidateActionShield: PopupWindow? = null
     private var candidateActionJob: Job? = null
     private var candidateActionAnchor: View? = null
     private var displayedCandidateContext: CandidateActionContext? = null
@@ -282,40 +275,6 @@ abstract class BaseInputView(
         candidateActionMenu = null
         candidateActionAnchor = null
         menu?.dismiss()
-        dismissCandidateActionShield()
-    }
-
-    private fun dismissCandidateActionShield() {
-        candidateActionShield?.dismiss()
-        candidateActionShield = null
-    }
-
-    /** A non-focusable scrim blocks candidate taps without taking focus from the editor. */
-    private fun showCandidateActionShield(anchor: View) {
-        val container = anchor.parent as? ViewGroup ?: return
-        if (!container.isAttachedToWindow || container.width <= 0 || container.height <= 0) return
-        val shieldView = View(context).apply {
-            setBackgroundColor(ColorUtils.setAlphaComponent(Color.BLACK, 40))
-            isClickable = true
-            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
-            setOnClickListener { invalidateCandidateActionMenu() }
-        }
-        val shield = PopupWindow(shieldView, container.width, container.height, false).apply {
-            isFocusable = false
-            isTouchable = true
-            isOutsideTouchable = false
-            inputMethodMode = PopupWindow.INPUT_METHOD_NOT_NEEDED
-            setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
-        }
-        val location = IntArray(2)
-        container.getLocationInWindow(location)
-        candidateActionShield = shield
-        try {
-            shield.showAtLocation(container, Gravity.TOP or Gravity.LEFT, location[0], location[1])
-        } catch (_: RuntimeException) {
-            if (candidateActionShield === shield) candidateActionShield = null
-            shield.dismiss()
-        }
     }
 
     private fun candidateContextIsCurrent(expected: CandidateActionContext): Boolean = try {
@@ -339,7 +298,6 @@ abstract class BaseInputView(
                 candidateAnchorOwners[view] === anchorOwner && candidateContextIsCurrent(context)
         }
         candidateActionAnchor = view
-        showCandidateActionShield(view)
         candidateActionJob = service.lifecycleScope.launch {
             val actions = try {
                 candidateMenuRequests.loadIfCurrent(request) { fcitx.runOnReady { getCandidateActions(idx) } }
@@ -347,7 +305,6 @@ abstract class BaseInputView(
             if (actions.isNullOrEmpty()) {
                 if (request.isCurrent()) {
                     candidateActionAnchor = null
-                    dismissCandidateActionShield()
                 }
                 return@launch
             }
@@ -357,7 +314,6 @@ abstract class BaseInputView(
                 if (candidateActionMenu === popupMenu) {
                     candidateActionMenu = null
                     candidateActionAnchor = null
-                    dismissCandidateActionShield()
                 }
             }
             candidateActionMenu = popupMenu
