@@ -29,7 +29,7 @@ class ThemedPopupMenuFocusTest {
         var dismissed = false
         val menu = ThemedPopupMenu(host, ThemePreset.PixelLight, preserve) { dismissed = true }
         try {
-            menu.show(anchor, listOf(ThemedPopupMenu.Item.Action("忘记此词", {})))
+            menu.show(anchor, listOf(ThemedPopupMenu.Item.Action("测试项", {})))
             val list = ReflectionHelpers.getField<ListPopupWindow>(menu, "popup")
             val popup = ReflectionHelpers.getField<PopupWindow>(list, "mPopup")
             assertEquals(!preserve, list.isModal)

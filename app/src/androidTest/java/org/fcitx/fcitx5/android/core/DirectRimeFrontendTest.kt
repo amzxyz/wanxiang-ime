@@ -1178,7 +1178,7 @@ end
             var visible = false
             instrumentation.runOnMainSync {
                 visible = WindowInspector.getGlobalWindowViews().asSequence().flatMap(::descendants)
-                    .filterIsInstance<android.widget.TextView>().any { it.isShown && it.text.toString() == "忘记此词" }
+                    .filterIsInstance<android.widget.ListView>().any { it.isShown && (it.adapter?.count ?: 0) > 1 }
             }
             return visible
         }
@@ -1248,7 +1248,9 @@ end
             assertTrue("The current candidate menu must stay open", menuVisible())
             instrumentation.runOnMainSync {
                 val menu = WindowInspector.getGlobalWindowViews().asSequence().flatMap(::descendants)
-                    .filterIsInstance<android.widget.TextView>().first { it.isShown && it.text.toString() == "忘记此词" }
+                    .filterIsInstance<android.widget.ListView>().first {
+                        it.isShown && (it.adapter?.count ?: 0) > 1
+                    }
                 val flags = (menu.rootView.layoutParams as WindowManager.LayoutParams).flags
                 assertTrue(flags and WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE != 0)
                 assertEquals(0, flags and WindowManager.LayoutParams.FLAG_ALT_FOCUSABLE_IM)
@@ -1265,7 +1267,9 @@ end
                 assertTrue("Candidate actions must keep the editor window focused", activity!!.hasWindowFocus())
                 assertTrue(editor.hasFocus())
                 val menu = WindowInspector.getGlobalWindowViews().asSequence().flatMap(::descendants)
-                    .filterIsInstance<android.widget.TextView>().first { it.isShown && it.text.toString() == "忘记此词" }
+                    .filterIsInstance<android.widget.ListView>().first {
+                        it.isShown && (it.adapter?.count ?: 0) > 1
+                    }
                 val flags = (menu.rootView.layoutParams as WindowManager.LayoutParams).flags
                 assertTrue(flags and WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE != 0)
                 assertEquals(0, flags and WindowManager.LayoutParams.FLAG_ALT_FOCUSABLE_IM)
