@@ -1239,7 +1239,8 @@ end
             await("The candidate menu must open at the long-press timeout before release") { menuVisible() }
             instrumentation.runOnMainSync {
                 val target = requireNotNull(anchor)
-                val event = MotionEvent.obtain(longPressDown, SystemClock.uptimeMillis(), MotionEvent.ACTION_CANCEL,
+                // Releasing after the menu opens must not fall through to a candidate click.
+                val event = MotionEvent.obtain(longPressDown, SystemClock.uptimeMillis(), MotionEvent.ACTION_UP,
                     target.width / 2f, target.height / 2f, 0)
                 try { target.dispatchTouchEvent(event) } finally { event.recycle() }
             }
