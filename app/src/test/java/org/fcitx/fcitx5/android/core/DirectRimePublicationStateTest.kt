@@ -325,4 +325,11 @@ class DirectRimePublicationStateTest {
         assertEquals(version, state.candidateVersion)
         assertEquals(3, menuInputs.size)
     }
+
+    @Test fun inputPanelEqualityIncludesStatusHintIdentity() {
+        val panel = FcitxEvent.InputPanelEvent.Data()
+        assertNotEquals(panel.copy(statusHintId = 1), panel.copy(statusHintId = 2))
+        assertNotEquals(panel.copy(statusHintId = 1).hashCode(), panel.copy(statusHintId = 2).hashCode())
+        assertEquals(panel, panel.copy())
+    }
 }
